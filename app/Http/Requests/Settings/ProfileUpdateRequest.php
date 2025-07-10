@@ -18,15 +18,33 @@ class ProfileUpdateRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-
             'email' => [
-                'required',
+                'nullable',
                 'string',
                 'lowercase',
                 'email',
                 'max:255',
                 Rule::unique(User::class)->ignore($this->user()->id),
+                function ($attribute, $value, $fail) {
+                    // If both email and phone are empty, require at least one
+                    if (empty($value) && empty($this->phone)) {
+                        $fail('Either email or phone number is required.');
+                    }
+                },
             ],
+            'phone' => [
+                'nullable', 
+                'string', 
+                'max:20',
+                function ($attribute, $value, $fail) {
+                    // If both email and phone are empty, require at least one
+                    if (empty($value) && empty($this->email)) {
+                        $fail('Either email or phone number is required.');
+                    }
+                },
+            ],
+            'location' => ['nullable', 'string', 'max:255'],
+            'avatar' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
         ];
     }
 }
