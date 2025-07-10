@@ -8,11 +8,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AuthLayout from '@/layouts/auth-layout';
 
 type RegisterForm = {
     name: string;
     email: string;
+    phone: string;
     password: string;
     password_confirmation: string;
     terms: boolean;
@@ -22,6 +24,7 @@ export default function Register() {
     const { data, setData, post, processing, errors, reset } = useForm<Required<RegisterForm>>({
         name: '',
         email: '',
+        phone: '',
         password: '',
         password_confirmation: '',
         terms: false,
@@ -29,6 +32,7 @@ export default function Register() {
 
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [registrationType, setRegistrationType] = useState<'email' | 'phone'>('email');
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -64,21 +68,51 @@ export default function Register() {
                             <InputError message={errors.name} />
                         </div>
 
-                        <div className="grid gap-2">
-                            <Label htmlFor="email">Email Address</Label>
-                            <Input
-                                id="email"
-                                type="email"
-                                required
-                                tabIndex={2}
-                                autoComplete="email"
-                                value={data.email}
-                                onChange={(e) => setData('email', e.target.value)}
-                                disabled={processing}
-                                placeholder="zakirsoft@gmail.com"
-                            />
-                            <InputError message={errors.email} />
-                        </div>
+                        <Tabs 
+                            defaultValue="email" 
+                            className="w-full" 
+                            value={registrationType}
+                            onValueChange={(value) => setRegistrationType(value as 'email' | 'phone')}
+                        >
+                            <TabsList className="grid w-full grid-cols-2 mb-2">
+                                <TabsTrigger value="email">Email</TabsTrigger>
+                                <TabsTrigger value="phone">Phone</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="email">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="email">Email Address</Label>
+                                    <Input
+                                        id="email"
+                                        type="email"
+                                        required={registrationType === 'email'}
+                                        tabIndex={2}
+                                        autoComplete="email"
+                                        value={data.email}
+                                        onChange={(e) => setData('email', e.target.value)}
+                                        disabled={processing}
+                                        placeholder="zakirsoft@gmail.com"
+                                    />
+                                    <InputError message={errors.email} />
+                                </div>
+                            </TabsContent>
+                            <TabsContent value="phone">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="phone">Phone Number</Label>
+                                    <Input
+                                        id="phone"
+                                        type="tel"
+                                        required={registrationType === 'phone'}
+                                        tabIndex={2}
+                                        autoComplete="tel"
+                                        value={data.phone}
+                                        onChange={(e) => setData('phone', e.target.value)}
+                                        disabled={processing}
+                                        placeholder="+1234567890"
+                                    />
+                                    <InputError message={errors.phone} />
+                                </div>
+                            </TabsContent>
+                        </Tabs>
 
                         <div className="grid gap-2">
                             <Label htmlFor="password">Password</Label>
@@ -195,7 +229,7 @@ export default function Register() {
 
                 <div className="text-start text-sm text-muted-foreground">
                     Already have an account?{' '}
-                    <TextLink href={route('login')} tabIndex={6} className="text-teal-600">
+                    <TextLink href={route('login')} tabIndex={6} className="text-primary">
                         Login
                     </TextLink>
                 </div>

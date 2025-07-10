@@ -9,6 +9,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -30,18 +31,52 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        $request->validate([
+        // Validate common fields
+        $commonRules = [
             'name' => 'required|string|max:255',
-            'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'terms' => ['required', 'accepted'],
-        ]);
+        ];
+        
+        // Determine if registration is via email or phone
+        if (!empty($request->email) && empty($request->phone)) {
+            // Email registration
+            $validator = Validator::make($request->all(), array_merge($commonRules, [
+                'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
+                'phone' => 'nullable|string|max:20',
+            ]));
+        } elseif (!empty($request->phone) && empty($request->email)) {
+            // Phone registration
+            $validator = Validator::make($request->all(), array_merge($commonRules, [
+                'phone' => 'required|string|max:20|unique:'.User::class.',phone',
+                'email' => 'nullable|string|lowercase|email|max:255',
+            ]));
+        } else {
+            // Both or neither provided - require email
+            $validator = Validator::make($request->all(), array_merge($commonRules, [
+                'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
+                'phone' => 'nullable|string|max:20',
+            ]));
+        }
+        
+        $validator->validate();
 
-        $user = User::create([
+        $userData = [
             'name' => $request->name,
-            'email' => $request->email,
             'password' => Hash::make($request->password),
-        ]);
+        ];
+        
+        // Add email if provided
+        if (!empty($request->email)) {
+            $userData['email'] = $request->email;
+        }
+        
+        // Add phone if provided
+        if (!empty($request->phone)) {
+            $userData['phone'] = $request->phone;
+        }
+
+        $user = User::create($userData);
 
         event(new Registered($user));
 

@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import AuthLayout from '@/layouts/auth-layout';
 
 type LoginForm = {
-    email: string;
+    login: string;
     password: string;
     remember: boolean;
 };
@@ -23,7 +23,7 @@ interface LoginProps {
 
 export default function Login({ status, canResetPassword }: LoginProps) {
     const { data, setData, post, processing, errors, reset } = useForm<Required<LoginForm>>({
-        email: '',
+        login: '',
         password: '',
         remember: false,
     });
@@ -49,19 +49,19 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                 <form className="flex flex-col gap-6" onSubmit={submit}>
                     <div className="grid gap-5">
                         <div className="grid gap-2">
-                            <Label htmlFor="email">Email Address</Label>
+                            <Label htmlFor="login">Email Address or Phone Number</Label>
                             <Input
-                                id="email"
-                                type="email"
+                                id="login"
+                                type="text"
                                 required
                                 autoFocus
                                 tabIndex={1}
                                 autoComplete="email"
-                                value={data.email}
-                                onChange={(e) => setData('email', e.target.value)}
-                                placeholder="zakirsoft.@gmail.c"
+                                value={data.login}
+                                onChange={(e) => setData('login', e.target.value)}
+                                placeholder="zakirsoft@gmail.com or +1234567890"
                             />
-                            <InputError message={errors.email} />
+                            <InputError message={errors.login} />
                         </div>
 
                         <div className="grid gap-2">
@@ -121,7 +121,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
 
                         <Button 
                             type="submit" 
-                            className="w-full bg-teal-600 hover:bg-teal-700 text-white py-6 rounded-full cursor-pointer" 
+                            className="w-full bg-teal-600 hover:bg-teal-700 text-white py-2 rounded-full cursor-pointer" 
                             tabIndex={4} 
                             disabled={processing}
                         >
