@@ -31,6 +31,8 @@ export interface SharedData {
     [key: string]: unknown;
 }
 
+export type StatusType = 'online' | 'away' | 'busy' | 'offline';
+
 export interface User {
     id: number;
     name: string;
@@ -38,6 +40,9 @@ export interface User {
     phone?: string | null;
     avatar?: string | null;
     location?: string | null;
+    status_type?: StatusType;
+    status_message?: string | null;
+    last_active_at?: string | null;
     email_verified_at: string | null;
     created_at: string;
     updated_at: string;

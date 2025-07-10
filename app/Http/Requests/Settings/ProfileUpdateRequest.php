@@ -45,6 +45,8 @@ class ProfileUpdateRequest extends FormRequest
             ],
             'location' => ['nullable', 'string', 'max:255'],
             'avatar' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
+            'status_type' => ['nullable', 'string', 'in:online,away,busy,offline'],
+            'status_message' => ['nullable', 'string', 'max:255'],
         ];
     }
 }

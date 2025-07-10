@@ -14,6 +14,9 @@ import { useInitials } from '@/hooks/use-initials';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 import { Camera, X } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { UserStatus } from '@/components/user-status';
+import { type StatusType } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -28,6 +31,8 @@ type ProfileForm = {
     phone: string | null;
     location: string | null;
     avatar: File | null | string;
+    status_type: StatusType;
+    status_message: string | null;
 };
 
 export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: boolean; status?: string }) {
@@ -41,6 +46,8 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
         phone: auth.user.phone || '',
         location: auth.user.location || '',
         avatar: auth.user.avatar || null,
+        status_type: auth.user.status_type || 'online',
+        status_message: auth.user.status_message || '',
     });
 
     const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -174,6 +181,62 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                                 placeholder="City, Country"
                             />
                             <InputError className="mt-2" message={errors.location} />
+                        </div>
+
+                        <div className="grid gap-6 pt-4">
+                            <HeadingSmall title="Status settings" description="Set your availability and status message" />
+                            
+                            <div className="grid gap-2">
+                                <Label htmlFor="status_type">Availability</Label>
+                                <div className="flex items-center gap-3">
+                                    <Select
+                                        value={data.status_type}
+                                        onValueChange={(value) => setData('status_type', value as StatusType)}
+                                    >
+                                        <SelectTrigger className="w-[180px]">
+                                            <SelectValue placeholder="Select status" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="online">
+                                                <div className="flex items-center">
+                                                    <UserStatus status="online" className="mr-2" showLabel={true} />
+                                                </div>
+                                            </SelectItem>
+                                            <SelectItem value="busy">
+                                                <div className="flex items-center">
+                                                    <UserStatus status="busy" className="mr-2" showLabel={true} />
+                                                </div>
+                                            </SelectItem>
+                                            <SelectItem value="away">
+                                                <div className="flex items-center">
+                                                    <UserStatus status="away" className="mr-2" showLabel={true} />
+                                                </div>
+                                            </SelectItem>
+                                            <SelectItem value="offline">
+                                                <div className="flex items-center">
+                                                    <UserStatus status="offline" className="mr-2" showLabel={true} />
+                                                </div>
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <UserStatus status={data.status_type} showLabel={true} />
+                                </div>
+                            </div>
+
+                            <div className="grid gap-2">
+                                <Label htmlFor="status_message">Status message</Label>
+                                <Input
+                                    id="status_message"
+                                    className="mt-1 block w-full"
+                                    value={data.status_message || ''}
+                                    onChange={(e) => setData('status_message', e.target.value)}
+                                    placeholder="What's on your mind?"
+                                    maxLength={255}
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    {(data.status_message?.length || 0)}/255 characters
+                                </p>
+                            </div>
                         </div>
 
                         {mustVerifyEmail && auth.user.email_verified_at === null && (
