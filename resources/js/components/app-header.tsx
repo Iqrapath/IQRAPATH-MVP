@@ -155,28 +155,33 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                                 ))}
                             </div>
                         </div>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="size-10 rounded-full p-1">
-                                    <div className="relative">
-                                        <Avatar className="size-8 overflow-hidden rounded-full">
-                                            {auth.user.avatar && (
-                                                <AvatarImage src={auth.user.avatar} alt={auth.user.name} />
-                                            )}
-                                            <AvatarFallback className="rounded-lg bg-neutral-200 text-black dark:bg-neutral-700 dark:text-white">
-                                                {getInitials(auth.user.name)}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        <div className="absolute -bottom-0.5 -right-0.5">
-                                            <UserStatus status={status} size="sm" />
+                        <div className="flex items-center gap-3">
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" className="size-10 rounded-full p-1">
+                                        <div className="relative">
+                                            <Avatar className="size-8 overflow-hidden rounded-full">
+                                                {auth.user.avatar && (
+                                                    <AvatarImage src={auth.user.avatar} alt={auth.user.name} />
+                                                )}
+                                                <AvatarFallback className="rounded-lg bg-neutral-200 text-black dark:bg-neutral-700 dark:text-white">
+                                                    {getInitials(auth.user.name)}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <div className="absolute -bottom-0.5 -right-0.5">
+                                                <UserStatus status={status} size="sm" />
+                                            </div>
                                         </div>
-                                    </div>
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent className="w-56" align="end">
-                                <UserMenuContent user={auth.user} />
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent className="w-56" align="end">
+                                    <UserMenuContent user={auth.user} />
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                            <span className="hidden text-sm font-medium md:block">
+                                {auth.user.name}
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
