@@ -36,15 +36,70 @@ export type StatusType = 'online' | 'away' | 'busy' | 'offline';
 export interface User {
     id: number;
     name: string;
-    email: string;
+    email?: string | null;
     phone?: string | null;
     avatar?: string | null;
     location?: string | null;
-    status_type?: StatusType;
+    role?: 'super-admin' | 'teacher' | 'student' | 'guardian' | null;
+    status_type?: string;
     status_message?: string | null;
     last_active_at?: string | null;
-    email_verified_at: string | null;
-    created_at: string;
-    updated_at: string;
-    [key: string]: unknown; // This allows for additional properties...
+    email_verified_at?: string | null;
 }
+
+export interface AdminProfile {
+    id: number;
+    user_id: number;
+    department?: string | null;
+    admin_level?: string | null;
+    permissions?: Record<string, any> | null;
+    bio?: string | null;
+}
+
+export interface TeacherProfile {
+    id: number;
+    user_id: number;
+    specialization?: string | null;
+    qualifications?: string | null;
+    bio?: string | null;
+    teaching_level?: string | null;
+    subjects?: string[] | null;
+    experience_years?: string | null;
+    availability?: string | null;
+    hourly_rate?: number | null;
+}
+
+export interface StudentProfile {
+    id: number;
+    user_id: number;
+    date_of_birth?: string | null;
+    grade_level?: string | null;
+    school_name?: string | null;
+    guardian_id?: number | null;
+    learning_goals?: string | null;
+    subjects_of_interest?: string[] | null;
+    special_needs?: string | null;
+}
+
+export interface GuardianProfile {
+    id: number;
+    user_id: number;
+    relationship?: string | null;
+    occupation?: string | null;
+    emergency_contact?: string | null;
+    secondary_phone?: string | null;
+    preferred_contact_method?: string | null;
+}
+
+export type PageProps<T extends Record<string, unknown> = Record<string, unknown>> = T & {
+    auth: {
+        user: User;
+    };
+    appearance: {
+        theme: string;
+        radius: number;
+    };
+    sidebar_state: {
+        open: boolean;
+    };
+};

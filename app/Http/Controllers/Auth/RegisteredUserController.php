@@ -82,6 +82,7 @@ class RegisteredUserController extends Controller
 
         Auth::login($user);
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        // All new users are unassigned by default
+        return redirect()->route('unassigned');
     }
 }

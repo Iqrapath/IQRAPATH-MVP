@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Notifications\CustomResetPasswordNotification;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Carbon\Carbon;
@@ -25,6 +26,7 @@ class User extends Authenticatable
         'phone',
         'avatar',
         'location',
+        'role',
         'status_type',
         'status_message',
         'last_active_at',
@@ -116,5 +118,103 @@ class User extends Authenticatable
         }
 
         $this->save();
+    }
+
+    /**
+     * Check if the user is a super admin.
+     *
+     * @return bool
+     */
+    public function isSuperAdmin(): bool
+    {
+        return $this->role === 'super-admin';
+    }
+
+    /**
+     * Check if the user is a teacher.
+     *
+     * @return bool
+     */
+    public function isTeacher(): bool
+    {
+        return $this->role === 'teacher';
+    }
+
+    /**
+     * Check if the user is a student.
+     *
+     * @return bool
+     */
+    public function isStudent(): bool
+    {
+        return $this->role === 'student';
+    }
+
+    /**
+     * Check if the user is a guardian.
+     *
+     * @return bool
+     */
+    public function isGuardian(): bool
+    {
+        return $this->role === 'guardian';
+    }
+
+    /**
+     * Check if the user has no assigned role.
+     *
+     * @return bool
+     */
+    public function isUnassigned(): bool
+    {
+        return $this->role === null;
+    }
+
+    /**
+     * Get the admin profile associated with the user.
+     */
+    public function adminProfile(): HasOne
+    {
+        return $this->hasOne(AdminProfile::class);
+    }
+
+    /**
+     * Get the teacher profile associated with the user.
+     */
+    public function teacherProfile(): HasOne
+    {
+        return $this->hasOne(TeacherProfile::class);
+    }
+
+    /**
+     * Get the student profile associated with the user.
+     */
+    public function studentProfile(): HasOne
+    {
+        return $this->hasOne(StudentProfile::class);
+    }
+
+    /**
+     * Get the guardian profile associated with the user.
+     */
+    public function guardianProfile(): HasOne
+    {
+        return $this->hasOne(GuardianProfile::class);
+    }
+
+    /**
+     * Get the profile based on the user's role.
+     *
+     * @return \Illuminate\Database\Eloquent\Model|null
+     */
+    public function profile()
+    {
+        return match($this->role) {
+            'super-admin' => $this->adminProfile,
+            'teacher' => $this->teacherProfile,
+            'student' => $this->studentProfile,
+            'guardian' => $this->guardianProfile,
+            default => null,
+        };
     }
 }
