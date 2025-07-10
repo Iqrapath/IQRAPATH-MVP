@@ -20,6 +20,9 @@ return new class extends Migration
             $table->string('location')->nullable();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
+            $table->enum('status_type', ['online', 'away', 'busy', 'offline'])->default('offline');
+            $table->string('status_message')->nullable();
+            $table->timestamp('last_active_at')->nullable();
             $table->rememberToken();
             $table->timestamps();
         });
