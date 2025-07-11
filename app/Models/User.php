@@ -225,4 +225,28 @@ class User extends Authenticatable
     {
         return $this->hasMany(TeacherAvailability::class, 'teacher_id');
     }
+
+    /**
+     * Get the bookings where the user is a student.
+     */
+    public function studentBookings()
+    {
+        return $this->hasMany(Booking::class, 'student_id');
+    }
+
+    /**
+     * Get the bookings where the user is a teacher.
+     */
+    public function teacherBookings()
+    {
+        return $this->hasMany(Booking::class, 'teacher_id');
+    }
+
+    /**
+     * Get all booking notifications for the user.
+     */
+    public function bookingNotifications()
+    {
+        return $this->hasMany(BookingNotification::class);
+    }
 }
