@@ -99,7 +99,53 @@ A comprehensive booking and session management system has been implemented to ha
   - For email templates, use the custom components in `resources/views/vendor/mail/html/` to maintain brand consistency.
   - When adding new authentication features, follow the established patterns for form design and validation.
 
+## Financial Management System (July 2024)
+
+### Overview
+A comprehensive financial management system has been implemented to handle teacher earnings, transactions, and payout requests. The system supports various transaction types, automated balance calculations, and separate interfaces for teachers and administrators.
+
+### Key Actions Taken
+- **Database Structure:**
+  - Created `teacher_earnings` table for tracking wallet balances and earnings
+  - Implemented `transactions` table with multiple transaction types
+  - Designed `payout_requests` table with approval workflow
+  - Added support for various payment methods
+
+- **Transaction Management:**
+  - Implemented multiple transaction types (session payments, referral bonuses, withdrawals, etc.)
+  - Created automatic balance updates when transactions are processed
+  - Built comprehensive transaction history with filtering options
+
+- **Payout System:**
+  - Implemented payout request workflow with approval process
+  - Added support for multiple payment methods (bank transfer, PayPal, mobile money)
+  - Built admin interface for processing payouts
+
+- **Financial Reporting:**
+  - Created earnings dashboard for teachers
+  - Built financial overview for administrators
+  - Implemented detailed transaction logs and filtering
+
+### Developer Guidance
+- **Financial Service:**
+  - Use the `FinancialService` class for all financial operations
+  - Transaction creation should always go through this service to ensure proper balance updates
+  - Payment calculations should be centralized in this service
+
+- **Transaction Types:**
+  - `session_payment`: Payment for completed teaching sessions
+  - `referral_bonus`: Bonus for referring new users
+  - `withdrawal`: Teacher withdrawal of funds
+  - `system_adjustment`: Manual adjustment by administrators
+  - `refund`: Refund of a previous transaction
+
+- **Payout Workflow:**
+  - Teachers create payout requests
+  - Administrators approve/decline requests
+  - Approved requests generate withdrawal transactions
+  - Administrators mark payouts as paid after processing
+
 ---
 1. _Last updated: 10th July 2024_ 
 2. _Last updated: 18th July 2024_ 
-3. 
+3. _Last updated: 20th July 2024_

@@ -265,4 +265,28 @@ class User extends Authenticatable
     {
         return $this->hasMany(TeachingSession::class, 'student_id');
     }
+    
+    /**
+     * Get the earnings record for the teacher.
+     */
+    public function earnings()
+    {
+        return $this->hasOne(TeacherEarning::class, 'teacher_id');
+    }
+    
+    /**
+     * Get the transactions for the teacher.
+     */
+    public function transactions()
+    {
+        return $this->hasMany(Transaction::class, 'teacher_id');
+    }
+    
+    /**
+     * Get the payout requests for the teacher.
+     */
+    public function payoutRequests()
+    {
+        return $this->hasMany(PayoutRequest::class, 'teacher_id');
+    }
 }
