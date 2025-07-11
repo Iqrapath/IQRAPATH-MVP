@@ -319,4 +319,30 @@ class User extends Authenticatable
     {
         return $this->hasMany(PayoutRequest::class, 'teacher_id');
     }
+
+    /**
+     * Get the wallet associated with the user.
+     */
+    public function wallet(): HasOne
+    {
+        return $this->hasOne(StudentWallet::class);
+    }
+
+    /**
+     * Get or create a wallet for the user.
+     * 
+     * @return StudentWallet
+     */
+    public function getOrCreateWallet()
+    {
+        if ($this->wallet) {
+            return $this->wallet;
+        }
+        
+        return $this->wallet()->create([
+            'balance' => 0,
+            'payment_methods' => [],
+            'default_payment_method' => null,
+        ]);
+    }
 }

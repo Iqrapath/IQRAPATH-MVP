@@ -54,27 +54,11 @@ class SubscriptionController extends Controller
         $validated = $request->validate([
             'currency' => 'required|in:naira,dollar',
             'auto_renew' => 'boolean',
-            'payment_method' => 'required|string',
         ]);
         
-        $user = $request->user();
-        
-        // Create a pending subscription
-        $subscription = $this->subscriptionService->createSubscription($user, $plan, $validated);
-        
-        // For now, we'll simulate a successful payment and activate the subscription
-        // In a real application, you'd redirect to a payment gateway and handle callbacks
-        $this->subscriptionService->activateSubscription($subscription, [
-            'payment_reference' => 'SIMULATED_' . time(),
-            'payment_details' => [
-                'status' => 'success',
-                'transaction_id' => 'DEMO_' . uniqid(),
-                'payment_date' => now()->toDateTimeString(),
-            ],
-        ]);
-        
-        return redirect()->route('subscriptions.my')
-            ->with('success', 'Subscription purchased successfully!');
+        // Redirect to payment methods selection
+        return redirect()->route('payment.methods', $plan->id)
+            ->with('checkout_data', $validated);
     }
     
     /**
