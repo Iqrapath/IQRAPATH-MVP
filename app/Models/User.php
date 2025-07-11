@@ -249,4 +249,20 @@ class User extends Authenticatable
     {
         return $this->hasMany(BookingNotification::class);
     }
+
+    /**
+     * Get the teaching sessions where the user is a teacher.
+     */
+    public function teachingSessions()
+    {
+        return $this->hasMany(TeachingSession::class, 'teacher_id');
+    }
+
+    /**
+     * Get the teaching sessions where the user is a student.
+     */
+    public function learningSession()
+    {
+        return $this->hasMany(TeachingSession::class, 'student_id');
+    }
 }

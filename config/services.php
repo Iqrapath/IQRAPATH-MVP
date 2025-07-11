@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'zoom' => [
+        'key' => env('ZOOM_API_KEY'),
+        'secret' => env('ZOOM_API_SECRET'),
+    ],
+
 ];

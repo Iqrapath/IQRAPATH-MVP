@@ -35,13 +35,71 @@ The authentication system UI has been completely redesigned to match the new des
   - Added Islamic greeting and professional formatting
   - Created both HTML and text fallback versions for email clients
 
+## Booking and Session Management System (July 2024)
+
+### Overview
+A comprehensive booking and session management system has been implemented to handle teacher availability, session scheduling, and attendance tracking. The system integrates with Zoom for virtual sessions and includes automated notifications and reminders.
+
+### Key Actions Taken
+- **Database Structure:**
+  - Created `teacher_availabilities` table for managing teacher schedules
+  - Implemented `bookings` table with approval workflow and status tracking
+  - Designed `teaching_sessions` table to track actual teaching events
+  - Added support tables for notes, notifications, history, materials, and progress tracking
+  - Integrated Zoom meeting data fields for virtual sessions
+
+- **Booking Management:**
+  - Implemented booking request and approval workflow
+  - Created status tracking (pending, approved, rejected, upcoming, completed, missed, cancelled)
+  - Added notification system for booking status changes
+  - Built comprehensive audit trail for all booking changes
+
+- **Session Management:**
+  - Implemented automatic session creation from approved bookings
+  - Added attendance tracking for both teachers and students
+  - Created session materials management for sharing resources
+  - Built progress tracking system with proficiency levels
+
+- **Zoom Integration:**
+  - Implemented automatic Zoom meeting creation for virtual sessions
+  - Added JWT authentication for secure API communication
+  - Created webhook handler for real-time session events
+  - Built attendance tracking based on Zoom participant data
+  - Implemented automatic session status updates based on meeting events
+
+- **Notification System:**
+  - Created email notifications for session reminders
+  - Implemented scheduled commands for automated reminders
+  - Added in-app notifications for booking and session events
+
 ### Developer Guidance
-- **Do not use** Tailwind's default color or font utilities. Use only the CSS variables and classes defined in `app.css`.
-- All new components and pages must use the design system tokens for color, font, and typography.
-- If you need to add new design tokens (e.g., spacing, border radius), update `app.css` and document the change here.
-- For email templates, use the custom components in `resources/views/vendor/mail/html/` to maintain brand consistency.
-- When adding new authentication features, follow the established patterns for form design and validation.
-- This file will be updated as the project evolves.
+- **Booking System:**
+  - Use the `Booking` model's `createSession()` method to generate teaching sessions from approved bookings
+  - The booking system handles the scheduling, while the session system tracks the actual teaching events
+  - All booking changes should be recorded in the `booking_history` table
+
+- **Session Management:**
+  - Sessions are automatically created from approved bookings
+  - Use the `TeachingSession` model's methods for attendance tracking
+  - Session materials should be uploaded through the `SessionMaterial` model
+
+- **Zoom Integration:**
+  - Zoom API credentials must be set in the `.env` file:
+    ```
+    ZOOM_API_KEY=your_zoom_api_key
+    ZOOM_API_SECRET=your_zoom_api_secret
+    ```
+  - For production, set up a Zoom webhook with the endpoint `/api/zoom/webhook`
+  - Subscribe to meeting.started, meeting.ended, meeting.participant_joined, and meeting.participant_left events
+
+- **Design System:**
+  - **Do not use** Tailwind's default color or font utilities. Use only the CSS variables and classes defined in `app.css`.
+  - All new components and pages must use the design system tokens for color, font, and typography.
+  - If you need to add new design tokens (e.g., spacing, border radius), update `app.css` and document the change here.
+  - For email templates, use the custom components in `resources/views/vendor/mail/html/` to maintain brand consistency.
+  - When adding new authentication features, follow the established patterns for form design and validation.
 
 ---
 1. _Last updated: 10th July 2024_ 
+2. _Last updated: 18th July 2024_ 
+3. 

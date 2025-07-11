@@ -167,4 +167,52 @@ class Booking extends Model
     {
         return $query->where('teacher_id', $teacherId);
     }
+    
+    /**
+     * Get the teaching session associated with this booking.
+     */
+    public function teachingSession()
+    {
+        return $this->hasOne(TeachingSession::class);
+    }
+    
+    /**
+     * Create a teaching session from this booking.
+     */
+    public function createSession()
+    {
+        if ($this->teachingSession()->exists()) {
+            return $this->teachingSession;
+        }
+        
+        $session = TeachingSession::create([
+            'booking_id' => $this->id,
+            'teacher_id' => $this->teacher_id,
+            'student_id' => $this->student_id,
+            'subject_id' => $this->subject_id,
+            'session_date' => $this->booking_date,
+            'start_time' => $this->start_time,
+            'end_time' => $this->end_time,
+            'status' => 'scheduled',
+        ]);
+        
+        // Try to create a Zoom meeting for this session
+        try {
+            $this->createZoomMeeting($session);
+        } catch (\Exception $e) {
+            // Log error but don't fail the session creation
+            \Illuminate\Support\Facades\Log::error('Failed to create Zoom meeting: ' . $e->getMessage());
+        }
+        
+        return $session;
+    }
+    
+    /**
+     * Create a Zoom meeting for the teaching session.
+     */
+    public function createZoomMeeting(TeachingSession $session)
+    {
+        $zoomService = app(\App\Services\ZoomService::class);
+        return $zoomService->createMeeting($session, $session->teacher);
+    }
 } 
