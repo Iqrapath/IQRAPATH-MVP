@@ -5,10 +5,12 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Notifications\CustomResetPasswordNotification;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Carbon\Carbon;
+use App\Models\Subscription;
 
 class User extends Authenticatable
 {
@@ -93,7 +95,7 @@ class User extends Authenticatable
             return false;
         }
         
-        return $this->last_active_at->gt(Carbon::now()->subMinutes(30)) && 
+        return $this->last_active_at->gt(Carbon::now()->subMinutes(15)) && 
                $this->last_active_at->lt(Carbon::now()->subMinutes(5));
     }
 
@@ -129,7 +131,7 @@ class User extends Authenticatable
     {
         return $this->role === 'super-admin';
     }
-
+    
     /**
      * Check if the user is a teacher.
      *
@@ -139,7 +141,7 @@ class User extends Authenticatable
     {
         return $this->role === 'teacher';
     }
-
+    
     /**
      * Check if the user is a student.
      *
@@ -149,7 +151,7 @@ class User extends Authenticatable
     {
         return $this->role === 'student';
     }
-
+    
     /**
      * Check if the user is a guardian.
      *
@@ -159,7 +161,7 @@ class User extends Authenticatable
     {
         return $this->role === 'guardian';
     }
-
+    
     /**
      * Check if the user has no assigned role.
      *
@@ -169,7 +171,7 @@ class User extends Authenticatable
     {
         return $this->role === null;
     }
-
+    
     /**
      * Get the admin profile associated with the user.
      */
@@ -177,7 +179,7 @@ class User extends Authenticatable
     {
         return $this->hasOne(AdminProfile::class);
     }
-
+    
     /**
      * Get the teacher profile associated with the user.
      */
@@ -185,7 +187,7 @@ class User extends Authenticatable
     {
         return $this->hasOne(TeacherProfile::class);
     }
-
+    
     /**
      * Get the student profile associated with the user.
      */
@@ -193,13 +195,41 @@ class User extends Authenticatable
     {
         return $this->hasOne(StudentProfile::class);
     }
-
+    
     /**
      * Get the guardian profile associated with the user.
      */
     public function guardianProfile(): HasOne
     {
         return $this->hasOne(GuardianProfile::class);
+    }
+
+    /**
+     * Get the subscriptions for the user.
+     */
+    public function subscriptions(): HasMany
+    {
+        return $this->hasMany(Subscription::class);
+    }
+
+    /**
+     * Get the user's active subscription.
+     *
+     * @return Subscription|null
+     */
+    public function activeSubscription(): ?Subscription
+    {
+        return $this->subscriptions()->where('status', 'active')->latest()->first();
+    }
+
+    /**
+     * Check if the user has an active subscription.
+     *
+     * @return bool
+     */
+    public function hasActiveSubscription(): bool
+    {
+        return $this->subscriptions()->where('status', 'active')->exists();
     }
 
     /**

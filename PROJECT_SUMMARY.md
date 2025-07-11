@@ -145,7 +145,59 @@ A comprehensive financial management system has been implemented to handle teach
   - Approved requests generate withdrawal transactions
   - Administrators mark payouts as paid after processing
 
+## Subscription Management System (July 2024)
+
+### Overview
+A comprehensive subscription management system has been implemented to handle plan creation, user subscriptions, payments, and renewals. The system supports multiple currencies, various billing cycles, and customizable plan features.
+
+### Key Actions Taken
+- **Database Structure:**
+  - Created `subscription_plans` table for managing available plans
+  - Implemented `subscriptions` table to track user subscriptions
+  - Designed `subscription_transactions` table for payment history
+  - Added support for multiple currencies (Naira and Dollar)
+
+- **Plan Management:**
+  - Implemented plan creation with customizable features and pricing
+  - Created plan status management (active/inactive)
+  - Built admin interface for plan management
+  - Added support for plan duplication and modification
+
+- **Subscription Handling:**
+  - Implemented subscription purchase workflow
+  - Created automatic renewal system with opt-in/opt-out
+  - Built subscription status tracking (active, expired, cancelled)
+  - Added transaction history for subscriptions
+
+- **Payment Integration:**
+  - Prepared structure for payment gateway integration
+  - Created transaction status tracking
+  - Built refund processing capability
+  - Implemented currency conversion support
+
+### Developer Guidance
+- **Subscription Plans:**
+  - Use the `SubscriptionPlan` model for creating and managing plans
+  - Plans can have multiple features stored as JSON
+  - Plans support both Naira and Dollar pricing
+
+- **User Subscriptions:**
+  - Use the `SubscriptionService` for all subscription operations
+  - Subscription status changes should always go through the service
+  - Check subscription status using the helper methods on the `Subscription` model
+
+- **Payment Integration:**
+  - The system is prepared for payment gateway integration
+  - Currently uses simulated payments for demonstration
+  - To integrate a real payment gateway, modify the `purchase` and `renew` methods in `SubscriptionController`
+
+- **Billing Cycles:**
+  - Supported billing cycles: monthly, quarterly, biannually, annually
+  - Auto-renewal is optional and can be toggled by users
+  - Expired subscriptions are automatically detected and processed
+
 ---
 1. _Last updated: 10th July 2024_ 
 2. _Last updated: 18th July 2024_ 
 3. _Last updated: 20th July 2024_
+4. _Last updated: 21st July 2024_

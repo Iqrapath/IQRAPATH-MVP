@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\RoleController;
+use App\Http\Controllers\Admin\SubscriptionPlanController;
 use App\Http\Controllers\Guardian\DashboardController as GuardianDashboardController;
 use App\Http\Controllers\Student\DashboardController as StudentDashboardController;
 use App\Http\Controllers\Teacher\DashboardController as TeacherDashboardController;
@@ -10,6 +11,7 @@ use App\Http\Controllers\UserStatusController;
 use App\Http\Controllers\SubjectController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\DocumentVerificationController;
+use App\Http\Controllers\SubscriptionController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -50,6 +52,15 @@ Route::middleware(['auth', 'verified', 'role:super-admin'])->prefix('admin')->na
     Route::patch('/documents/{document}/reject', [DocumentVerificationController::class, 'reject'])->name('documents.reject');
     Route::post('/documents/batch-verify', [DocumentVerificationController::class, 'batchVerify'])->name('documents.batch-verify');
     Route::get('/documents/{document}/download', [DocumentVerificationController::class, 'download'])->name('documents.download');
+    
+    // Subscription plan management
+    Route::resource('subscriptions', SubscriptionPlanController::class);
+    Route::post('/subscriptions/{subscriptionPlan}/toggle-active', [SubscriptionPlanController::class, 'toggleActive'])
+        ->name('subscriptions.toggle-active');
+    Route::post('/subscriptions/{subscriptionPlan}/duplicate', [SubscriptionPlanController::class, 'duplicate'])
+        ->name('subscriptions.duplicate');
+    Route::get('/subscriptions/{subscriptionPlan}/enrolled-users', [SubscriptionPlanController::class, 'enrolledUsers'])
+        ->name('subscriptions.enrolled-users');
 });
 
 // Teacher routes
@@ -135,6 +146,20 @@ Route::middleware(['auth', 'role:super-admin'])->prefix('admin/financial')->name
     Route::get('/refunds/{transaction}/create', [App\Http\Controllers\Admin\FinancialManagementController::class, 'createRefund'])->name('refunds.create');
     Route::post('/refunds/{transaction}', [App\Http\Controllers\Admin\FinancialManagementController::class, 'storeRefund'])->name('refunds.store');
     Route::get('/teacher-earnings', [App\Http\Controllers\Admin\FinancialManagementController::class, 'teacherEarnings'])->name('teacher-earnings');
+});
+
+// User subscription routes
+Route::middleware(['auth', 'verified'])->group(function () {
+    // Subscription routes
+    Route::get('/subscriptions/plans', [SubscriptionController::class, 'plans'])->name('subscriptions.plans');
+    Route::get('/subscriptions/checkout/{plan}', [SubscriptionController::class, 'checkout'])->name('subscriptions.checkout');
+    Route::post('/subscriptions/purchase/{plan}', [SubscriptionController::class, 'purchase'])->name('subscriptions.purchase');
+    Route::get('/subscriptions/my', [SubscriptionController::class, 'mySubscriptions'])->name('subscriptions.my');
+    Route::get('/subscriptions/{subscription}', [SubscriptionController::class, 'show'])->name('subscriptions.show');
+    Route::post('/subscriptions/{subscription}/cancel', [SubscriptionController::class, 'cancel'])->name('subscriptions.cancel');
+    Route::post('/subscriptions/{subscription}/toggle-auto-renew', [SubscriptionController::class, 'toggleAutoRenew'])
+        ->name('subscriptions.toggle-auto-renew');
+    Route::post('/subscriptions/{subscription}/renew', [SubscriptionController::class, 'renew'])->name('subscriptions.renew');
 });
 
 require __DIR__.'/settings.php';
