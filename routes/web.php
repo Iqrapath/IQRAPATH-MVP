@@ -7,6 +7,7 @@ use App\Http\Controllers\Student\DashboardController as StudentDashboardControll
 use App\Http\Controllers\Teacher\DashboardController as TeacherDashboardController;
 use App\Http\Controllers\UnassignedController;
 use App\Http\Controllers\UserStatusController;
+use App\Http\Controllers\SubjectController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -36,11 +37,17 @@ Route::middleware(['auth', 'verified', 'role:super-admin'])->prefix('admin')->na
     Route::get('/users', [RoleController::class, 'index'])->name('users.index');
     Route::get('/users/{user}/edit-role', [RoleController::class, 'edit'])->name('users.edit-role');
     Route::patch('/users/{user}/role', [RoleController::class, 'update'])->name('users.update-role');
+    
+    // Admin access to subjects
+    Route::resource('subjects', SubjectController::class);
 });
 
 // Teacher routes
 Route::middleware(['auth', 'verified', 'role:teacher'])->prefix('teacher')->name('teacher.')->group(function () {
     Route::get('/dashboard', [TeacherDashboardController::class, 'index'])->name('dashboard');
+        
+    // Subject routes nested under teacher
+    Route::resource('subjects', SubjectController::class);
 });
 
 // Student routes

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class TeacherProfile extends Model
 {
@@ -17,14 +18,12 @@ class TeacherProfile extends Model
      */
     protected $fillable = [
         'user_id',
-        'specialization',
-        'qualifications',
         'bio',
-        'teaching_level',
-        'subjects',
         'experience_years',
-        'availability',
-        'hourly_rate',
+        'verified',
+        'languages',
+        'teaching_type',
+        'teaching_mode',
     ];
 
     /**
@@ -33,8 +32,8 @@ class TeacherProfile extends Model
      * @var array<string, string>
      */
     protected $casts = [
-        'subjects' => 'array',
-        'hourly_rate' => 'decimal:2',
+        'verified' => 'boolean',
+        'languages' => 'array',
     ];
 
     /**
@@ -43,5 +42,13 @@ class TeacherProfile extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Get the subjects for the teacher profile.
+     */
+    public function subjects(): HasMany
+    {
+        return $this->hasMany(Subject::class);
     }
 }
