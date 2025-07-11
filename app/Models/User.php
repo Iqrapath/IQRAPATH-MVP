@@ -345,4 +345,12 @@ class User extends Authenticatable
             'default_payment_method' => null,
         ]);
     }
+    
+    /**
+     * Get the learning progress records for the user.
+     */
+    public function learningProgress()
+    {
+        return $this->hasMany(StudentLearningProgress::class);
+    }
 }

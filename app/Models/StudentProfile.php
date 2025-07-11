@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class StudentProfile extends Model
 {
@@ -23,7 +24,9 @@ class StudentProfile extends Model
         'guardian_id',
         'learning_goals',
         'subjects_of_interest',
-        'special_needs',
+        'preferred_learning_times',
+        'age_group',
+        'payment_id',
     ];
 
     /**
@@ -34,6 +37,7 @@ class StudentProfile extends Model
     protected $casts = [
         'date_of_birth' => 'date',
         'subjects_of_interest' => 'array',
+        'preferred_learning_times' => 'array',
     ];
 
     /**
@@ -50,5 +54,13 @@ class StudentProfile extends Model
     public function guardian(): BelongsTo
     {
         return $this->belongsTo(User::class, 'guardian_id');
+    }
+
+    /**
+     * Get the learning progress records for the student.
+     */
+    public function learningProgress(): HasMany
+    {
+        return $this->hasMany(StudentLearningProgress::class, 'user_id', 'user_id');
     }
 }

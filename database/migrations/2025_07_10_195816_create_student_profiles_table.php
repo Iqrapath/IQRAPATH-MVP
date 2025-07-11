@@ -20,7 +20,9 @@ return new class extends Migration
             $table->foreignId('guardian_id')->nullable()->constrained('users');
             $table->text('learning_goals')->nullable();
             $table->json('subjects_of_interest')->nullable();
-            $table->text('special_needs')->nullable();
+            $table->json('preferred_learning_times')->nullable();
+            $table->string('age_group')->nullable();
+            $table->string('payment_id')->nullable();
             $table->timestamps();
         });
     }
