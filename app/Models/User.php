@@ -217,4 +217,12 @@ class User extends Authenticatable
             default => null,
         };
     }
+
+    /**
+     * Get the availabilities for the teacher.
+     */
+    public function availabilities()
+    {
+        return $this->hasMany(TeacherAvailability::class, 'teacher_id');
+    }
 }
