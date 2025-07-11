@@ -8,6 +8,8 @@ use App\Http\Controllers\Teacher\DashboardController as TeacherDashboardControll
 use App\Http\Controllers\UnassignedController;
 use App\Http\Controllers\UserStatusController;
 use App\Http\Controllers\SubjectController;
+use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\DocumentVerificationController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -40,6 +42,14 @@ Route::middleware(['auth', 'verified', 'role:super-admin'])->prefix('admin')->na
     
     // Admin access to subjects
     Route::resource('subjects', SubjectController::class);
+    
+    // Document verification routes
+    Route::get('/documents', [DocumentVerificationController::class, 'index'])->name('documents.index');
+    Route::get('/documents/{document}', [DocumentVerificationController::class, 'show'])->name('documents.show');
+    Route::patch('/documents/{document}/verify', [DocumentVerificationController::class, 'verify'])->name('documents.verify');
+    Route::patch('/documents/{document}/reject', [DocumentVerificationController::class, 'reject'])->name('documents.reject');
+    Route::post('/documents/batch-verify', [DocumentVerificationController::class, 'batchVerify'])->name('documents.batch-verify');
+    Route::get('/documents/{document}/download', [DocumentVerificationController::class, 'download'])->name('documents.download');
 });
 
 // Teacher routes
@@ -48,6 +58,10 @@ Route::middleware(['auth', 'verified', 'role:teacher'])->prefix('teacher')->name
         
     // Subject routes nested under teacher
     Route::resource('subjects', SubjectController::class);
+    
+    // Document management routes
+    Route::resource('documents', DocumentController::class);
+    Route::get('/documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
 });
 
 // Student routes

@@ -51,4 +51,36 @@ class TeacherProfile extends Model
     {
         return $this->hasMany(Subject::class);
     }
+
+    /**
+     * Get the documents for the teacher profile.
+     */
+    public function documents(): HasMany
+    {
+        return $this->hasMany(Document::class);
+    }
+
+    /**
+     * Get the ID verification documents.
+     */
+    public function idVerifications()
+    {
+        return $this->documents()->where('type', Document::TYPE_ID_VERIFICATION);
+    }
+
+    /**
+     * Get the certificate documents.
+     */
+    public function certificates()
+    {
+        return $this->documents()->where('type', Document::TYPE_CERTIFICATE);
+    }
+
+    /**
+     * Get the resume document.
+     */
+    public function resume()
+    {
+        return $this->documents()->where('type', Document::TYPE_RESUME)->latest()->first();
+    }
 }
