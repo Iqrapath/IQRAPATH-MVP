@@ -42,11 +42,28 @@ A comprehensive booking and session management system has been implemented to ha
 
 ### Key Actions Taken
 - **Database Structure:**
-  - Created `teacher_availabilities` table for managing teacher schedules
-  - Implemented `bookings` table with approval workflow and status tracking
-  - Designed `teaching_sessions` table to track actual teaching events
-  - Added support tables for notes, notifications, history, materials, and progress tracking
-  - Integrated Zoom meeting data fields for virtual sessions
+  - Created `teacher_availabilities` table for managing teacher schedules:
+    - Day of week and time slot management
+    - Active status tracking for availability periods
+  - Implemented `bookings` table with comprehensive workflow features:
+    - Unique booking identifiers
+    - Student, teacher, and subject relationships
+    - Date and time scheduling with duration tracking
+    - Status workflow (pending, approved, rejected, upcoming, completed, missed, cancelled)
+    - Approval and cancellation tracking with timestamps
+  - Designed `teaching_sessions` table with detailed session management:
+    - Unique session identifiers linked to bookings
+    - Comprehensive meeting information (links, platforms, passwords)
+    - Zoom integration fields (meeting ID, host ID, join/start URLs)
+    - Attendance tracking for both teachers and students
+    - Detailed join/leave timestamps for participants
+    - Recording URLs and session notes
+  - Added support tables for enhanced functionality:
+    - `booking_notes` for communication during booking process
+    - `booking_notifications` for status updates and reminders
+    - `booking_history` for comprehensive audit trail
+    - `session_materials` for learning resource management
+    - `session_progress` for tracking student achievements
 
 - **Booking Management:**
   - Implemented booking request and approval workflow
@@ -72,16 +89,149 @@ A comprehensive booking and session management system has been implemented to ha
   - Implemented scheduled commands for automated reminders
   - Added in-app notifications for booking and session events
 
+### Implementation Details
+- **Teacher Availabilities Migration (`2025_07_15_000000_create_teacher_availabilities_table.php`):**
+  - Table schema includes:
+    - `id`: Auto-incrementing primary key
+    - `teacher_id`: Foreign key to users table with cascade deletion
+    - `day_of_week`: TinyInteger (0-6) representing days from Sunday to Saturday
+    - `start_time`: Time field for availability start
+    - `end_time`: Time field for availability end
+    - `is_active`: Boolean for active/inactive status
+    - Standard timestamps for creation and updates
+
+- **Bookings Migration (`2025_07_16_000000_create_bookings_table.php`):**
+  - Table schema includes:
+    - `id`: Auto-incrementing primary key
+    - `booking_uuid`: Unique string identifier
+    - `student_id`: Foreign key to users table (student)
+    - `teacher_id`: Foreign key to users table (teacher)
+    - `subject_id`: Foreign key to subjects table
+    - `booking_date`: Date field for session date
+    - `start_time`: Time field for session start
+    - `end_time`: Time field for session end
+    - `duration_minutes`: Integer for session length
+    - `status`: Enum with comprehensive booking states
+    - `notes`: Text field for booking details
+    - `created_by_id`: Foreign key to users who created the booking
+    - `approved_by_id`: Foreign key to users who approved (nullable)
+    - `approved_at`: Timestamp for approval time
+    - `cancelled_by_id`: Foreign key to users who cancelled (nullable)
+    - `cancelled_at`: Timestamp for cancellation time
+    - Standard timestamps for creation and updates
+
+- **Booking Notes Migration (`2025_07_16_000001_create_booking_notes_table.php`):**
+  - Table schema for storing communication notes during booking process
+
+- **Booking Notifications Migration (`2025_07_16_000002_create_booking_notifications_table.php`):**
+  - Table schema for tracking notifications sent about bookings
+
+- **Booking History Migration (`2025_07_16_000003_create_booking_history_table.php`):**
+  - Table schema for maintaining comprehensive audit trail of booking changes
+
+- **Teaching Sessions Migration (`2025_07_17_000000_create_teaching_sessions_table.php`):**
+  - Table schema includes:
+    - `id`: Auto-incrementing primary key
+    - `session_uuid`: Unique string identifier
+    - `booking_id`: Foreign key to bookings table (nullable with nullOnDelete)
+    - `teacher_id`: Foreign key to users table (teacher)
+    - `student_id`: Foreign key to users table (student)
+    - `subject_id`: Foreign key to subjects table
+    - `session_date`: Date field for session date
+    - `start_time`: Time field for session start
+    - `end_time`: Time field for session end
+    - `actual_duration_minutes`: Integer for actual session length
+    - `status`: Enum (scheduled, in_progress, completed, cancelled, no_show)
+    - Meeting fields:
+      - `meeting_link`: String for session access
+      - `meeting_platform`: String for platform name
+      - `meeting_password`: String for access password
+    - Zoom integration fields:
+      - `zoom_meeting_id`: String for Zoom meeting ID
+      - `zoom_host_id`: String for Zoom host ID
+      - `zoom_join_url`: String for student access URL
+      - `zoom_start_url`: String for teacher access URL
+      - `zoom_password`: String for Zoom password
+    - Attendance tracking fields:
+      - `teacher_marked_present`: Boolean for teacher attendance
+      - `student_marked_present`: Boolean for student attendance
+      - `attendance_data`: JSON for detailed attendance information
+      - `teacher_joined_at`: Timestamp for teacher join time
+      - `student_joined_at`: Timestamp for student join time
+      - `teacher_left_at`: Timestamp for teacher leave time
+      - `student_left_at`: Timestamp for student leave time
+    - Additional fields:
+      - `recording_url`: String for session recording
+      - `teacher_notes`: Text for teacher's session notes
+      - `student_notes`: Text for student's session notes
+    - Standard timestamps for creation and updates
+
+- **Session Materials Migration (`2025_07_17_000001_create_session_materials_table.php`):**
+  - Table schema includes:
+    - `id`: Auto-incrementing primary key
+    - `session_id`: Foreign key to teaching_sessions table
+    - `title`: String for material title
+    - `description`: Text for material description
+    - `file_path`: String for file location
+    - `file_type`: String for file MIME type
+    - `uploaded_by_id`: Foreign key to users who uploaded
+    - Standard timestamps for creation and updates
+
+- **Session Progress Migration (`2025_07_17_000002_create_session_progress_table.php`):**
+  - Table schema includes:
+    - `id`: Auto-incrementing primary key
+    - `session_id`: Foreign key to teaching_sessions table
+    - `topic_covered`: String for session topic
+    - `proficiency_level`: Enum (beginner, intermediate, advanced)
+    - `teacher_assessment`: Text for teacher's evaluation
+    - `next_steps`: Text for recommended next actions
+    - Standard timestamps for creation and updates
+
 ### Developer Guidance
 - **Booking System:**
   - Use the `Booking` model's `createSession()` method to generate teaching sessions from approved bookings
   - The booking system handles the scheduling, while the session system tracks the actual teaching events
   - All booking changes should be recorded in the `booking_history` table
+  - Use the booking status workflow to manage the lifecycle:
+    ```php
+    $booking->status = 'approved';
+    $booking->approved_by_id = auth()->id();
+    $booking->approved_at = now();
+    $booking->save();
+    
+    // Create session automatically after approval
+    $session = $booking->createSession();
+    ```
 
 - **Session Management:**
   - Sessions are automatically created from approved bookings
-  - Use the `TeachingSession` model's methods for attendance tracking
-  - Session materials should be uploaded through the `SessionMaterial` model
+  - Use the `TeachingSession` model's methods for attendance tracking:
+    ```php
+    $session->markTeacherPresent();
+    $session->markStudentPresent();
+    $session->recordJoinTime('teacher', now());
+    ```
+  - Session materials should be uploaded through the `SessionMaterial` model:
+    ```php
+    SessionMaterial::create([
+        'session_id' => $session->id,
+        'title' => 'Lesson Slides',
+        'description' => 'Slides for today\'s lesson',
+        'file_path' => $filePath,
+        'file_type' => 'application/pdf',
+        'uploaded_by_id' => auth()->id()
+    ]);
+    ```
+  - Track session progress for student achievement:
+    ```php
+    SessionProgress::create([
+        'session_id' => $session->id,
+        'topic_covered' => 'Introduction to Tajweed',
+        'proficiency_level' => 'beginner',
+        'teacher_assessment' => 'Student is making good progress',
+        'next_steps' => 'Practice pronunciation of heavy letters'
+    ]);
+    ```
 
 - **Zoom Integration:**
   - Zoom API credentials must be set in the `.env` file:
@@ -91,13 +241,59 @@ A comprehensive booking and session management system has been implemented to ha
     ```
   - For production, set up a Zoom webhook with the endpoint `/api/zoom/webhook`
   - Subscribe to meeting.started, meeting.ended, meeting.participant_joined, and meeting.participant_left events
+  - Use the ZoomService for meeting management:
+    ```php
+    $zoomData = ZoomService::createMeeting([
+        'topic' => "Session with {$student->name}",
+        'start_time' => $session->session_date . ' ' . $session->start_time,
+        'duration' => $session->duration_minutes
+    ]);
+    
+    $session->update([
+        'zoom_meeting_id' => $zoomData['id'],
+        'zoom_host_id' => $zoomData['host_id'],
+        'zoom_join_url' => $zoomData['join_url'],
+        'zoom_start_url' => $zoomData['start_url'],
+        'zoom_password' => $zoomData['password']
+    ]);
+    ```
 
-- **Design System:**
-  - **Do not use** Tailwind's default color or font utilities. Use only the CSS variables and classes defined in `app.css`.
-  - All new components and pages must use the design system tokens for color, font, and typography.
-  - If you need to add new design tokens (e.g., spacing, border radius), update `app.css` and document the change here.
-  - For email templates, use the custom components in `resources/views/vendor/mail/html/` to maintain brand consistency.
-  - When adding new authentication features, follow the established patterns for form design and validation.
+- **Teacher Availability:**
+  - Manage teacher schedules through the TeacherAvailability model:
+    ```php
+    TeacherAvailability::create([
+        'teacher_id' => $teacher->id,
+        'day_of_week' => 1, // Monday
+        'start_time' => '09:00:00',
+        'end_time' => '12:00:00',
+        'is_active' => true
+    ]);
+    ```
+  - Check availability before booking:
+    ```php
+    $isAvailable = $teacher->isAvailableAt(
+        $date,
+        $startTime,
+        $endTime
+    );
+    ```
+
+- **Notification System:**
+  - Create booking notifications:
+    ```php
+    BookingNotification::create([
+        'user_id' => $booking->student_id,
+        'booking_id' => $booking->id,
+        'type' => 'booking_approved',
+        'message' => 'Your booking has been approved',
+        'is_read' => false
+    ]);
+    ```
+  - Send email reminders:
+    ```php
+    Mail::to($booking->student->email)
+        ->send(new BookingReminderMail($booking));
+    ```
 
 ## Financial Management System (July 2024)
 
@@ -196,8 +392,394 @@ A comprehensive subscription management system has been implemented to handle pl
   - Auto-renewal is optional and can be toggled by users
   - Expired subscriptions are automatically detected and processed
 
+## Student Profile and Learning Progress System (July 2024)
+
+### Overview
+The student profile and learning progress system has been enhanced to provide comprehensive tracking of student information, learning preferences, and academic progress. The system now supports detailed progress tracking across subjects, milestone achievements, and certificate management. These enhancements align with the UI requirements and provide a solid foundation for the frontend implementation.
+
+### Key Actions Taken
+- **Database Structure:**
+  - Enhanced `student_profiles` table with learning preferences and payment integration:
+    - Removed unused `special_needs` field
+    - Added `preferred_learning_times` as JSON field to store time slots
+    - Added `age_group` field for demographic segmentation
+    - Added `payment_id` field for integration with payment systems
+  - Created `student_learning_progress` table with comprehensive tracking fields:
+    - `progress_percentage` for overall subject completion
+    - `completed_sessions` and `total_sessions` for progress calculation
+    - `milestones_completed` as JSON field for achievement tracking
+    - `certificates_earned` as JSON field for credential management
+    - `last_updated_at` for tracking progress updates
+  - Implemented proper foreign key constraints to users and subjects tables
+  - Added timestamps for audit trail on all records
+
+- **Student Profile Management:**
+  - Updated `StudentProfile` model with new fillable properties:
+    - Added JSON casting for `subjects_of_interest` and `preferred_learning_times`
+    - Added date casting for `date_of_birth`
+    - Implemented proper relationship to guardian accounts
+  - Enhanced relationship with User model for seamless access
+  - Added direct access to learning progress through relationship methods
+  - Implemented proper data validation and type casting
+
+- **Learning Progress Tracking:**
+  - Created new `StudentLearningProgress` model with comprehensive features:
+    - Implemented per-subject progress tracking with user and subject relationships
+    - Created session completion counting with automatic percentage calculation
+    - Built milestone achievement recording with timestamp tracking
+    - Added certificate issuance and management with metadata storage
+    - Implemented automatic progress calculation based on session completion
+  - Added helper methods for common operations:
+    - `updateProgressPercentage()` for recalculating completion percentage
+    - `incrementCompletedSessions()` for tracking completed learning sessions
+    - `addMilestone()` for recording achievement milestones with timestamps
+    - `addCertificate()` for issuing and recording earned certificates
+
+- **Model Relationships:**
+  - Updated `User` model with new relationship to learning progress:
+    - Added `learningProgress()` relationship for direct access to progress records
+    - Maintained existing relationship to student profile
+  - Created bidirectional relationships between `User`, `StudentProfile`, and `StudentLearningProgress`
+  - Implemented `Subject` relationship for subject-specific progress tracking
+  - Added proper foreign key constraints and cascade deletion rules
+
+### Implementation Details
+- **Student Profiles Migration (`2025_07_10_195816_create_student_profiles_table.php`):**
+  - Table schema includes:
+    - `id`: Auto-incrementing primary key
+    - `user_id`: Foreign key to users table with cascade deletion
+    - `date_of_birth`: Nullable date field for age calculation
+    - `grade_level`: Student's current academic grade
+    - `school_name`: Student's current school
+    - `guardian_id`: Optional foreign key to users table for parent/guardian
+    - `learning_goals`: Text field for educational objectives
+    - `subjects_of_interest`: JSON array of preferred subjects
+    - `preferred_learning_times`: JSON array of time slots
+    - `age_group`: String field for age categorization
+    - `payment_id`: Reference to payment system
+    - Standard timestamps for creation and updates
+
+- **Learning Progress Migration (`2025_07_23_000000_create_student_learning_progress_table.php`):**
+  - Table schema includes:
+    - `id`: Auto-incrementing primary key
+    - `user_id`: Foreign key to users table with cascade deletion
+    - `subject_id`: Foreign key to subjects table with cascade deletion
+    - `progress_percentage`: Integer field (0-100) for completion tracking
+    - `completed_sessions`: Counter for finished learning sessions
+    - `total_sessions`: Target number of sessions for the subject
+    - `milestones_completed`: JSON array with milestone details and timestamps
+    - `certificates_earned`: JSON array with certificate details and issue dates
+    - `last_updated_at`: Timestamp for progress updates
+    - Standard timestamps for creation and updates
+
+- **StudentProfile Model (`app/Models/StudentProfile.php`):**
+  - Implements:
+    - Proper fillable attributes for mass assignment
+    - Type casting for dates and JSON fields
+    - Relationship to User model (belongsTo)
+    - Relationship to Guardian user (belongsTo)
+    - Relationship to learning progress records (hasMany)
+
+- **StudentLearningProgress Model (`app/Models/StudentLearningProgress.php`):**
+  - Implements:
+    - Custom table name specification
+    - Comprehensive fillable attributes
+    - Type casting for integers, arrays, and dates
+    - Relationships to User, Subject, and StudentProfile models
+    - Helper methods for progress management:
+      - Progress percentage calculation based on session counts
+      - Session increment with automatic progress update
+      - Milestone recording with metadata and timestamps
+      - Certificate recording with metadata and issue dates
+
+- **User Model Updates (`app/Models/User.php`):**
+  - Added relationship method to access learning progress records
+  - Maintained existing relationship to student profile
+
+### Developer Guidance
+- **Student Profiles:**
+  - Use the `StudentProfile` model for managing student information
+  - Store preferred learning times and subjects of interest as JSON arrays:
+    ```php
+    $profile->preferred_learning_times = ['morning', 'evening'];
+    $profile->subjects_of_interest = ['quran', 'tajweed', 'arabic'];
+    ```
+  - Access guardian information through the guardian relationship:
+    ```php
+    $guardian = $studentProfile->guardian;
+    ```
+  - Link students to guardians using the guardian_id field:
+    ```php
+    $studentProfile->guardian_id = $guardianUser->id;
+    ```
+
+- **Learning Progress:**
+  - Use the `StudentLearningProgress` model for tracking academic achievement
+  - Create new progress records for each subject a student studies:
+    ```php
+    $progress = StudentLearningProgress::create([
+        'user_id' => $student->id,
+        'subject_id' => $subject->id,
+        'total_sessions' => 20,
+    ]);
+    ```
+  - Progress is tracked per subject with the following helper methods:
+    - `updateProgressPercentage()`: Recalculates progress based on completed sessions
+      ```php
+      $progress->updateProgressPercentage();
+      ```
+    - `incrementCompletedSessions()`: Increases the session count and updates progress
+      ```php
+      $progress->incrementCompletedSessions();
+      ```
+    - `addMilestone()`: Records achievement of learning milestones
+      ```php
+      $progress->addMilestone([
+          'title' => 'Completed Chapter 1',
+          'description' => 'Successfully recited Surah Al-Fatiha',
+      ]);
+      ```
+    - `addCertificate()`: Records earned certificates with timestamps
+      ```php
+      $progress->addCertificate([
+          'title' => 'Tajweed Basics',
+          'level' => 'Beginner',
+          'instructor' => 'Sheikh Abdullah',
+      ]);
+      ```
+  - Access learning progress through the User model's `learningProgress()` relationship:
+    ```php
+    $progressRecords = $user->learningProgress;
+    $quranProgress = $user->learningProgress()->where('subject_id', $quranSubject->id)->first();
+    ```
+
+- **Progress Calculation:**
+  - Progress percentage is automatically calculated based on completed vs. total sessions:
+    ```php
+    // If 5 of 20 sessions are completed, progress will be 25%
+    $progress->completed_sessions = 5;
+    $progress->total_sessions = 20;
+    $progress->updateProgressPercentage(); // Sets progress_percentage to 25
+    ```
+  - Milestones and certificates are stored as JSON arrays with timestamps:
+    ```php
+    // Example milestone structure
+    [
+        {
+            "title": "Completed Chapter 1",
+            "description": "Successfully recited Surah Al-Fatiha",
+            "completed_at": "2024-07-23 15:30:45"
+        }
+    ]
+    
+    // Example certificate structure
+    [
+        {
+            "title": "Tajweed Basics",
+            "level": "Beginner",
+            "instructor": "Sheikh Abdullah",
+            "issued_at": "2024-07-23 16:45:22"
+        }
+    ]
+    ```
+  - The `last_updated_at` field tracks when progress was last modified and is automatically updated by helper methods
+
+- **Frontend Integration:**
+  - The student profile data structure supports UI requirements for:
+    - Student personal information display
+    - Learning preferences visualization
+    - Age-appropriate content filtering
+    - Payment system integration
+  - The learning progress system supports:
+    - Progress bars and completion percentages
+    - Milestone achievement displays
+    - Certificate galleries and downloads
+    - Session counting and tracking
+
+## Student Wallet and Payment System (July 2024)
+
+### Overview
+A comprehensive student wallet and payment system has been implemented to handle student finances, payment methods, and transaction history. This system integrates with the subscription management system and provides a foundation for payment processing through multiple gateways.
+
+### Key Actions Taken
+- **Database Structure:**
+  - Created `student_wallets` table for managing student financial accounts:
+    - Balance tracking with decimal precision
+    - Total spent and refunded amount tracking
+    - Payment method storage and default selection
+    - Auto-renewal preference for subscriptions
+  - Implemented `wallet_transactions` table for detailed transaction history:
+    - Credit and debit transaction types
+    - Amount and description fields
+    - Transaction status tracking
+    - Timestamp for transaction date
+    - Metadata storage for additional information
+  - Designed `payment_gateway_logs` table for external payment processing:
+    - Multiple gateway support (Paystack, Flutterwave, etc.)
+    - Transaction reference and ID tracking
+    - Status tracking (pending, success, failed, abandoned)
+    - Request and response data storage
+    - Webhook data capture for asynchronous updates
+
+- **Wallet Management:**
+  - Implemented wallet creation and balance management
+  - Added support for multiple payment methods per student
+  - Created default payment method selection
+  - Built auto-renewal preference toggle
+
+- **Transaction Processing:**
+  - Implemented credit and debit transaction types
+  - Created transaction status tracking system
+  - Built comprehensive transaction history
+  - Added metadata storage for transaction details
+
+- **Payment Gateway Integration:**
+  - Prepared structure for multiple payment gateway integration
+  - Implemented transaction reference generation and tracking
+  - Created webhook handling for asynchronous payment updates
+  - Built verification system for payment confirmation
+
+### Implementation Details
+- **Student Wallets Migration (`2025_07_22_000000_create_student_wallets_table.php`):**
+  - Table schema includes:
+    - `id`: Auto-incrementing primary key
+    - `user_id`: Foreign key to users table with cascade deletion
+    - `balance`: Decimal field (10,2) for current wallet balance
+    - `total_spent`: Decimal field (10,2) for lifetime spending
+    - `total_refunded`: Decimal field (10,2) for refunded amounts
+    - `payment_methods`: JSON array for stored payment methods
+    - `default_payment_method`: String for selected default method
+    - `auto_renew_enabled`: Boolean for subscription auto-renewal
+    - Standard timestamps for creation and updates
+
+- **Wallet Transactions Migration (`2025_07_22_000002_create_wallet_transactions_table.php`):**
+  - Table schema includes:
+    - `id`: Auto-incrementing primary key
+    - `wallet_id`: Foreign key to student_wallets table
+    - `transaction_type`: Enum ('credit', 'debit')
+    - `amount`: Decimal field (10,2) for transaction amount
+    - `description`: String field for transaction description
+    - `status`: Enum ('pending', 'completed', 'failed')
+    - `transaction_date`: Timestamp for when transaction occurred
+    - `metadata`: JSON field for additional transaction data
+    - Standard timestamps for creation and updates
+
+- **Payment Gateway Logs Migration (`2025_07_22_000001_create_payment_gateway_logs_table.php`):**
+  - Table schema includes:
+    - `id`: Auto-incrementing primary key
+    - `gateway`: String field for payment provider name
+    - `reference`: Unique string for transaction reference
+    - `transaction_id`: String for gateway's transaction ID
+    - `user_id`: Foreign key to users table
+    - `subscription_transaction_id`: Optional foreign key to subscription_transactions
+    - `status`: Enum ('pending', 'success', 'failed', 'abandoned')
+    - `amount`: Decimal field (10,2) for transaction amount
+    - `currency`: String field for currency code
+    - `request_data`: JSON field for API request data
+    - `response_data`: JSON field for API response data
+    - `webhook_data`: JSON field for webhook payload
+    - `verified_at`: Timestamp for verification time
+    - Standard timestamps for creation and updates
+
+### Developer Guidance
+- **Student Wallet:**
+  - Use the `StudentWallet` model for managing student finances
+  - Access wallet through the User model's relationship:
+    ```php
+    $wallet = $user->wallet;
+    // Or create if it doesn't exist
+    $wallet = $user->getOrCreateWallet();
+    ```
+  - Store payment methods as JSON array:
+    ```php
+    $wallet->payment_methods = [
+        [
+            'type' => 'card',
+            'last4' => '4242',
+            'expiry' => '12/25',
+            'brand' => 'visa',
+            'token' => 'tok_visa'
+        ],
+        [
+            'type' => 'bank_account',
+            'bank' => 'Access Bank',
+            'last4' => '1234',
+            'token' => 'ba_123456'
+        ]
+    ];
+    ```
+  - Set default payment method:
+    ```php
+    $wallet->default_payment_method = 'tok_visa';
+    ```
+
+- **Wallet Transactions:**
+  - Create transactions for all financial activities:
+    ```php
+    WalletTransaction::create([
+        'wallet_id' => $wallet->id,
+        'transaction_type' => 'credit',
+        'amount' => 50.00,
+        'description' => 'Wallet topup',
+        'status' => 'completed',
+        'transaction_date' => now(),
+        'metadata' => [
+            'payment_method' => 'card',
+            'reference' => 'ref_123456'
+        ]
+    ]);
+    ```
+  - Query transaction history:
+    ```php
+    $transactions = $wallet->transactions()->latest()->get();
+    $credits = $wallet->transactions()->where('transaction_type', 'credit')->get();
+    ```
+
+- **Payment Gateway Integration:**
+  - Log all payment attempts:
+    ```php
+    PaymentGatewayLog::create([
+        'gateway' => 'paystack',
+        'reference' => 'ref_' . uniqid(),
+        'user_id' => $user->id,
+        'subscription_transaction_id' => $subscriptionTransaction->id,
+        'status' => 'pending',
+        'amount' => 100.00,
+        'currency' => 'NGN',
+        'request_data' => $requestData
+    ]);
+    ```
+  - Update payment status after verification:
+    ```php
+    $paymentLog->update([
+        'status' => 'success',
+        'response_data' => $responseData,
+        'verified_at' => now()
+    ]);
+    ```
+  - Handle webhook data:
+    ```php
+    $paymentLog->update([
+        'webhook_data' => $webhookPayload,
+        'status' => $webhookStatus
+    ]);
+    ```
+
+- **Frontend Integration:**
+  - The wallet system supports UI requirements for:
+    - Wallet balance display
+    - Transaction history lists
+    - Payment method management
+    - Auto-renewal toggle for subscriptions
+  - The payment gateway integration supports:
+    - Multiple payment providers
+    - Transaction status tracking
+    - Payment verification
+    - Error handling and recovery
+
 ---
 1. _Last updated: 10th July 2024_ 
 2. _Last updated: 18th July 2024_ 
 3. _Last updated: 20th July 2024_
 4. _Last updated: 21st July 2024_
+5. _Last updated: 23rd July 2024_
