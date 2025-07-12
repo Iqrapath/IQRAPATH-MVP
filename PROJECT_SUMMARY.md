@@ -918,3 +918,77 @@ A comprehensive guardian management system has been implemented to handle guardi
 4. _Last updated: 21st July 2024_
 5. _Last updated: 23rd July 2024_
 6. _Last updated: 24th July 2024_
+
+## Teacher Verification Request System (July 2024)
+
+### Overview
+A robust teacher verification system has been implemented to ensure quality and trust across the platform. The system supports document review, live video verification (with Zoom and Google Meet integration), status tracking, audit logging, and admin review workflows.
+
+### Key Actions Taken
+- **Database Structure:**
+  - Created `verification_requests` table to track each teacher's verification event, including:
+    - Status (pending, verified, rejected, live_video)
+    - Document and video verification status
+    - Scheduled call info (date, platform, meeting link)
+    - Admin review and rejection reason
+    - Submission and review timestamps
+  - Created `verification_calls` table to support scheduling and rescheduling of video calls:
+    - Platform (Zoom, Google Meet, other)
+    - Meeting link, notes, status, and creator
+  - Created `verification_audit_logs` table to maintain a full audit trail of status changes and actions:
+    - Status, changed_by, changed_at, notes
+  - All tables are linked to the appropriate teacher profile and user accounts for full traceability.
+
+- **Model Relationships:**
+  - `TeacherProfile` has many `VerificationRequest`
+  - `VerificationRequest` has many `VerificationCall` and `VerificationAuditLog`
+  - `VerificationRequest` belongs to `TeacherProfile` and reviewer (User)
+  - `VerificationCall` belongs to `VerificationRequest` and creator (User)
+  - `VerificationAuditLog` belongs to `VerificationRequest` and changer (User)
+
+- **Zoom & Video Integration:**
+  - The system supports both Zoom and Google Meet for live video verification calls
+  - If Zoom is selected, the platform leverages the existing Zoom integration for meeting creation and management
+  - Meeting links and metadata are stored in the verification call records
+
+- **Document Review:**
+  - Each verification request is associated with the teacher's documents (ID, certificates, resume)
+  - Document statuses are tracked and can be reviewed, verified, or rejected by admins
+
+- **Audit Trail:**
+  - Every status change or significant action on a verification request is logged in the audit table
+  - Provides a full history for compliance and transparency
+
+### Developer Guidance
+- **Verification Requests:**
+  - Use the `VerificationRequest` model to manage the lifecycle of teacher verification
+  - Schedule or reschedule calls using the `VerificationCall` model
+  - Log status changes and actions using the `VerificationAuditLog` model
+  - Link verification requests to teacher profiles and admin reviewers
+
+- **Video Call Integration:**
+  - When scheduling a call, set the `platform` to 'zoom' or 'google_meet' and store the meeting link
+  - For Zoom, use the platform's Zoom integration service to generate and manage meetings
+
+- **Document Review:**
+  - Access and update document statuses via the `Document` model and its relationship to `TeacherProfile`
+  - Use the verification request's `docs_status` to reflect the overall document review state
+
+- **Audit Logging:**
+  - Log every status change or admin action using the `VerificationAuditLog` model for traceability
+
+- **Frontend Integration:**
+  - The verification system supports UI requirements for:
+    - Listing and filtering verification requests
+    - Reviewing and updating document and video statuses
+    - Scheduling and managing video calls
+    - Viewing audit history and admin actions
+
+---
+1. _Last updated: 10th July 2024_ 
+2. _Last updated: 18th July 2024_ 
+3. _Last updated: 20th July 2024_
+4. _Last updated: 21st July 2024_
+5. _Last updated: 23rd July 2024_
+6. _Last updated: 24th July 2024_
+7. _Last updated: 25th July 2024_

@@ -83,4 +83,12 @@ class TeacherProfile extends Model
     {
         return $this->documents()->where('type', Document::TYPE_RESUME)->latest()->first();
     }
+
+    /**
+     * Get the verification requests for the teacher profile.
+     */
+    public function verificationRequests()
+    {
+        return $this->hasMany(VerificationRequest::class);
+    }
 }
