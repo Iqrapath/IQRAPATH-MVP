@@ -15,6 +15,9 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->date('date_of_birth')->nullable();
+            $table->enum('gender', ['male', 'female', 'other'])->nullable();
+            $table->enum('status', ['active', 'inactive', 'suspended'])->default('active');
+            $table->timestamp('registration_date')->nullable();
             $table->string('grade_level')->nullable();
             $table->string('school_name')->nullable();
             $table->foreignId('guardian_id')->nullable()->constrained('users');

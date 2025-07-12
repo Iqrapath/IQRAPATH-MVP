@@ -19,6 +19,7 @@ class StudentProfile extends Model
     protected $fillable = [
         'user_id',
         'date_of_birth',
+        'gender',
         'grade_level',
         'school_name',
         'guardian_id',
@@ -27,6 +28,8 @@ class StudentProfile extends Model
         'preferred_learning_times',
         'age_group',
         'payment_id',
+        'status',
+        'registration_date',
     ];
 
     /**
@@ -38,6 +41,7 @@ class StudentProfile extends Model
         'date_of_birth' => 'date',
         'subjects_of_interest' => 'array',
         'preferred_learning_times' => 'array',
+        'registration_date' => 'datetime',
     ];
 
     /**
@@ -62,5 +66,18 @@ class StudentProfile extends Model
     public function learningProgress(): HasMany
     {
         return $this->hasMany(StudentLearningProgress::class, 'user_id', 'user_id');
+    }
+    
+    /**
+     * Update the guardian's children count when this student is associated.
+     */
+    public function updateGuardianChildrenCount(): void
+    {
+        if ($this->guardian_id) {
+            $guardianProfile = GuardianProfile::where('user_id', $this->guardian_id)->first();
+            if ($guardianProfile) {
+                $guardianProfile->updateChildrenCount();
+            }
+        }
     }
 }

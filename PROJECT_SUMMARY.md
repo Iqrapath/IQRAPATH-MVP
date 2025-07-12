@@ -783,3 +783,138 @@ A comprehensive student wallet and payment system has been implemented to handle
 3. _Last updated: 20th July 2024_
 4. _Last updated: 21st July 2024_
 5. _Last updated: 23rd July 2024_
+
+## Guardian Management System (July 2024)
+
+### Overview
+A comprehensive guardian management system has been implemented to handle guardian profiles, child registration, and direct messaging. The system supports multiple children per guardian, detailed profiles, and communication features.
+
+### Key Actions Taken
+- **Database Structure:**
+  - Enhanced `guardian_profiles` table with improved tracking:
+    - Added `status` field for account status management (active, suspended, inactive)
+    - Added `registration_date` field to track when guardian accounts were created
+    - Added `children_count` field for efficient tracking of associated students
+    - Removed unused fields (occupation, preferred_contact_method, secondary_phone)
+  - Enhanced `student_profiles` table with additional fields:
+    - Added `gender` field to store student gender information
+    - Added `status` field for account status management
+    - Added `registration_date` field to track when student accounts were created
+  - Created `guardian_messages` table for direct messaging:
+    - Support for sender and recipient tracking
+    - Message read status and timestamps
+    - Flexible querying for conversations
+
+- **Guardian Profile Management:**
+  - Implemented guardian status tracking (active, suspended, inactive)
+  - Added automatic children count tracking with database triggers
+  - Enhanced relationship with student profiles
+  - Improved profile data structure based on UI requirements
+
+- **Child Registration System:**
+  - Implemented gender tracking for students
+  - Added status management for student accounts
+  - Enhanced relationship with guardian accounts
+  - Implemented automatic guardian update on child association
+
+- **Messaging System:**
+  - Created direct messaging capability between users
+  - Implemented read status tracking
+  - Added conversation history and threading
+  - Built message scopes for efficient querying
+
+### Implementation Details
+- **Guardian Profiles Migration Updates:**
+  - Added status enum field with values: active, suspended, inactive
+  - Added registration_date timestamp field
+  - Added children_count integer field with automatic updates
+  - Removed unused fields: occupation, preferred_contact_method, secondary_phone
+  - Created database triggers to maintain children count accuracy
+
+- **Student Profiles Migration Updates:**
+  - Added gender enum field with values: male, female, other
+  - Added status enum field with values: active, inactive, suspended
+  - Added registration_date timestamp field
+
+- **Guardian Messages Migration:**
+  - Created table with fields for sender_id, recipient_id, message content
+  - Added is_read boolean and read_at timestamp for status tracking
+  - Implemented standard timestamps for creation and updates
+
+- **Model Updates:**
+  - Enhanced GuardianProfile model with new fields and relationships
+  - Updated StudentProfile model with new fields and methods
+  - Created GuardianMessage model with comprehensive messaging features
+  - Added message relationship methods to User model
+
+### Developer Guidance
+- **Guardian Profiles:**
+  - Use the `GuardianProfile` model for managing guardian information
+  - Access children through the relationship:
+    ```php
+    $children = $guardianProfile->students;
+    $childrenCount = $guardianProfile->children_count;
+    ```
+  - Update guardian status:
+    ```php
+    $guardianProfile->status = 'suspended';
+    $guardianProfile->save();
+    ```
+
+- **Student Profiles:**
+  - Use the `StudentProfile` model for managing student information
+  - Access guardian through the relationship:
+    ```php
+    $guardian = $studentProfile->guardian;
+    ```
+  - Update student status:
+    ```php
+    $studentProfile->status = 'inactive';
+    $studentProfile->save();
+    ```
+  - Trigger guardian children count update:
+    ```php
+    $studentProfile->updateGuardianChildrenCount();
+    ```
+
+- **Messaging System:**
+  - Send messages between users:
+    ```php
+    GuardianMessage::create([
+        'sender_id' => $teacher->id,
+        'recipient_id' => $guardian->id,
+        'message' => 'Your child is making excellent progress!'
+    ]);
+    ```
+  - Retrieve messages for a user:
+    ```php
+    $sentMessages = $user->sentMessages;
+    $receivedMessages = $user->receivedMessages;
+    $allMessages = $user->allMessages()->latest()->get();
+    $unreadCount = $user->unreadMessages()->count();
+    ```
+  - Get conversation between two users:
+    ```php
+    $conversation = GuardianMessage::betweenUsers($user1->id, $user2->id)
+                                  ->latest()
+                                  ->get();
+    ```
+  - Mark messages as read:
+    ```php
+    $message->markAsRead();
+    ```
+
+- **Frontend Integration:**
+  - The guardian management system supports UI requirements for:
+    - Guardian listing with status and registration date
+    - Child management and registration
+    - Direct messaging between guardians and staff
+    - Profile editing and status management
+
+---
+1. _Last updated: 10th July 2024_ 
+2. _Last updated: 18th July 2024_ 
+3. _Last updated: 20th July 2024_
+4. _Last updated: 21st July 2024_
+5. _Last updated: 23rd July 2024_
+6. _Last updated: 24th July 2024_

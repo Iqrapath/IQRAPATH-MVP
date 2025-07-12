@@ -353,4 +353,36 @@ class User extends Authenticatable
     {
         return $this->hasMany(StudentLearningProgress::class);
     }
+    
+    /**
+     * Get messages sent by the user.
+     */
+    public function sentMessages()
+    {
+        return $this->hasMany(GuardianMessage::class, 'sender_id');
+    }
+    
+    /**
+     * Get messages received by the user.
+     */
+    public function receivedMessages()
+    {
+        return $this->hasMany(GuardianMessage::class, 'recipient_id');
+    }
+    
+    /**
+     * Get all messages (sent and received) for the user.
+     */
+    public function allMessages()
+    {
+        return GuardianMessage::forUser($this->id);
+    }
+    
+    /**
+     * Get unread messages for the user.
+     */
+    public function unreadMessages()
+    {
+        return $this->receivedMessages()->where('is_read', false);
+    }
 }

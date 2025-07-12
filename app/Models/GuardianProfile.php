@@ -18,11 +18,20 @@ class GuardianProfile extends Model
      */
     protected $fillable = [
         'user_id',
+        'status',
+        'registration_date',
+        'children_count',
         'relationship',
-        'occupation',
-        'emergency_contact',
-        'secondary_phone',
-        'preferred_contact_method',
+    ];
+
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'registration_date' => 'datetime',
+        'children_count' => 'integer',
     ];
 
     /**
@@ -39,5 +48,16 @@ class GuardianProfile extends Model
     public function students(): HasMany
     {
         return $this->hasMany(StudentProfile::class, 'guardian_id', 'user_id');
+    }
+
+    /**
+     * Update the children count based on actual student relationships.
+     *
+     * @return bool
+     */
+    public function updateChildrenCount(): bool
+    {
+        $this->children_count = $this->students()->count();
+        return $this->save();
     }
 }
