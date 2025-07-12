@@ -58,7 +58,7 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
-    
+
     /**
      * Send the password reset notification.
      *
@@ -171,7 +171,7 @@ class User extends Authenticatable
     {
         return $this->role === null;
     }
-    
+
     /**
      * Get the admin profile associated with the user.
      */
@@ -179,7 +179,7 @@ class User extends Authenticatable
     {
         return $this->hasOne(AdminProfile::class);
     }
-    
+
     /**
      * Get the teacher profile associated with the user.
      */
@@ -187,7 +187,7 @@ class User extends Authenticatable
     {
         return $this->hasOne(TeacherProfile::class);
     }
-    
+
     /**
      * Get the student profile associated with the user.
      */
@@ -195,7 +195,7 @@ class User extends Authenticatable
     {
         return $this->hasOne(StudentProfile::class);
     }
-    
+
     /**
      * Get the guardian profile associated with the user.
      */
@@ -295,7 +295,7 @@ class User extends Authenticatable
     {
         return $this->hasMany(TeachingSession::class, 'student_id');
     }
-    
+
     /**
      * Get the earnings record for the teacher.
      */
@@ -345,7 +345,7 @@ class User extends Authenticatable
             'default_payment_method' => null,
         ]);
     }
-    
+
     /**
      * Get the learning progress records for the user.
      */
@@ -384,5 +384,53 @@ class User extends Authenticatable
     public function unreadMessages()
     {
         return $this->receivedMessages()->where('is_read', false);
+    }
+    
+    /**
+     * Get the notifications received by the user.
+     */
+    public function receivedNotifications(): HasMany
+    {
+        return $this->hasMany(NotificationRecipient::class, 'user_id');
+    }
+
+    /**
+     * Get the notifications sent by the user.
+     */
+    public function sentNotifications(): HasMany
+    {
+        return $this->hasMany(Notification::class, 'sender_id')
+            ->where('sender_type', '!=', 'system');
+    }
+
+    /**
+     * Get all unread notifications for the user.
+     */
+    public function unreadNotifications(): HasMany
+    {
+        return $this->receivedNotifications()
+            ->whereNull('read_at')
+            ->whereIn('status', ['sent', 'delivered']);
+    }
+
+    /**
+     * Get all notifications for a specific channel.
+     */
+    public function notificationsForChannel(string $channel): HasMany
+    {
+        return $this->receivedNotifications()
+            ->where('channel', $channel);
+    }
+
+    /**
+     * Mark all unread notifications as read.
+     */
+    public function markAllNotificationsAsRead(): void
+    {
+        $this->unreadNotifications()
+            ->update([
+                'status' => 'read',
+                'read_at' => now(),
+            ]);
     }
 }

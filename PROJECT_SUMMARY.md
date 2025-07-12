@@ -783,6 +783,9 @@ A comprehensive student wallet and payment system has been implemented to handle
 3. _Last updated: 20th July 2024_
 4. _Last updated: 21st July 2024_
 5. _Last updated: 23rd July 2024_
+6. _Last updated: 24th July 2024_
+7. _Last updated: 25th July 2024_
+8. _Last updated: 26th July 2024_
 
 ## Guardian Management System (July 2024)
 
@@ -918,6 +921,8 @@ A comprehensive guardian management system has been implemented to handle guardi
 4. _Last updated: 21st July 2024_
 5. _Last updated: 23rd July 2024_
 6. _Last updated: 24th July 2024_
+7. _Last updated: 25th July 2024_
+8. _Last updated: 26th July 2024_
 
 ## Teacher Verification Request System (July 2024)
 
@@ -992,3 +997,284 @@ A robust teacher verification system has been implemented to ensure quality and 
 5. _Last updated: 23rd July 2024_
 6. _Last updated: 24th July 2024_
 7. _Last updated: 25th July 2024_
+8. _Last updated: 26th July 2024_
+
+## Notification System (July 2024)
+
+### Overview
+The IQRAPATH platform includes a comprehensive notification system that supports multi-channel delivery, automated triggers, templates, and analytics. The system enables both manual notifications from administrators and automated notifications based on system events.
+
+### Key Actions Taken
+- **Database Structure:**
+  - Created `notifications` table for storing notification content:
+    - Title and body fields for notification content
+    - Type classification (custom, system, payment, class, subscription, feature)
+    - Status tracking (draft, scheduled, sent, delivered, read, failed)
+    - Sender information and metadata storage
+    - Scheduling capabilities for future delivery
+  - Implemented `notification_recipients` table to track delivery:
+    - User-specific notification tracking
+    - Channel-specific status (in-app, email, SMS)
+    - Read status and timestamps
+    - Delivery status tracking
+  - Created `notification_templates` table for reusable content:
+    - Standardized templates with placeholders
+    - Type categorization for different notification purposes
+    - Active status management
+  - Designed `notification_triggers` table for event-based notifications:
+    - Event-to-notification mapping
+    - Audience targeting (all, role-specific, individual)
+    - Channel selection (in-app, email, SMS)
+    - Timing configuration (immediate, before/after event)
+
+- **Notification Service:**
+  - Implemented centralized `NotificationService` for all notification operations
+  - Created methods for notification creation, recipient management, and delivery
+  - Built template-based notification generation with placeholder substitution
+  - Implemented scheduled notification processing via command
+
+- **Event Integration:**
+  - Created event listeners for common system events:
+    - User registration events
+    - Payment processing events
+    - Session scheduling events
+    - Subscription expiry events
+  - Implemented `ProcessNotificationTrigger` listener for automatic notifications
+  - Added event data extraction for dynamic notification content
+
+- **Multi-channel Delivery:**
+  - Implemented in-app notification delivery and storage
+  - Created email notification delivery with custom templates
+  - Prepared framework for SMS notification delivery
+  - Built channel-specific status tracking
+
+- **User Interface:**
+  - Created API endpoints for notification retrieval and management
+  - Implemented controllers for user notification center
+  - Added admin interface for notification creation and management
+  - Built notification template and trigger management
+
+### Implementation Details
+- **Notifications Migration (`2025_07_25_000000_create_notifications_table.php`):**
+  - Table schema includes:
+    - `id`: Auto-incrementing primary key
+    - `title`: String for notification title
+    - `body`: Text field for notification content
+    - `type`: String for notification classification
+    - `status`: String for notification status
+    - `sender_type`: String for sender classification
+    - `sender_id`: Foreign key to users table (nullable)
+    - `scheduled_at`: Timestamp for scheduled delivery
+    - `sent_at`: Timestamp for actual sending
+    - `metadata`: JSON field for additional data
+    - Standard timestamps for creation and updates
+
+- **Notification Recipients Migration (`2025_07_25_000001_create_notification_recipients_table.php`):**
+  - Table schema includes:
+    - `id`: Auto-incrementing primary key
+    - `notification_id`: Foreign key to notifications table
+    - `user_id`: Foreign key to users table
+    - `status`: String for delivery status
+    - `channel`: String for delivery channel
+    - `delivered_at`: Timestamp for delivery time
+    - `read_at`: Timestamp for read time
+    - Standard timestamps for creation and updates
+    - Unique constraint on notification_id, user_id, and channel
+
+- **Notification Templates Migration (`2025_07_25_000002_create_notification_templates_table.php`):**
+  - Table schema includes:
+    - `id`: Auto-incrementing primary key
+    - `name`: Unique string identifier
+    - `title`: String for template title
+    - `body`: Text field for template content
+    - `type`: String for template classification
+    - `placeholders`: JSON array of available placeholders
+    - `is_active`: Boolean for active status
+    - Standard timestamps for creation and updates
+
+- **Notification Triggers Migration (`2025_07_25_000003_create_notification_triggers_table.php`):**
+  - Table schema includes:
+    - `id`: Auto-incrementing primary key
+    - `name`: String for trigger name
+    - `event`: String for event name
+    - `template_id`: Foreign key to notification_templates table
+    - `audience_type`: String for recipient targeting
+    - `audience_filter`: JSON field for filtering criteria
+    - `channels`: JSON array of delivery channels
+    - `timing_type`: String for delivery timing
+    - `timing_value`: Integer for timing value
+    - `timing_unit`: String for timing unit
+    - `is_enabled`: Boolean for active status
+    - Standard timestamps for creation and updates
+
+- **Model Implementation:**
+  - Created `Notification` model with comprehensive features:
+    - Relationships to sender and recipients
+    - Status scopes for filtering
+    - Type scopes for categorization
+    - Send method for delivery
+  - Created `NotificationRecipient` model for delivery tracking:
+    - Relationships to notification and user
+    - Methods for marking as delivered or read
+    - Scopes for filtering by user, channel, and status
+  - Created `NotificationTemplate` model for reusable content:
+    - Relationship to triggers
+    - Active scope for filtering
+    - Type scope for categorization
+    - Method for creating notifications from template
+  - Created `NotificationTrigger` model for event handling:
+    - Relationship to template
+    - Enabled scope for filtering
+    - Event scope for filtering
+    - Process method for handling events
+
+- **Service Layer:**
+  - Implemented `NotificationService` for centralized notification management:
+    - Methods for creating notifications
+    - Methods for managing recipients
+    - Methods for sending notifications
+    - Methods for processing events
+    - Methods for sending scheduled notifications
+    - Methods for creating notifications from templates
+    - Methods for counting and marking notifications
+
+- **Event System:**
+  - Created event classes for common system events:
+    - `UserRegistered` for new user registration
+    - `PaymentProcessed` for payment completion
+    - `SessionScheduled` for class scheduling
+    - `SubscriptionExpiring` for subscription expiry
+  - Implemented listeners for handling events:
+    - `SendWelcomeNotification` for new users
+    - `SendPaymentConfirmation` for completed payments
+    - `SendSessionReminder` for scheduled classes
+    - `SendSubscriptionExpiryReminder` for expiring subscriptions
+    - `ProcessNotificationTrigger` for generic event handling
+
+- **Command and Scheduling:**
+  - Created `SendScheduledNotifications` command for processing scheduled notifications
+  - Added command to scheduler for minute-by-minute execution
+  - Implemented queue processing for asynchronous notification delivery
+
+- **Controllers and Routes:**
+  - Created `NotificationController` for admin notification management:
+    - CRUD operations for notifications
+    - Template and trigger management
+    - Notification sending and scheduling
+  - Created `UserNotificationController` for user notification center:
+    - Notification listing and viewing
+    - Marking notifications as read
+    - Deleting notifications
+  - Created `Api\NotificationController` for notification API:
+    - Retrieving notifications
+    - Marking notifications as read
+    - Counting unread notifications
+  - Added routes for all notification functionality
+
+### Developer Guidance
+- **Creating Notifications:**
+  - Use the `NotificationService` for all notification operations:
+    ```php
+    $notificationService->createNotification([
+        'title' => 'Important Announcement',
+        'body' => 'This is an important system announcement.',
+        'type' => 'system',
+        'sender_type' => 'admin',
+        'sender_id' => auth()->id(),
+    ]);
+    ```
+  - Add recipients to notifications:
+    ```php
+    $notificationService->addRecipients($notification, [
+        'all_users' => true,
+        'channels' => ['in-app', 'email'],
+    ]);
+    
+    // Or for specific roles
+    $notificationService->addRecipients($notification, [
+        'roles' => ['student', 'teacher'],
+        'channels' => ['in-app'],
+    ]);
+    
+    // Or for specific users
+    $notificationService->addRecipients($notification, [
+        'user_ids' => [$user1->id, $user2->id],
+        'channels' => ['in-app', 'email'],
+    ]);
+    ```
+  - Send notifications:
+    ```php
+    $notificationService->sendNotification($notification);
+    ```
+
+- **Using Templates:**
+  - Create notifications from templates:
+    ```php
+    $notification = $notificationService->createFromTemplate(
+        'welcome_user',
+        [
+            'User_Name' => $user->name,
+            'action_url' => route('dashboard'),
+            'action_text' => 'Go to Dashboard',
+        ],
+        [
+            'user_ids' => [$user->id],
+            'channels' => ['in-app', 'email'],
+        ]
+    );
+    ```
+  - Available templates include:
+    - `welcome_user`: For new user registration
+    - `payment_confirmation`: For successful payments
+    - `session_reminder`: For upcoming classes
+    - `subscription_expiry`: For expiring subscriptions
+    - `new_feature`: For feature announcements
+
+- **Event-Based Notifications:**
+  - Dispatch events to trigger notifications:
+    ```php
+    event(new UserRegistered($user));
+    event(new PaymentProcessed($user, $paymentData));
+    event(new SessionScheduled($user, $sessionData));
+    event(new SubscriptionExpiring($user, $subscriptionData));
+    ```
+  - Create custom notification triggers:
+    ```php
+    NotificationTrigger::create([
+        'name' => 'Custom Event Trigger',
+        'event' => 'custom.event',
+        'template_id' => $template->id,
+        'audience_type' => 'role',
+        'audience_filter' => ['roles' => ['student']],
+        'channels' => ['in-app', 'email'],
+        'timing_type' => 'immediate',
+        'is_enabled' => true,
+    ]);
+    ```
+
+- **User Notification Access:**
+  - Get user notifications:
+    ```php
+    $notifications = $user->receivedNotifications()
+        ->with('notification')
+        ->where('channel', 'in-app')
+        ->get();
+    ```
+  - Count unread notifications:
+    ```php
+    $unreadCount = $user->unreadNotifications()->count();
+    ```
+  - Mark notifications as read:
+    ```php
+    $user->markAllNotificationsAsRead();
+    // Or individual notifications
+    $recipient->markAsRead();
+    ```
+
+- **Frontend Integration:**
+  - The notification system supports UI requirements for:
+    - Notification center with read/unread status
+    - Real-time notification counters
+    - Admin notification management
+    - Template and trigger configuration
+    - Multi-channel delivery preferences
