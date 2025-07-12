@@ -1278,3 +1278,48 @@ The IQRAPATH platform includes a comprehensive notification system that supports
     - Admin notification management
     - Template and trigger configuration
     - Multi-channel delivery preferences
+
+## Feedback and Support System
+
+The IQRAPATH platform includes a comprehensive feedback and support system that allows users to submit feedback, create support tickets, and file disputes. This system helps maintain a high level of user satisfaction and provides administrators with tools to manage user issues effectively.
+
+### Key Features
+
+1. **Feedback Submissions**
+   - Users can submit general feedback about the platform, teachers, or classes
+   - Feedback can include attachments for additional context
+   - Administrators can review and respond to feedback
+
+2. **Support Tickets**
+   - Users can create support tickets for technical issues or assistance
+   - Support tickets can be assigned to staff members for resolution
+   - Responses can be scheduled for later delivery
+   - Status tracking (open, resolved, closed)
+
+3. **Disputes/Complaints**
+   - Users can file formal complaints against other users (teachers, students)
+   - Administrators can mediate disputes and update their status
+   - Evidence attachments can be uploaded to support claims
+
+4. **Attachments System**
+   - Users can upload evidence and supporting documents
+   - Secure file storage and access control
+   - Multiple file formats supported
+
+5. **Action Logging**
+   - All actions within the support system are logged
+   - Provides an audit trail for administrative review
+
+### Technical Implementation
+
+- **Database Structure**: Dedicated tables for feedback, support tickets, disputes, responses, and attachments
+- **Polymorphic Relationships**: Attachments and action logs use polymorphic relationships for flexibility
+- **Authorization**: Comprehensive policy-based authorization system
+- **Scheduled Responses**: Support for scheduling responses to be sent at specific times
+- **File Management**: Secure file upload, storage, and retrieval system
+
+### User Roles and Permissions
+
+- **Regular Users**: Can submit feedback, create tickets, and file disputes
+- **Staff**: Can be assigned tickets and respond to user inquiries
+- **Administrators**: Have full access to manage all aspects of the support system

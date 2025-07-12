@@ -249,6 +249,70 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the feedback submitted by the user.
+     */
+    public function feedback(): HasMany
+    {
+        return $this->hasMany(Feedback::class);
+    }
+
+    /**
+     * Get the support tickets submitted by the user.
+     */
+    public function supportTickets(): HasMany
+    {
+        return $this->hasMany(SupportTicket::class);
+    }
+
+    /**
+     * Get the support tickets assigned to the user.
+     */
+    public function assignedTickets(): HasMany
+    {
+        return $this->hasMany(SupportTicket::class, 'assigned_to');
+    }
+
+    /**
+     * Get the disputes filed by the user.
+     */
+    public function filedDisputes(): HasMany
+    {
+        return $this->hasMany(Dispute::class, 'filed_by');
+    }
+
+    /**
+     * Get the disputes filed against the user.
+     */
+    public function disputesAgainst(): HasMany
+    {
+        return $this->hasMany(Dispute::class, 'against');
+    }
+
+    /**
+     * Get the ticket responses created by the user.
+     */
+    public function ticketResponses(): HasMany
+    {
+        return $this->hasMany(TicketResponse::class, 'responder_id');
+    }
+
+    /**
+     * Get the evidence attachments uploaded by the user.
+     */
+    public function uploadedAttachments(): HasMany
+    {
+        return $this->hasMany(EvidenceAttachment::class, 'uploaded_by');
+    }
+
+    /**
+     * Get the action logs performed by the user.
+     */
+    public function actionLogs(): HasMany
+    {
+        return $this->hasMany(ActionLog::class, 'performed_by');
+    }
+
+    /**
      * Get the availabilities for the teacher.
      */
     public function availabilities()

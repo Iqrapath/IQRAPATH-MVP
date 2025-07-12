@@ -244,3 +244,4 @@ Route::middleware(['auth'])->prefix('notifications')->name('notifications.')->gr
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';
+require __DIR__.'/feedback.php';

@@ -16,6 +16,8 @@ class Kernel extends ConsoleKernel
         $schedule->command('sessions:send-reminders')->hourly();
         // Send scheduled notifications every minute
         $schedule->command('notifications:send-scheduled')->everyMinute();
+        // Process scheduled ticket responses every minute
+        $schedule->command('app:process-scheduled-responses')->everyMinute();
     }
 
     /**
