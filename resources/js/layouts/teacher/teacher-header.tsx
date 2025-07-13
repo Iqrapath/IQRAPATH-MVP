@@ -39,8 +39,7 @@ export default function TeacherHeader({
             {/* Logo at left with spacing */}
             <div className={`flex items-center ${isMobile ? 'w-auto' : 'w-64 pl-4'}`}>
                 <Link href="/teacher/dashboard" className="flex items-center">
-                    <AppLogoIcon className="h-8 w-8 fill-current text-primary" />
-                    {!isMobile && <span className="ml-2 text-xl font-semibold">IqraPath</span>}
+                    <AppLogoIcon className={`${isMobile ? 'w-24' : 'w-32'} h-auto`} />
                 </Link>
             </div>
             
@@ -60,7 +59,7 @@ export default function TeacherHeader({
                 
                 {/* Notifications */}
                 <Button variant="ghost" size="icon" className="relative">
-                    <BellNotificationIcon className="h-auto w-8" />
+                    <BellNotificationIcon style={{ width: '32px', height: '32px' }} />
                     <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">
                         2
                     </span>
@@ -69,7 +68,7 @@ export default function TeacherHeader({
                 {/* Messages - hide on smallest screens */}
                 {!isMobile && (
                     <Button variant="ghost" size="icon" className="relative">
-                        <MessageIcon className="h-auto w-20" />
+                        <MessageIcon style={{ width: '40px', height: '40px' }} />
                     </Button>
                 )}
 

@@ -2,20 +2,22 @@ import React from 'react';
 
 interface MessageIconProps {
   className?: string;
+  style?: React.CSSProperties;
 }
 
-export function MessageIcon({ className }: MessageIconProps) {
+export function MessageIcon({ className, style }: MessageIconProps) {
   return (
     <svg 
       xmlns="http://www.w3.org/2000/svg" 
-      width="24" 
-      height="24" 
-      viewBox="0 0 24 24"
+      viewBox="0 0 48 48"
+      width="48"
+      height="48"
       className={className}
+      style={style}
     >
-      <g fill="none" stroke="currentColor" strokeWidth="1">
-        <path d="M8.5 18.396V15.5h-2a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H12l-3.073 3.073a.25.25 0 0 1-.427-.177Z" />
-        <path strokeLinecap="round" d="M8.5 12.5h7m-7-3h7" />
+      <g fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M17 36.792V31h-4a2 2 0 0 1-2-2v-14a2 2 0 0 1 2-2h22a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H24l-6.146 6.146a.5.5 0 0 1-.854-.354Z" />
+        <path strokeLinecap="round" d="M17 25h14m-14-6h14" />
       </g>
     </svg>
   );
