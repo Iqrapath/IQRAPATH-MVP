@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Admin\ContentPagesController;
+use App\Http\Controllers\Admin\FaqController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\SubjectController;
 use Illuminate\Support\Facades\Route;
@@ -19,6 +21,14 @@ use Inertia\Inertia;
 Route::get('/', function () {
     return Inertia::render('welcome');
 })->name('home');
+
+// Public content pages
+Route::get('/page/{slug}', [ContentPagesController::class, 'show'])->name('pages.show');
+
+// Public FAQs
+Route::get('/faqs', function () {
+    return Inertia::render('Faqs');
+})->name('faqs');
 
 // Teacher document routes
 Route::middleware(['auth', 'verified', 'role:teacher'])->prefix('teacher')->name('teacher.')->group(function () {
