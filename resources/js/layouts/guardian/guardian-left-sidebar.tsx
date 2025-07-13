@@ -21,12 +21,15 @@ import {
     MessageSquare,
     BookMarked,
     Award,
-    X
+    X,
+    UserRound,
+    School,
+    HeartHandshake
 } from 'lucide-react';
 import React from 'react';
 import { Button } from '@/components/ui/button';
 
-interface StudentLeftSidebarProps extends React.HTMLAttributes<HTMLDivElement> {
+interface GuardianLeftSidebarProps extends React.HTMLAttributes<HTMLDivElement> {
     isMobile?: boolean;
     onClose?: () => void;
 }
@@ -67,7 +70,7 @@ const IconRenderer = ({ icon, size = 20, type = 'lucide' }: { icon: IconType; si
     return <Icon size={size} />;
 };
 
-export default function StudentLeftSidebar({ className, isMobile = false, onClose, ...props }: StudentLeftSidebarProps) {
+export default function GuardianLeftSidebar({ className, isMobile = false, onClose, ...props }: GuardianLeftSidebarProps) {
     const { url } = usePage();
     const currentPath = url;
 
@@ -80,61 +83,60 @@ export default function StudentLeftSidebar({ className, isMobile = false, onClos
     const navItems: NavItem[] = [
         {
             title: 'Dashboard',
-            href: '/student/dashboard',
+            href: '/guardian/dashboard',
             icon: LayoutDashboard,
         },
         {
-            title: 'My Courses',
-            href: '/student/courses',
-            icon: BookMarked,
+            title: 'My Children',
+            href: '/guardian/children',
+            icon: UserRound,
         },
         {
-            title: 'My Sessions',
-            href: '/student/sessions',
+            title: 'Sessions Calendar',
+            href: '/guardian/sessions',
             icon: Calendar,
         },
         {
             title: 'Learning Progress',
-            href: '/student/progress',
+            href: '/guardian/progress',
             icon: Award,
         },
         {
-            title: 'My Teachers',
-            href: '/student/teachers',
-            icon: GraduationCap,
+            title: 'Teachers',
+            href: '/guardian/teachers',
+            icon: School,
         },
         {
             title: 'Messages',
-            href: '/student/messages',
+            href: '/guardian/messages',
             icon: MessageSquare,
             divider: true,
         },
         {
             title: 'Payments',
-            href: '/student/payments',
+            href: '/guardian/payments',
             icon: CreditCard,
         },
         {
             title: 'Subscription',
-            href: '/student/subscription',
+            href: '/guardian/subscription',
             icon: BookOpenCheck,
             divider: true,
         },
         {
             title: 'Settings',
-            href: '/student/settings',
+            href: '/guardian/settings',
             icon: Settings,
         },
         {
             title: 'Notifications',
-            href: '/student/notifications',
+            href: '/guardian/notifications',
             icon: Bell,
         },
         {
-            title: 'Feedback & Support',
-            href: '/student/support',
-            icon: FeedbackSupportIcon,
-            iconType: 'custom',
+            title: 'Support',
+            href: '/guardian/support',
+            icon: HeartHandshake,
         },
         {
             title: 'Log out',
@@ -153,7 +155,7 @@ export default function StudentLeftSidebar({ className, isMobile = false, onClos
         if (currentPath === path) return true;
 
         // Match path pattern for nested routes
-        if (path !== '/student/dashboard' && currentPath.startsWith(path)) return true;
+        if (path !== '/guardian/dashboard' && currentPath.startsWith(path)) return true;
 
         return false;
     };
@@ -161,7 +163,7 @@ export default function StudentLeftSidebar({ className, isMobile = false, onClos
     return (
         <div
             className={cn(
-                "flex flex-col h-full bg-[#2c7870] text-white rounded-xl overflow-hidden relative",
+                "flex flex-col h-full bg-[#3b6a64] text-white rounded-xl overflow-hidden relative",
                 "w-60",
                 isMobile && "shadow-xl",
                 className
@@ -170,7 +172,7 @@ export default function StudentLeftSidebar({ className, isMobile = false, onClos
         >
             {isMobile && (
                 <div className="flex justify-between items-center p-4 border-b border-teal-500">
-                    <p className="text-xs uppercase tracking-wider text-white/80 font-medium">STUDENT</p>
+                    <p className="text-xs uppercase tracking-wider text-white/80 font-medium">GUARDIAN</p>
                     <Button variant="ghost" size="sm" className="text-white p-1 h-auto" onClick={onClose}>
                         <X className="h-4 w-4" />
                     </Button>
@@ -180,7 +182,7 @@ export default function StudentLeftSidebar({ className, isMobile = false, onClos
                 <div className={`${isMobile ? '' : 'pt-5'} px-1`}>
                     {!isMobile && (
                         <p className="text-xs uppercase tracking-wider text-white/80 font-medium px-3 mb-1.5">
-                            STUDENT
+                            GUARDIAN
                         </p>
                     )}
                     <nav className="space-y-1">

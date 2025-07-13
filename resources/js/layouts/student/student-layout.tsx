@@ -2,6 +2,7 @@ import { type ReactNode } from 'react';
 import StudentHeader from './student-header';
 import StudentLeftSidebar from './student-left-sidebar';
 import StudentRightSidebar from './student-right-sidebar';
+import { useState, useEffect } from 'react';
 
 interface StudentLayoutProps {
     children: ReactNode;
@@ -16,24 +17,98 @@ export default function StudentLayout({
     showRightSidebar = true,
     rightSidebarContent
 }: StudentLayoutProps) {
+    const [isMobile, setIsMobile] = useState(false);
+    const [showLeftSidebar, setShowLeftSidebar] = useState(false);
+    const [showRightSidebarMobile, setShowRightSidebarMobile] = useState(false);
+
+    // Handle responsive behavior
+    useEffect(() => {
+        const handleResize = () => {
+            const mobile = window.innerWidth < 1024;
+            setIsMobile(mobile);
+            // Hide sidebars on mobile by default
+            if (mobile) {
+                setShowLeftSidebar(false);
+                setShowRightSidebarMobile(false);
+            }
+        };
+        
+        // Set initial state
+        handleResize();
+        
+        // Add event listener
+        window.addEventListener('resize', handleResize);
+        
+        // Cleanup
+        return () => {
+            window.removeEventListener('resize', handleResize);
+        };
+    }, []);
+
+    // Toggle sidebar visibility on mobile
+    const toggleLeftSidebar = () => {
+        setShowLeftSidebar(!showLeftSidebar);
+        if (showRightSidebarMobile) setShowRightSidebarMobile(false);
+    };
+
+    const toggleRightSidebar = () => {
+        setShowRightSidebarMobile(!showRightSidebarMobile);
+        if (showLeftSidebar) setShowLeftSidebar(false);
+    };
+
+    const closeLeftSidebar = () => {
+        setShowLeftSidebar(false);
+    };
+
+    const closeRightSidebar = () => {
+        setShowRightSidebarMobile(false);
+    };
+
     return (
         <div className="flex min-h-screen w-full flex-col">
-            <StudentHeader pageTitle={pageTitle} />
-            <div className="flex flex-1">
-                <div className="pl-25 pt-2">
-                    <StudentLeftSidebar />
+            <StudentHeader 
+                pageTitle={pageTitle} 
+                toggleLeftSidebar={toggleLeftSidebar}
+                toggleRightSidebar={toggleRightSidebar}
+                isMobile={isMobile}
+            />
+            <div className="flex flex-1 relative">
+                {/* Left Sidebar - Hidden on mobile by default, shown when toggled */}
+                <div className={`${isMobile ? 'absolute z-30 h-full' : 'pl-25 pt-2'} ${isMobile && !showLeftSidebar ? 'hidden' : 'block'}`}>
+                    <StudentLeftSidebar 
+                        isMobile={isMobile}
+                        onClose={closeLeftSidebar}
+                    />
                 </div>
-                <main className="flex-1 p-6">
+
+                {/* Main Content */}
+                <main className="flex-1 p-6 overflow-x-auto">
                     {children}
                 </main>
-                <div className="pr-25">
+
+                {/* Right Sidebar - Hidden on mobile by default, shown when toggled */}
+                <div className={`${isMobile ? 'absolute right-0 z-30 h-full' : 'pr-25'} ${isMobile && !showRightSidebarMobile ? 'hidden' : 'block'}`}>
                     {showRightSidebar && (
-                        <StudentRightSidebar>
+                        <StudentRightSidebar
+                            isMobile={isMobile}
+                            onClose={closeRightSidebar}
+                        >
                             {rightSidebarContent}
                         </StudentRightSidebar>
                     )}
                 </div>
             </div>
+
+            {/* Mobile overlay when sidebar is open */}
+            {isMobile && (showLeftSidebar || showRightSidebarMobile) && (
+                <div 
+                    className="fixed inset-0 bg-white/10 backdrop-blur-sm z-20"
+                    onClick={() => {
+                        setShowLeftSidebar(false);
+                        setShowRightSidebarMobile(false);
+                    }}
+                />
+            )}
         </div>
     );
 } 

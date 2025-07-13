@@ -3,19 +3,19 @@ import { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
 
-interface TeacherRightSidebarProps {
+interface GuardianRightSidebarProps {
     children?: ReactNode;
     className?: string;
     isMobile?: boolean;
     onClose?: () => void;
 }
 
-export default function TeacherRightSidebar({ 
+export default function GuardianRightSidebar({ 
     children,
     className,
     isMobile = false,
     onClose
-}: TeacherRightSidebarProps) {
+}: GuardianRightSidebarProps) {
     const defaultContent = (
         <div className="rounded-lg bg-teal-600 p-6 text-white">
             <div className="flex justify-center">
@@ -25,38 +25,54 @@ export default function TeacherRightSidebar({
                     className="w-40 h-auto"
                 />
             </div>
-            <h3 className="text-xl font-semibold mb-2">Upcoming Sessions</h3>
-            <p className="text-sm mb-4">You have 3 teaching sessions scheduled for today.</p>
+            <h3 className="text-xl font-semibold mb-2">Children's Progress</h3>
+            <p className="text-sm mb-4">Your children are making excellent progress in their studies.</p>
             
             <div className="space-y-3">
                 <div className="bg-teal-700 rounded p-2">
                     <div className="flex justify-between items-center">
-                        <span className="font-medium">Ahmed Hassan</span>
-                        <span className="text-xs">10:00 AM</span>
+                        <span className="font-medium">Ahmed</span>
+                        <span className="text-xs">75% Complete</span>
                     </div>
-                    <div className="text-xs mt-1">Quran Memorization - Surah Al-Baqarah</div>
+                    <div className="w-full bg-teal-800 rounded-full h-1.5 mt-2">
+                        <div className="bg-white h-1.5 rounded-full" style={{ width: '75%' }}></div>
+                    </div>
+                    <div className="text-xs mt-1">Quran Memorization - Juz' 29</div>
                 </div>
                 
                 <div className="bg-teal-700 rounded p-2">
                     <div className="flex justify-between items-center">
-                        <span className="font-medium">Fatima Ali</span>
-                        <span className="text-xs">1:30 PM</span>
+                        <span className="font-medium">Fatima</span>
+                        <span className="text-xs">60% Complete</span>
                     </div>
-                    <div className="text-xs mt-1">Tajweed Rules - Advanced</div>
+                    <div className="w-full bg-teal-800 rounded-full h-1.5 mt-2">
+                        <div className="bg-white h-1.5 rounded-full" style={{ width: '60%' }}></div>
+                    </div>
+                    <div className="text-xs mt-1">Tajweed Rules - Level 2</div>
                 </div>
-                
+            </div>
+            
+            <div className="mt-4">
+                <h4 className="font-medium mb-2">Upcoming Sessions</h4>
+                <div className="bg-teal-700 rounded p-2 mb-2">
+                    <div className="flex justify-between items-center">
+                        <span className="font-medium">Ahmed</span>
+                        <span className="text-xs">Today, 4:00 PM</span>
+                    </div>
+                    <div className="text-xs mt-1">With Ustadh Ibrahim</div>
+                </div>
                 <div className="bg-teal-700 rounded p-2">
                     <div className="flex justify-between items-center">
-                        <span className="font-medium">Ibrahim Khan</span>
-                        <span className="text-xs">4:00 PM</span>
+                        <span className="font-medium">Fatima</span>
+                        <span className="text-xs">Tomorrow, 10:00 AM</span>
                     </div>
-                    <div className="text-xs mt-1">Quran Memorization - Surah Yaseen</div>
+                    <div className="text-xs mt-1">With Ustadha Aisha</div>
                 </div>
             </div>
             
             <div className="mt-4 text-center">
                 <button className="bg-white text-teal-700 px-4 py-2 rounded text-sm font-medium">
-                    View All Sessions
+                    View Full Schedule
                 </button>
             </div>
         </div>

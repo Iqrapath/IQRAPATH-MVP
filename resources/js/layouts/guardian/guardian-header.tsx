@@ -8,19 +8,19 @@ import { type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import { Bell, MessageSquare, ChevronDown, Menu, PanelRight } from 'lucide-react';
 
-interface StudentHeaderProps {
+interface GuardianHeaderProps {
     pageTitle: string;
     toggleLeftSidebar?: () => void;
     toggleRightSidebar?: () => void;
     isMobile?: boolean;
 }
 
-export default function StudentHeader({ 
+export default function GuardianHeader({ 
     pageTitle, 
     toggleLeftSidebar, 
     toggleRightSidebar, 
     isMobile = false 
-}: StudentHeaderProps) {
+}: GuardianHeaderProps) {
     const page = usePage<SharedData>();
     const { auth } = page.props;
     const getInitials = useInitials();
@@ -36,7 +36,7 @@ export default function StudentHeader({
             
             {/* Logo at left with spacing */}
             <div className={`flex items-center ${isMobile ? 'w-auto' : 'w-64 pl-4'}`}>
-                <Link href="/student/dashboard" className="flex items-center">
+                <Link href="/guardian/dashboard" className="flex items-center">
                     <AppLogoIcon className="h-8 w-8 fill-current text-primary" />
                     {!isMobile && <span className="ml-2 text-xl font-semibold">IqraPath</span>}
                 </Link>
@@ -60,7 +60,7 @@ export default function StudentHeader({
                 <Button variant="ghost" size="icon" className="relative">
                     <Bell className="h-5 w-5" />
                     <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">
-                        1
+                        2
                     </span>
                 </Button>
 
@@ -86,7 +86,7 @@ export default function StudentHeader({
                             {!isMobile && (
                                 <div className="flex flex-col items-start text-sm">
                                     <span className="font-medium">{auth.user.name}</span>
-                                    <span className="text-xs text-muted-foreground">Student</span>
+                                    <span className="text-xs text-muted-foreground">Guardian</span>
                                 </div>
                             )}
                             {!isMobile && <ChevronDown className="h-4 w-4 text-muted-foreground" />}

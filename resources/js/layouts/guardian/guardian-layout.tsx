@@ -1,22 +1,22 @@
 import { type ReactNode } from 'react';
-import TeacherHeader from './teacher-header';
-import TeacherLeftSidebar from './teacher-left-sidebar';
-import TeacherRightSidebar from './teacher-right-sidebar';
+import GuardianHeader from './guardian-header';
+import GuardianLeftSidebar from './guardian-left-sidebar';
+import GuardianRightSidebar from './guardian-right-sidebar';
 import { useState, useEffect } from 'react';
 
-interface TeacherLayoutProps {
+interface GuardianLayoutProps {
     children: ReactNode;
     pageTitle: string;
     showRightSidebar?: boolean;
     rightSidebarContent?: ReactNode;
 }
 
-export default function TeacherLayout({ 
+export default function GuardianLayout({ 
     children, 
     pageTitle,
     showRightSidebar = true,
     rightSidebarContent
-}: TeacherLayoutProps) {
+}: GuardianLayoutProps) {
     const [isMobile, setIsMobile] = useState(false);
     const [showLeftSidebar, setShowLeftSidebar] = useState(false);
     const [showRightSidebarMobile, setShowRightSidebarMobile] = useState(false);
@@ -66,7 +66,7 @@ export default function TeacherLayout({
 
     return (
         <div className="flex min-h-screen w-full flex-col">
-            <TeacherHeader 
+            <GuardianHeader 
                 pageTitle={pageTitle} 
                 toggleLeftSidebar={toggleLeftSidebar}
                 toggleRightSidebar={toggleRightSidebar}
@@ -75,7 +75,7 @@ export default function TeacherLayout({
             <div className="flex flex-1 relative">
                 {/* Left Sidebar - Hidden on mobile by default, shown when toggled */}
                 <div className={`${isMobile ? 'absolute z-30 h-full' : 'pl-25 pt-2'} ${isMobile && !showLeftSidebar ? 'hidden' : 'block'}`}>
-                    <TeacherLeftSidebar 
+                    <GuardianLeftSidebar 
                         isMobile={isMobile}
                         onClose={closeLeftSidebar}
                     />
@@ -89,12 +89,12 @@ export default function TeacherLayout({
                 {/* Right Sidebar - Hidden on mobile by default, shown when toggled */}
                 <div className={`${isMobile ? 'absolute right-0 z-30 h-full' : 'pr-25'} ${isMobile && !showRightSidebarMobile ? 'hidden' : 'block'}`}>
                     {showRightSidebar && (
-                        <TeacherRightSidebar
+                        <GuardianRightSidebar
                             isMobile={isMobile}
                             onClose={closeRightSidebar}
                         >
                             {rightSidebarContent}
-                        </TeacherRightSidebar>
+                        </GuardianRightSidebar>
                     )}
                 </div>
             </div>

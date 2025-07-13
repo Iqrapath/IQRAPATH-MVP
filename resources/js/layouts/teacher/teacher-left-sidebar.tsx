@@ -18,11 +18,16 @@ import {
     BookOpenCheck,
     GraduationCap,
     Clock,
-    MessageSquare
+    MessageSquare,
+    X
 } from 'lucide-react';
 import React from 'react';
+import { Button } from '@/components/ui/button';
 
-interface TeacherLeftSidebarProps extends React.HTMLAttributes<HTMLDivElement> {}
+interface TeacherLeftSidebarProps extends React.HTMLAttributes<HTMLDivElement> {
+    isMobile?: boolean;
+    onClose?: () => void;
+}
 
 type IconType = LucideIcon | any; // Allow any type for icons to support custom icons
 
@@ -60,7 +65,7 @@ const IconRenderer = ({ icon, size = 20, type = 'lucide' }: { icon: IconType; si
     return <Icon size={size} />;
 };
 
-export default function TeacherLeftSidebar({ className, ...props }: TeacherLeftSidebarProps) {
+export default function TeacherLeftSidebar({ className, isMobile = false, onClose, ...props }: TeacherLeftSidebarProps) {
     const { url } = usePage();
     const currentPath = url;
 
@@ -153,20 +158,42 @@ export default function TeacherLeftSidebar({ className, ...props }: TeacherLeftS
 
     return (
         <div
-        className={cn("w-60 pb-4 bg-teal-600 text-white rounded-xl overflow-hidden relative", className)}
+            className={cn(
+                "flex flex-col h-full bg-teal-600 text-white rounded-xl overflow-hidden relative",
+                "w-60",
+                isMobile && "shadow-xl",
+                className
+            )}
             {...props}
         >
+            {isMobile && (
+                <div className="flex justify-between items-center p-4 border-b border-teal-500">
+                    <p className="text-xs uppercase tracking-wider text-white/80 font-medium">TEACHER</p>
+                    <Button variant="ghost" size="sm" className="text-white p-1 h-auto" onClick={onClose}>
+                        <X className="h-4 w-4" />
+                    </Button>
+                </div>
+            )}
             <div className="flex-1 overflow-y-auto">
-                <div className="pt-5 px-1">
-                    <p className="text-xs uppercase tracking-wider text-white/80 font-medium px-3 mb-1.5">
-                        TEACHER
-                    </p>
+                <div className={`${isMobile ? '' : 'pt-5'} px-1`}>
+                    {!isMobile && (
+                        <p className="text-xs uppercase tracking-wider text-white/80 font-medium px-3 mb-1.5">
+                            TEACHER
+                        </p>
+                    )}
                     <nav className="space-y-1">
                         {navItems.map((item, index) => (
                             <React.Fragment key={item.href || index}>
                                 <Link
                                     href={item.href}
-                                    onClick={item.onClick}
+                                    onClick={(e) => {
+                                        if (item.onClick) {
+                                            item.onClick(e);
+                                        }
+                                        if (isMobile && onClose) {
+                                            onClose();
+                                        }
+                                    }}
                                     className={cn(
                                         'flex items-center px-3 py-1.5 text-sm font-medium rounded-md transition-colors mx-1',
                                         isActive(item.href)
