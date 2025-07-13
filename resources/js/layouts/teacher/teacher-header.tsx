@@ -6,7 +6,9 @@ import { UserMenuContent } from '@/components/user-menu-content';
 import { useInitials } from '@/hooks/use-initials';
 import { type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { Bell, MessageSquare, ChevronDown, Menu, PanelRight } from 'lucide-react';
+import { ChevronDown, Menu, PanelRight } from 'lucide-react';
+import BellNotificationIcon from '@/components/icons/bell-notification-icon';
+import MessageIcon from '@/components/icons/message-icon';
 
 interface TeacherHeaderProps {
     pageTitle: string;
@@ -58,7 +60,7 @@ export default function TeacherHeader({
                 
                 {/* Notifications */}
                 <Button variant="ghost" size="icon" className="relative">
-                    <Bell className="h-5 w-5" />
+                    <BellNotificationIcon className="h-auto w-8" />
                     <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">
                         2
                     </span>
@@ -67,7 +69,7 @@ export default function TeacherHeader({
                 {/* Messages - hide on smallest screens */}
                 {!isMobile && (
                     <Button variant="ghost" size="icon" className="relative">
-                        <MessageSquare className="h-5 w-5" />
+                        <MessageIcon className="h-auto w-20" />
                     </Button>
                 )}
 

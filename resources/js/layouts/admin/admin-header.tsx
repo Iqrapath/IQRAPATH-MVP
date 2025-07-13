@@ -6,7 +6,9 @@ import { UserMenuContent } from '@/components/user-menu-content';
 import { useInitials } from '@/hooks/use-initials';
 import { type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { Bell, MessageSquare, ChevronDown, Menu, PanelRight } from 'lucide-react';
+import { ChevronDown, Menu, PanelRight } from 'lucide-react';
+import BellNotificationIcon from '@/components/icons/bell-notification-icon';
+import MessageIcon from '@/components/icons/message-icon';
 
 interface AdminHeaderProps {
     pageTitle: string;
@@ -48,7 +50,7 @@ export default function AdminHeader({
             </div>
             
             {/* User profile at right with spacing */}
-            <div className={`flex items-center space-x-2 ${isMobile ? 'w-auto' : 'w-64 justify-end pr-20'}`}>
+            <div className={`flex items-center space-x-6 ${isMobile ? 'w-auto' : 'w-64 justify-end pr-20'}`}>
                 {/* Mobile right sidebar toggle */}
                 {isMobile && (
                     <Button variant="ghost" size="icon" onClick={toggleRightSidebar}>
@@ -58,7 +60,7 @@ export default function AdminHeader({
                 
                 {/* Notifications */}
                 <Button variant="ghost" size="icon" className="relative">
-                    <Bell className="h-5 w-5" />
+                    <BellNotificationIcon className="h-auto w-8" />
                     <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">
                         3
                     </span>
@@ -67,7 +69,7 @@ export default function AdminHeader({
                 {/* Messages - hide on smallest screens */}
                 {!isMobile && (
                     <Button variant="ghost" size="icon" className="relative">
-                        <MessageSquare className="h-5 w-5" />
+                        <MessageIcon className="h-auto w-20" />
                     </Button>
                 )}
 
@@ -86,10 +88,10 @@ export default function AdminHeader({
                             {!isMobile && (
                                 <div className="flex flex-col items-start text-sm">
                                     <span className="font-medium">{auth.user.name}</span>
-                                    <span className="text-xs text-muted-foreground">{auth.user.role}</span>
+                                    <span className="text-xs text-muted-foreground">Admin</span>
                                 </div>
                             )}
-                            {/* {!isMobile && <ChevronDown className="h-4 w-4 text-muted-foreground" />} */}
+                            {!isMobile && <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
