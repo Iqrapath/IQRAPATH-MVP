@@ -1,14 +1,20 @@
 import { cn } from '@/lib/utils';
 import { ReactNode } from 'react';
+import { Button } from '@/components/ui/button';
+import { X } from 'lucide-react';
 
 interface AdminRightSidebarProps {
     children?: ReactNode;
     className?: string;
+    isMobile?: boolean;
+    onClose?: () => void;
 }
 
 export default function AdminRightSidebar({ 
     children,
-    className
+    className,
+    isMobile = false,
+    onClose
 }: AdminRightSidebarProps) {
     const defaultContent = (
         <div className="rounded-lg bg-teal-600 p-6 text-white">
@@ -37,7 +43,19 @@ export default function AdminRightSidebar({
     );
 
     return (
-        <div className={cn("w-72 p-4", className)}>
+        <div className={cn(
+            "w-72 p-4",
+            isMobile && "bg-white shadow-xl h-full",
+            className
+        )}>
+            {isMobile && (
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-medium">Details</h3>
+                    <Button variant="ghost" size="sm" className="p-1 h-auto" onClick={onClose}>
+                        <X className="h-4 w-4" />
+                    </Button>
+                </div>
+            )}
             {children || defaultContent}
         </div>
     );

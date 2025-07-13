@@ -6,34 +6,56 @@ import { UserMenuContent } from '@/components/user-menu-content';
 import { useInitials } from '@/hooks/use-initials';
 import { type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { Bell, MessageSquare, ChevronDown } from 'lucide-react';
+import { Bell, MessageSquare, ChevronDown, Menu, PanelRight } from 'lucide-react';
 
 interface AdminHeaderProps {
     pageTitle: string;
+    toggleLeftSidebar?: () => void;
+    toggleRightSidebar?: () => void;
+    isMobile?: boolean;
 }
 
-export default function AdminHeader({ pageTitle }: AdminHeaderProps) {
+export default function AdminHeader({ 
+    pageTitle, 
+    toggleLeftSidebar, 
+    toggleRightSidebar, 
+    isMobile = false 
+}: AdminHeaderProps) {
     const page = usePage<SharedData>();
     const { auth } = page.props;
     const getInitials = useInitials();
 
     return (
         <header className="bg-gradient-to-r from-[#FFF7E4]/30 to-[#FFF7E4]/30 border-b border-gray-200 h-16 flex items-center px-6">
+            {/* Mobile menu button */}
+            {isMobile && (
+                <Button variant="ghost" size="icon" className="mr-2" onClick={toggleLeftSidebar}>
+                    <Menu className="h-5 w-5" />
+                </Button>
+            )}
+            
             {/* Logo at left with spacing */}
-            <div className="flex items-center w-64 pl-30">
+            <div className={`flex items-center ${isMobile ? 'w-auto' : 'w-64 pl-30'}`}>
                 <Link href="/dashboard" className="flex items-center">
                     <AppLogoIcon className="h-8 w-8 fill-current text-primary" />
-                    <span className="ml-2 text-xl font-semibold">IqraPath</span>
+                    {!isMobile && <span className="ml-2 text-xl font-semibold">IqraPath</span>}
                 </Link>
             </div>
-
+            
             {/* Page title in center */}
             <div className="flex-1 flex justify-center">
-                <h1 className="text-lg font-medium">{pageTitle}</h1>
+                <h1 className={`${isMobile ? 'text-base' : 'text-lg'} font-medium`}>{pageTitle}</h1>
             </div>
-
+            
             {/* User profile at right with spacing */}
-            <div className="flex items-center space-x-4 w-64 justify-end pr-20">
+            <div className={`flex items-center space-x-2 ${isMobile ? 'w-auto' : 'w-64 justify-end pr-20'}`}>
+                {/* Mobile right sidebar toggle */}
+                {isMobile && (
+                    <Button variant="ghost" size="icon" onClick={toggleRightSidebar}>
+                        <PanelRight className="h-5 w-5" />
+                    </Button>
+                )}
+                
                 {/* Notifications */}
                 <Button variant="ghost" size="icon" className="relative">
                     <Bell className="h-5 w-5" />
@@ -42,10 +64,12 @@ export default function AdminHeader({ pageTitle }: AdminHeaderProps) {
                     </span>
                 </Button>
 
-                {/* Messages */}
-                <Button variant="ghost" size="icon" className="relative">
-                    <MessageSquare className="h-5 w-5" />
-                </Button>
+                {/* Messages - hide on smallest screens */}
+                {!isMobile && (
+                    <Button variant="ghost" size="icon" className="relative">
+                        <MessageSquare className="h-5 w-5" />
+                    </Button>
+                )}
 
                 {/* User Profile */}
                 <DropdownMenu>
@@ -59,15 +83,13 @@ export default function AdminHeader({ pageTitle }: AdminHeaderProps) {
                                     {getInitials(auth.user.name)}
                                 </AvatarFallback>
                             </Avatar>
-                            <div className="flex flex-col items-start text-sm">
-                                <span className="font-medium">{auth.user.name}</span>
-                                <div className="flex items-center">
-                                    <span className="text-xs text-muted-foreground">
-                                        {auth.user.role}
-                                    </span>
-                                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                            {!isMobile && (
+                                <div className="flex flex-col items-start text-sm">
+                                    <span className="font-medium">{auth.user.name}</span>
+                                    <span className="text-xs text-muted-foreground">{auth.user.role}</span>
                                 </div>
-                            </div>
+                            )}
+                            {/* {!isMobile && <ChevronDown className="h-4 w-4 text-muted-foreground" />} */}
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
