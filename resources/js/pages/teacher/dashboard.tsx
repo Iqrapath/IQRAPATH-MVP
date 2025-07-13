@@ -1,19 +1,20 @@
 import { Head } from '@inertiajs/react';
-import { type TeacherProfile } from '@/types';
-import AppLayout from '@/layouts/app-layout';
+import { type TeacherProfile, type User } from '@/types';
+import TeacherLayout from '@/layouts/teacher/teacher-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface TeacherDashboardProps {
     teacherProfile: TeacherProfile;
+    user?: User;
 }
 
-export default function TeacherDashboard({ teacherProfile }: TeacherDashboardProps) {
+export default function TeacherDashboard({ teacherProfile, user }: TeacherDashboardProps) {
     return (
-        <AppLayout>
+        <TeacherLayout pageTitle="Teacher Dashboard">
             <Head title="Teacher Dashboard" />
             
             <div className="container mx-auto py-10">
-                <h1 className="text-3xl font-bold mb-6">Teacher Dashboard</h1>
+                <h1 className="text-3xl font-bold mb-6">Welcome Back, {user?.name || 'Teacher'}</h1>
                 
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                     <Card>
@@ -64,6 +65,6 @@ export default function TeacherDashboard({ teacherProfile }: TeacherDashboardPro
                     </Card>
                 </div>
             </div>
-        </AppLayout>
+        </TeacherLayout>
     );
 } 

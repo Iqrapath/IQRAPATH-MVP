@@ -1,6 +1,6 @@
 import { Head } from '@inertiajs/react';
 import { type AdminProfile } from '@/types';
-import AppLayout from '@/layouts/app-layout';
+import AdminLayout from '@/layouts/admin/admin-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface AdminDashboardProps {
@@ -9,10 +9,10 @@ interface AdminDashboardProps {
 
 export default function AdminDashboard({ adminProfile }: AdminDashboardProps) {
     return (
-        <AppLayout>
+        <AdminLayout pageTitle="Dashboard">
             <Head title="Admin Dashboard" />
             
-            <div className="container mx-auto py-10">
+            <div className="py-6">
                 <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
                 
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -56,6 +56,6 @@ export default function AdminDashboard({ adminProfile }: AdminDashboardProps) {
                     </Card>
                 </div>
             </div>
-        </AppLayout>
+        </AdminLayout>
     );
 } 

@@ -47,7 +47,7 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
     const page = usePage<SharedData>();
     const { auth } = page.props;
     const getInitials = useInitials();
-    const status: StatusType = auth.user.status_type || 'offline';
+    const status: StatusType = (auth.user.status_type as StatusType) || 'offline';
     
     return (
         <>
