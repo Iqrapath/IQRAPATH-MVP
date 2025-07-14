@@ -40,7 +40,7 @@ export default function NotificationPage({ notifications, filters = {} }: Notifi
 
   // Breadcrumb items
   const breadcrumbs: BreadcrumbItem[] = [
-    // { title: 'Dashboard', href: '/admin/dashboard' },
+    { title: 'Dashboard', href: '/admin/dashboard' },
     { title: 'Notifications System', href: '/admin/notification' },
   ];
 
@@ -118,9 +118,11 @@ export default function NotificationPage({ notifications, filters = {} }: Notifi
             </Select>
           </div>
           
-          <Button className="bg-white text-[#338078] border-2 border-[#338078] rounded-full hover:bg-[#338078] hover:text-white transition-all duration-300 cursor-pointer">
-            Search
-          </Button>
+          <Link href="/admin/notification-history">
+            <Button className="bg-white text-[#338078] border-2 border-[#338078] rounded-full hover:bg-[#338078] hover:text-white transition-all duration-300 cursor-pointer">
+              View History
+            </Button>
+          </Link>
         </div>
         
         {/* Notification table */}

@@ -35,6 +35,9 @@ Route::middleware(['auth', 'verified', 'role:super-admin'])->prefix('admin/notif
     Route::post('/triggers', [NotificationController::class, 'storeTrigger'])->name('triggers.store');
 });
 
+// Add a separate route for notification history
+Route::middleware(['auth', 'verified', 'role:super-admin'])->get('/admin/notification-history', [NotificationController::class, 'history'])->name('admin.notification.history');
+
 // User notification API routes
 Route::middleware(['auth'])->prefix('api')->group(function () {
     Route::get('/notifications', [App\Http\Controllers\Api\NotificationController::class, 'index'])

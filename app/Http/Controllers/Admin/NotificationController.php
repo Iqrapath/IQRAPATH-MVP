@@ -54,7 +54,7 @@ class NotificationController extends Controller
     {
         $templates = NotificationTemplate::active()->get();
         
-        return Inertia::render('Admin/Notifications/Create', [
+        return Inertia::render('admin/notification-component/notification-create', [
             'templates' => $templates,
             'roles' => ['super-admin', 'admin', 'teacher', 'student', 'guardian'],
         ]);
@@ -129,7 +129,7 @@ class NotificationController extends Controller
             'pending' => $notification->recipients->whereIn('status', ['pending', 'sent'])->count(),
         ];
         
-        return Inertia::render('Admin/Notifications/Show', [
+        return Inertia::render('admin/notification-component/notification-show', [
             'notification' => $notification,
             'analytics' => $analytics,
         ]);
@@ -171,7 +171,7 @@ class NotificationController extends Controller
         // Get channels
         $channels = $recipients->pluck('channel')->unique()->toArray();
         
-        return Inertia::render('Admin/Notifications/Edit', [
+        return Inertia::render('admin/notification-component/notification-edit', [
             'notification' => $notification,
             'recipientType' => $recipientType,
             'roles' => $roles,
@@ -289,7 +289,7 @@ class NotificationController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        return Inertia::render('Admin/Notifications/Templates/Index', [
+        return Inertia::render('admin/notification-component/notification-templates', [
             'templates' => $templates,
             'filters' => $request->only(['search', 'type']),
         ]);
@@ -300,7 +300,7 @@ class NotificationController extends Controller
      */
     public function createTemplate()
     {
-        return Inertia::render('Admin/Notifications/Templates/Create');
+        return Inertia::render('admin/notification-component/notification-templates');
     }
 
     /**
@@ -346,7 +346,7 @@ class NotificationController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        return Inertia::render('Admin/Notifications/Triggers/Index', [
+        return Inertia::render('admin/notification-component/notification-triggers', [
             'triggers' => $triggers,
             'filters' => $request->only(['search', 'event']),
         ]);
@@ -405,5 +405,52 @@ class NotificationController extends Controller
 
         return redirect()->route('admin.notifications.triggers')
             ->with('success', 'Trigger created successfully.');
+    }
+    
+    /**
+     * Display the notification history page.
+     */
+    public function history(Request $request)
+    {
+        // Get sent notifications with their recipients
+        $notifications = NotificationRecipient::with(['notification', 'user'])
+            ->whereHas('notification', function ($query) {
+                $query->whereIn('status', ['sent', 'delivered']);
+            })
+            ->when($request->search, function ($query, $search) {
+                $query->whereHas('user', function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('email', 'like', "%{$search}%");
+                });
+            })
+            ->when($request->status, function ($query, $status) {
+                if ($status !== 'all') {
+                    $query->where('status', $status);
+                }
+            })
+            ->when($request->subject, function ($query, $subject) {
+                if ($subject !== 'all') {
+                    $query->whereHas('notification', function ($q) use ($subject) {
+                        $q->where('type', $subject);
+                    });
+                }
+            })
+            ->orderBy('created_at', 'desc')
+            ->paginate(10)
+            ->withQueryString();
+            
+        // Get urgent actions data
+        $urgentActions = [
+            'withdrawalRequests' => 0, // Replace with actual count
+            'teacherApplications' => 0, // Replace with actual count
+            'pendingSessions' => 0, // Replace with actual count
+            'reportedDisputes' => 0, // Replace with actual count
+        ];
+        
+        return Inertia::render('admin/notification-component/notification-history', [
+            'notifications' => $notifications,
+            'urgentActions' => $urgentActions,
+            'filters' => $request->only(['search', 'status', 'subject']),
+        ]);
     }
 } 
