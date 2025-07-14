@@ -65,7 +65,7 @@ export default function AdminLayout({
     };
 
     return (
-        <div className="flex flex-col h-screen w-full overflow-hidden">
+        <div className="flex flex-col h-screen w-full overflow-hidden bg-gray-50">
             <AdminHeader 
                 pageTitle={pageTitle} 
                 toggleLeftSidebar={toggleLeftSidebar}
