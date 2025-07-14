@@ -12,7 +12,7 @@ class VerificationRequestObserver
      */
     public function created(VerificationRequest $verificationRequest): void
     {
-        if ($verificationRequest->status === 'pending' && $verificationRequest->type === 'teacher_verification') {
+        if ($verificationRequest->status === 'pending') {
             Cache::forget('admin_urgent_actions');
         }
     }
@@ -22,9 +22,8 @@ class VerificationRequestObserver
      */
     public function updated(VerificationRequest $verificationRequest): void
     {
-        // Only clear cache if it's a teacher verification and status changed to or from 'pending'
-        if ($verificationRequest->type === 'teacher_verification' && 
-            $verificationRequest->isDirty('status') && 
+        // Only clear cache if status changed to or from 'pending'
+        if ($verificationRequest->isDirty('status') && 
             ($verificationRequest->status === 'pending' || $verificationRequest->getOriginal('status') === 'pending')) {
             Cache::forget('admin_urgent_actions');
         }
@@ -35,7 +34,7 @@ class VerificationRequestObserver
      */
     public function deleted(VerificationRequest $verificationRequest): void
     {
-        if ($verificationRequest->status === 'pending' && $verificationRequest->type === 'teacher_verification') {
+        if ($verificationRequest->status === 'pending') {
             Cache::forget('admin_urgent_actions');
         }
     }

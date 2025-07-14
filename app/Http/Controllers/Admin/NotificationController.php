@@ -38,11 +38,30 @@ class NotificationController extends Controller
                 $query->where('status', $status);
             })
             ->orderBy('created_at', 'desc')
-            ->paginate(10)
+            ->paginate(5)
             ->withQueryString();
+            
+        // Format pagination data to match what the frontend expects
+        $formattedNotifications = [
+            'data' => $notifications->items(),
+            'links' => [
+                'prev' => $notifications->previousPageUrl(),
+                'next' => $notifications->nextPageUrl(),
+            ],
+            'meta' => [
+                'current_page' => $notifications->currentPage(),
+                'from' => $notifications->firstItem() ?? 0,
+                'last_page' => $notifications->lastPage(),
+                'links' => $notifications->linkCollection()->toArray(),
+                'path' => $notifications->path(),
+                'per_page' => $notifications->perPage(),
+                'to' => $notifications->lastItem() ?? 0,
+                'total' => $notifications->total(),
+            ],
+        ];
 
         return Inertia::render('admin/notification', [
-            'notifications' => $notifications,
+            'notifications' => $formattedNotifications,
             'filters' => $request->only(['search', 'type', 'status']),
         ]);
     }
@@ -288,9 +307,28 @@ class NotificationController extends Controller
             ->orderBy('name')
             ->paginate(10)
             ->withQueryString();
+            
+        // Format pagination data to match what the frontend expects
+        $formattedTemplates = [
+            'data' => $templates->items(),
+            'links' => [
+                'prev' => $templates->previousPageUrl(),
+                'next' => $templates->nextPageUrl(),
+            ],
+            'meta' => [
+                'current_page' => $templates->currentPage(),
+                'from' => $templates->firstItem() ?? 0,
+                'last_page' => $templates->lastPage(),
+                'links' => $templates->linkCollection()->toArray(),
+                'path' => $templates->path(),
+                'per_page' => $templates->perPage(),
+                'to' => $templates->lastItem() ?? 0,
+                'total' => $templates->total(),
+            ],
+        ];
 
         return Inertia::render('admin/notification-component/notification-templates', [
-            'templates' => $templates,
+            'templates' => $formattedTemplates,
             'filters' => $request->only(['search', 'type']),
         ]);
     }
@@ -345,9 +383,28 @@ class NotificationController extends Controller
             ->orderBy('name')
             ->paginate(10)
             ->withQueryString();
+            
+        // Format pagination data to match what the frontend expects
+        $formattedTriggers = [
+            'data' => $triggers->items(),
+            'links' => [
+                'prev' => $triggers->previousPageUrl(),
+                'next' => $triggers->nextPageUrl(),
+            ],
+            'meta' => [
+                'current_page' => $triggers->currentPage(),
+                'from' => $triggers->firstItem() ?? 0,
+                'last_page' => $triggers->lastPage(),
+                'links' => $triggers->linkCollection()->toArray(),
+                'path' => $triggers->path(),
+                'per_page' => $triggers->perPage(),
+                'to' => $triggers->lastItem() ?? 0,
+                'total' => $triggers->total(),
+            ],
+        ];
 
         return Inertia::render('admin/notification-component/notification-triggers', [
-            'triggers' => $triggers,
+            'triggers' => $formattedTriggers,
             'filters' => $request->only(['search', 'event']),
         ]);
     }
@@ -439,18 +496,146 @@ class NotificationController extends Controller
             ->paginate(10)
             ->withQueryString();
             
-        // Get urgent actions data
+        // Get scheduled notifications
+        $scheduledNotifications = Notification::with(['sender'])
+            ->where('status', 'scheduled')
+            ->when($request->search, function ($query, $search) {
+                $query->where('title', 'like', "%{$search}%")
+                    ->orWhere('body', 'like', "%{$search}%");
+            })
+            ->when($request->status, function ($query, $status) {
+                if ($status !== 'all') {
+                    $query->where('status', $status);
+                }
+            })
+            ->when($request->subject, function ($query, $subject) {
+                if ($subject !== 'all') {
+                    $query->where('type', $subject);
+                }
+            })
+            ->orderBy('scheduled_at')
+            ->paginate(10)
+            ->withQueryString();
+            
+        // Get completed teaching sessions with relationships
+        $completedClasses = \App\Models\TeachingSession::with(['teacher', 'student', 'subject'])
+            ->where('status', 'completed')
+            ->when($request->search, function ($query, $search) {
+                $query->whereHas('teacher', function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%");
+                })
+                ->orWhereHas('student', function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%");
+                });
+            })
+            ->when($request->status, function ($query, $status) {
+                if ($status !== 'all') {
+                    $query->where('status', $status);
+                }
+            })
+            ->when($request->subject, function ($query, $subject) {
+                if ($subject !== 'all') {
+                    $query->whereHas('subject', function ($q) use ($subject) {
+                        $q->where('name', 'like', "%{$subject}%");
+                    });
+                }
+            })
+            ->orderBy('session_date', 'desc')
+            ->orderBy('start_time', 'desc')
+            ->paginate(10)
+            ->withQueryString();
+            
+        // For debugging - check pagination structure
+        if ($request->has('debug')) {
+            return response()->json([
+                'notifications' => $notifications,
+                'links' => $notifications->links(),
+                'meta' => [
+                    'current_page' => $notifications->currentPage(),
+                    'from' => $notifications->firstItem(),
+                    'last_page' => $notifications->lastPage(),
+                    'links' => $notifications->linkCollection()->toArray(),
+                    'path' => $notifications->path(),
+                    'per_page' => $notifications->perPage(),
+                    'to' => $notifications->lastItem(),
+                    'total' => $notifications->total(),
+                ],
+            ]);
+        }
+            
+        // Get urgent actions data from relevant models
         $urgentActions = [
-            'withdrawalRequests' => 0, // Replace with actual count
-            'teacherApplications' => 0, // Replace with actual count
-            'pendingSessions' => 0, // Replace with actual count
-            'reportedDisputes' => 0, // Replace with actual count
+            'withdrawalRequests' => \App\Models\PayoutRequest::where('status', 'pending')->count(),
+            'teacherApplications' => \App\Models\VerificationRequest::where('status', 'pending')->count(),
+            'pendingSessions' => \App\Models\TeachingSession::whereNull('teacher_id')
+                ->orWhere('status', 'pending_teacher')
+                ->count(),
+            'reportedDisputes' => \App\Models\Dispute::where('status', 'reported')->count(),
+        ];
+        
+        // Format pagination data to match what the frontend expects
+        $formattedNotifications = [
+            'data' => $notifications->items(),
+            'links' => [
+                'prev' => $notifications->previousPageUrl(),
+                'next' => $notifications->nextPageUrl(),
+            ],
+            'meta' => [
+                'current_page' => $notifications->currentPage(),
+                'from' => $notifications->firstItem() ?? 0,
+                'last_page' => $notifications->lastPage(),
+                'links' => $notifications->linkCollection()->toArray(),
+                'path' => $notifications->path(),
+                'per_page' => $notifications->perPage(),
+                'to' => $notifications->lastItem() ?? 0,
+                'total' => $notifications->total(),
+            ],
+        ];
+        
+        // Format scheduled notifications pagination data
+        $formattedScheduledNotifications = [
+            'data' => $scheduledNotifications->items(),
+            'links' => [
+                'prev' => $scheduledNotifications->previousPageUrl(),
+                'next' => $scheduledNotifications->nextPageUrl(),
+            ],
+            'meta' => [
+                'current_page' => $scheduledNotifications->currentPage(),
+                'from' => $scheduledNotifications->firstItem() ?? 0,
+                'last_page' => $scheduledNotifications->lastPage(),
+                'links' => $scheduledNotifications->linkCollection()->toArray(),
+                'path' => $scheduledNotifications->path(),
+                'per_page' => $scheduledNotifications->perPage(),
+                'to' => $scheduledNotifications->lastItem() ?? 0,
+                'total' => $scheduledNotifications->total(),
+            ],
+        ];
+        
+        // Format completed classes pagination data
+        $formattedCompletedClasses = [
+            'data' => $completedClasses->items(),
+            'links' => [
+                'prev' => $completedClasses->previousPageUrl(),
+                'next' => $completedClasses->nextPageUrl(),
+            ],
+            'meta' => [
+                'current_page' => $completedClasses->currentPage(),
+                'from' => $completedClasses->firstItem() ?? 0,
+                'last_page' => $completedClasses->lastPage(),
+                'links' => $completedClasses->linkCollection()->toArray(),
+                'path' => $completedClasses->path(),
+                'per_page' => $completedClasses->perPage(),
+                'to' => $completedClasses->lastItem() ?? 0,
+                'total' => $completedClasses->total(),
+            ],
         ];
         
         return Inertia::render('admin/notification-component/notification-history', [
-            'notifications' => $notifications,
+            'notifications' => $formattedNotifications,
+            'scheduledNotifications' => $formattedScheduledNotifications,
+            'completedClasses' => $formattedCompletedClasses,
             'urgentActions' => $urgentActions,
-            'filters' => $request->only(['search', 'status', 'subject']),
+            'filters' => $request->only(['search', 'status', 'subject', 'rating']),
         ]);
     }
 } 

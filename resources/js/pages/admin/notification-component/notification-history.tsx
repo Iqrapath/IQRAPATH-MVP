@@ -4,12 +4,42 @@ import { Head } from '@inertiajs/react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { type BreadcrumbItem } from '@/types';
 import History from './notification-history-component/history';
+import Scheduled from './notification-history-component/scheduled';
+import Completed from './notification-history-component/completed';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import UrgentActions from './notification-history-component/urgent-actions';
 
 interface NotificationHistoryProps {
   notifications?: {
+    data: any[];
+    links?: any;
+    meta?: {
+      current_page: number;
+      from: number;
+      last_page: number;
+      links: any[];
+      path: string;
+      per_page: number;
+      to: number;
+      total: number;
+    };
+  };
+  scheduledNotifications?: {
+    data: any[];
+    links?: any;
+    meta?: {
+      current_page: number;
+      from: number;
+      last_page: number;
+      links: any[];
+      path: string;
+      per_page: number;
+      to: number;
+      total: number;
+    };
+  };
+  completedClasses?: {
     data: any[];
     links?: any;
     meta?: {
@@ -37,12 +67,14 @@ interface NotificationHistoryProps {
 }
 
 export default function NotificationHistory({ 
-  notifications = { data: [] }, 
+  notifications = { data: [] },
+  scheduledNotifications = { data: [] },
+  completedClasses = { data: [] },
   urgentActions = {
-    withdrawalRequests: 5,
-    teacherApplications: 2,
-    pendingSessions: 3,
-    reportedDisputes: 1
+    withdrawalRequests: 0,
+    teacherApplications: 0,
+    pendingSessions: 0,
+    reportedDisputes: 0
   },
   filters = {} 
 }: NotificationHistoryProps) {
@@ -93,18 +125,12 @@ export default function NotificationHistory({
             <History notifications={notifications} filters={filters} />
           </TabsContent>
 
-          <TabsContent value="scheduled">
-            <div className="p-8 text-center text-gray-500">
-              <h2 className="text-xl mb-2">Scheduled Notifications</h2>
-              <p>This section will show all scheduled notifications.</p>
-            </div>
+          <TabsContent value="scheduled" className="mt-4">
+            <Scheduled scheduledNotifications={scheduledNotifications} filters={filters} />
           </TabsContent>
 
-          <TabsContent value="completed">
-            <div className="p-8 text-center text-gray-500">
-              <h2 className="text-xl mb-2">Completed Classes</h2>
-              <p>This section will show all completed classes.</p>
-            </div>
+          <TabsContent value="completed" className="mt-4">
+            <Completed completedClasses={completedClasses} filters={filters} />
           </TabsContent>
         </Tabs>
       </div>

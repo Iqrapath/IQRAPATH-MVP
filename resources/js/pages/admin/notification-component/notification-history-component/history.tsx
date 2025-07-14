@@ -11,9 +11,30 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 
+interface NotificationRecipient {
+  id: number;
+  status: string;
+  channel: string;
+  created_at: string;
+  updated_at: string;
+  notification: {
+    id: number;
+    title: string;
+    body: string;
+    type: string;
+    status: string;
+    sent_at: string;
+  };
+  user: {
+    id: number;
+    name: string;
+    email: string;
+  };
+}
+
 interface HistoryProps {
   notifications?: {
-    data: any[];
+    data: NotificationRecipient[];
     links?: any;
     meta?: {
       current_page: number;
@@ -38,38 +59,31 @@ export default function History({ notifications = { data: [] }, filters = {} }: 
   const [status, setStatus] = useState(filters.status || '');
   const [subject, setSubject] = useState(filters.subject || '');
 
-  // Example notification data if none provided
-  const exampleNotifications = [
-    {
-      id: 1,
-      date: 'Apr 11, 2023',
-      time: '10:15 AM',
-      message: 'Payment received successfully',
-      sent_to: '130 Students',
-      type: 'System',
-      status: 'Delivered',
-    },
-    {
-      id: 2,
-      date: 'Apr 12, 2023',
-      time: '08:00 PM',
-      message: 'Platform Maintenance Alert',
-      sent_to: 'All Users',
-      type: 'Announcement',
-      status: 'Sent',
-    },
-    {
-      id: 3,
-      date: 'Apr 11, 2023',
-      time: '03:30 PM',
-      message: 'Weekly progress available',
-      sent_to: 'Guardian: Amina Rabi',
-      type: 'Custom',
-      status: 'Read',
-    }
-  ];
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    if (!dateString) return { date: '-', time: '-' };
+    
+    const date = new Date(dateString);
+    return {
+      date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      time: date.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true })
+    };
+  };
 
-  const displayNotifications = notifications.data?.length > 0 ? notifications.data : exampleNotifications;
+  // Handle search form submission
+  const handleSearch = () => {
+    const url = new URL(window.location.href);
+    if (search) url.searchParams.set('search', search);
+    else url.searchParams.delete('search');
+    
+    if (status && status !== 'all') url.searchParams.set('status', status);
+    else url.searchParams.delete('status');
+    
+    if (subject && subject !== 'all') url.searchParams.set('subject', subject);
+    else url.searchParams.delete('subject');
+    
+    window.location.href = url.toString();
+  };
 
   return (
     <>
@@ -136,7 +150,10 @@ export default function History({ notifications = { data: [] }, filters = {} }: 
           </Select>
         </div>
         
-        <Button className="bg-white text-[#338078] border-2 border-[#338078] rounded-full hover:bg-[#338078] hover:text-white transition-all duration-300 cursor-pointer">
+        <Button 
+          className="bg-white text-[#338078] border-2 border-[#338078] rounded-full hover:bg-[#338078] hover:text-white transition-all duration-300 cursor-pointer"
+          onClick={handleSearch}
+        >
           Search
         </Button>
       </div>
@@ -156,51 +173,54 @@ export default function History({ notifications = { data: [] }, filters = {} }: 
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {displayNotifications.map((notification) => (
-                <tr key={notification.id} className="hover:bg-gray-50">
-                  <td className="py-4 px-4 text-sm">
-                    <div>{notification.date}</div>
-                    <div className="text-gray-500">{notification.time}</div>
-                  </td>
-                  <td className="py-4 px-4">{notification.message}</td>
-                  <td className="py-4 px-4">{notification.sent_to}</td>
-                  <td className="py-4 px-4">{notification.type}</td>
-                  <td className="py-4 px-4">
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      notification.status === 'Delivered'
-                        ? 'bg-green-100 text-green-800' 
-                        : notification.status === 'Sent'
-                        ? 'bg-blue-100 text-blue-800'
-                        : notification.status === 'Read'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {notification.status}
-                    </span>
-                  </td>
-                  <td className="py-4 px-4 text-center">
-                    <div className="flex justify-center">
-                      <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-700 mr-2">
-                        <Eye className="h-5 w-5" />
-                      </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-700">
-                            <MoreVertical className="h-5 w-5" />
+              {notifications.data.length > 0 ? (
+                notifications.data.map((recipient) => {
+                  const { date, time } = formatDate(recipient.notification?.sent_at || recipient.created_at);
+                  return (
+                    <tr key={recipient.id} className="hover:bg-gray-50">
+                      <td className="py-4 px-4 text-sm">
+                        <div>{date}</div>
+                        <div className="text-gray-500">{time}</div>
+                      </td>
+                      <td className="py-4 px-4">{recipient.notification?.body || 'No message'}</td>
+                      <td className="py-4 px-4">{recipient.user?.name || 'Unknown User'}</td>
+                      <td className="py-4 px-4">{recipient.notification?.type || 'System'}</td>
+                      <td className="py-4 px-4">
+                        <span className={`px-2 py-1 rounded-full text-xs ${
+                          recipient.status === 'delivered'
+                            ? 'bg-green-100 text-green-800' 
+                            : recipient.status === 'sent'
+                            ? 'bg-blue-100 text-blue-800'
+                            : recipient.status === 'read'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {recipient.status}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        <div className="flex justify-center">
+                          <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-700 mr-2">
+                            <Eye className="h-5 w-5" />
                           </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>View Details</DropdownMenuItem>
-                          <DropdownMenuItem>Resend</DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-600">Delete</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-
-              {displayNotifications.length === 0 && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-700">
+                                <MoreVertical className="h-5 w-5" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem>View Details</DropdownMenuItem>
+                              <DropdownMenuItem>Resend</DropdownMenuItem>
+                              <DropdownMenuItem className="text-red-600">Delete</DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
                 <tr>
                   <td colSpan={6} className="py-8 text-center text-gray-500">
                     No notifications found
@@ -213,12 +233,13 @@ export default function History({ notifications = { data: [] }, filters = {} }: 
         
         {/* Pagination */}
         {notifications.meta && notifications.meta.last_page > 1 && (
-          <div className="px-4 py-3 flex items-center justify-between border-t border-gray-200">
+          <div className="px-6 py-3 flex items-center justify-between border-t border-gray-200">
             <div className="flex-1 flex justify-between sm:hidden">
               <Button 
                 variant="outline" 
                 disabled={notifications.meta.current_page === 1}
                 onClick={() => window.location.href = notifications.links.prev}
+                className="bg-white text-[#338078] border-2 border-[#338078] rounded-full hover:bg-[#338078] hover:text-white transition-all duration-300 cursor-pointer"
               >
                 Previous
               </Button>
@@ -226,6 +247,7 @@ export default function History({ notifications = { data: [] }, filters = {} }: 
                 variant="outline" 
                 disabled={notifications.meta.current_page === notifications.meta.last_page}
                 onClick={() => window.location.href = notifications.links.next}
+                className="bg-white text-[#338078] border-2 border-[#338078] rounded-full hover:bg-[#338078] hover:text-white transition-all duration-300 cursor-pointer"
               >
                 Next
               </Button>
@@ -249,8 +271,8 @@ export default function History({ notifications = { data: [] }, filters = {} }: 
                         href={link.url}
                         className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
                           link.active 
-                            ? 'z-10 bg-primary border-primary text-white' 
-                            : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                            ? 'z-10 bg-teal-600 border-teal-600 text-white' 
+                            : 'bg-white text-[#338078] border-2 border-[#338078] rounded-full hover:bg-[#338078] hover:text-white transition-all duration-300 shadow-sm cursor-pointer'
                         } ${
                           link.label.includes('Previous') 
                             ? 'rounded-l-md' 

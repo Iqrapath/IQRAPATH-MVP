@@ -24,9 +24,7 @@ class UrgentActionsController extends Controller
         $urgentActions = Cache::remember('admin_urgent_actions', 300, function () {
             return [
                 'withdrawalRequests' => PayoutRequest::where('status', 'pending')->count(),
-                'teacherApplications' => VerificationRequest::where('status', 'pending')
-                    ->where('type', 'teacher_verification')
-                    ->count(),
+                'teacherApplications' => VerificationRequest::where('status', 'pending')->count(),
                 'pendingSessions' => TeachingSession::whereNull('teacher_id')
                     ->orWhere('status', 'pending_teacher')
                     ->count(),
