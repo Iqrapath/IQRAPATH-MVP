@@ -3,6 +3,7 @@ import { Slot } from "@radix-ui/react-slot"
 import { ChevronRight, MoreHorizontal } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import CircleIcon from "../icons/circle"
 
 function Breadcrumb({ ...props }: React.ComponentProps<"nav">) {
   return <nav aria-label="breadcrumb" data-slot="breadcrumb" {...props} />
@@ -75,7 +76,7 @@ function BreadcrumbSeparator({
       className={cn("[&>svg]:size-3.5", className)}
       {...props}
     >
-      {children ?? <ChevronRight />}
+      {children ?? <CircleIcon />}
     </li>
   )
 }

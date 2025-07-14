@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Eye, Pencil } from 'lucide-react';
 import { Link } from '@inertiajs/react';
+import { Breadcrumbs } from '@/components/breadcrumbs';
+import { type BreadcrumbItem } from '@/types';
 
 interface NotificationProps {
   notifications: {
@@ -36,6 +38,12 @@ export default function NotificationPage({ notifications, filters = {} }: Notifi
   const [subject, setSubject] = useState('');
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
 
+  // Breadcrumb items
+  const breadcrumbs: BreadcrumbItem[] = [
+    // { title: 'Dashboard', href: '/admin/dashboard' },
+    { title: 'Notifications System', href: '/admin/notification' },
+  ];
+
   // Use notifications instead of triggers
   const handleSelectAll = (checked: boolean) => {
     if (checked && notifications?.data) {
@@ -61,6 +69,11 @@ export default function NotificationPage({ notifications, filters = {} }: Notifi
       <Head title="Auto-Notification Management" />
       
       <div className="py-6">
+        {/* Breadcrumbs */}
+        <div className="mb-6">
+          <Breadcrumbs breadcrumbs={breadcrumbs} />
+        </div>
+        
         <h1 className="text-2xl font-bold mb-6">Auto-Notification Table</h1>
         
         {/* Search and filters */}
@@ -105,7 +118,9 @@ export default function NotificationPage({ notifications, filters = {} }: Notifi
             </Select>
           </div>
           
-          <Button>Search</Button>
+          <Button className="bg-white text-[#338078] border-2 border-[#338078] rounded-full hover:bg-[#338078] hover:text-white transition-all duration-300 cursor-pointer">
+            Search
+          </Button>
         </div>
         
         {/* Notification table */}
