@@ -1,0 +1,218 @@
+
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37m/[39m[38;2;108;114;128m .............................................................................. home[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/dashboard[39m[38;2;108;114;128m ................... admin.dashboard › Admin\DashboardController@index[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/documents[39m[38;2;108;114;128m ........ admin.documents.index › DocumentVerificationController@index[39m
+  [33mPOST[39m            [37madmin/documents/batch-verify[39m[38;2;108;114;128m admin.documents.batch-verify › DocumentVerificationCont…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/documents/[39m[33m{document}[39m[38;2;108;114;128m admin.documents.show › DocumentVerificationController@show[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/documents/[39m[33m{document}[39m[37m/download[39m[38;2;108;114;128m admin.documents.download › DocumentVerificationC…[39m
+  [33mPATCH[39m           [37madmin/documents/[39m[33m{document}[39m[37m/reject[39m[38;2;108;114;128m admin.documents.reject › DocumentVerificationContr…[39m
+  [33mPATCH[39m           [37madmin/documents/[39m[33m{document}[39m[37m/verify[39m[38;2;108;114;128m admin.documents.verify › DocumentVerificationContr…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/financial[39m[38;2;108;114;128m admin.financial.dashboard › Admin\FinancialManagementController@index[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/financial/payout-requests[39m[38;2;108;114;128m admin.financial.payout-requests › Admin\FinancialMan…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/financial/payout-requests/[39m[33m{payoutRequest}[39m[38;2;108;114;128m admin.financial.payout-requests.show…[39m
+  [33mPOST[39m            [37madmin/financial/payout-requests/[39m[33m{payoutRequest}[39m[37m/approve[39m[38;2;108;114;128m admin.financial.payout-reque…[39m
+  [33mPOST[39m            [37madmin/financial/payout-requests/[39m[33m{payoutRequest}[39m[37m/decline[39m[38;2;108;114;128m admin.financial.payout-reque…[39m
+  [33mPOST[39m            [37madmin/financial/payout-requests/[39m[33m{payoutRequest}[39m[37m/mark-paid[39m[38;2;108;114;128m admin.financial.payout-req…[39m
+  [33mPOST[39m            [37madmin/financial/refunds/[39m[33m{transaction}[39m[38;2;108;114;128m admin.financial.refunds.store › Admin\Financia…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/financial/refunds/[39m[33m{transaction}[39m[37m/create[39m[38;2;108;114;128m admin.financial.refunds.create › Admin\…[39m
+  [33mPOST[39m            [37madmin/financial/system-adjustments[39m[38;2;108;114;128m admin.financial.system-adjustments.store › Admin\…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/financial/system-adjustments/create[39m[38;2;108;114;128m admin.financial.system-adjustments.create …[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/financial/teacher-earnings[39m[38;2;108;114;128m admin.financial.teacher-earnings › Admin\FinancialM…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/financial/transactions[39m[38;2;108;114;128m admin.financial.transactions › Admin\FinancialManagemen…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/financial/transactions/[39m[33m{transaction}[39m[38;2;108;114;128m admin.financial.transactions.show › Admin…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/notification-history[39m[38;2;108;114;128m admin.notification.history › Admin\NotificationController…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/notifications[39m[38;2;108;114;128m .. admin.notifications.index › Admin\NotificationController@index[39m
+  [33mPOST[39m            [37madmin/notifications[39m[38;2;108;114;128m .. admin.notifications.store › Admin\NotificationController@store[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/notifications/create[39m[38;2;108;114;128m admin.notifications.create › Admin\NotificationController…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/notifications/templates[39m[38;2;108;114;128m admin.notifications.templates › Admin\NotificationCont…[39m
+  [33mPOST[39m            [37madmin/notifications/templates[39m[38;2;108;114;128m admin.notifications.templates.store › Admin\Notificati…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/notifications/templates/create[39m[38;2;108;114;128m admin.notifications.templates.create › Admin\No…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/notifications/triggers[39m[38;2;108;114;128m admin.notifications.triggers › Admin\NotificationContro…[39m
+  [33mPOST[39m            [37madmin/notifications/triggers[39m[38;2;108;114;128m admin.notifications.triggers.store › Admin\Notification…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/notifications/triggers/create[39m[38;2;108;114;128m admin.notifications.triggers.create › Admin\Noti…[39m
+  [33mPUT[39m             [37madmin/notifications/[39m[33m{notification}[39m[38;2;108;114;128m admin.notifications.update › Admin\NotificationCo…[39m
+  [31mDELETE[39m          [37madmin/notifications/[39m[33m{notification}[39m[38;2;108;114;128m admin.notifications.destroy › Admin\NotificationC…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/notifications/[39m[33m{notification}[39m[38;2;108;114;128m admin.notifications.show › Admin\NotificationCont…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/notifications/[39m[33m{notification}[39m[37m/edit[39m[38;2;108;114;128m admin.notifications.edit › Admin\Notificatio…[39m
+  [33mPOST[39m            [37madmin/notifications/[39m[33m{notification}[39m[37m/send[39m[38;2;108;114;128m admin.notifications.send › Admin\Notificatio…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/settings/content-pages[39m[38;2;108;114;128m admin.settings.content-pages.index › Admin\ContentPages…[39m
+  [33mPOST[39m            [37madmin/settings/content-pages[39m[38;2;108;114;128m admin.settings.content-pages.store › Admin\ContentPages…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/settings/content-pages/create[39m[38;2;108;114;128m admin.settings.content-pages.create › Admin\Cont…[39m
+  [33mPUT[39m             [37madmin/settings/content-pages/[39m[33m{page}[39m[38;2;108;114;128m admin.settings.content-pages.update › Admin\Cont…[39m
+  [31mDELETE[39m          [37madmin/settings/content-pages/[39m[33m{page}[39m[38;2;108;114;128m admin.settings.content-pages.destroy › Admin\Con…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/settings/content-pages/[39m[33m{page}[39m[37m/edit[39m[38;2;108;114;128m admin.settings.content-pages.edit › Admin\C…[39m
+  [33mPATCH[39m           [37madmin/settings/content-pages/[39m[33m{page}[39m[37m/toggle-published[39m[38;2;108;114;128m admin.settings.content-pages.to…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/settings/faqs[39m[38;2;108;114;128m ........... admin.settings.faqs.index › Admin\FaqController@index[39m
+  [33mPOST[39m            [37madmin/settings/faqs[39m[38;2;108;114;128m ........... admin.settings.faqs.store › Admin\FaqController@store[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/settings/faqs/create[39m[38;2;108;114;128m .. admin.settings.faqs.create › Admin\FaqController@create[39m
+  [33mPOST[39m            [37madmin/settings/faqs/update-order[39m[38;2;108;114;128m admin.settings.faqs.update-order › Admin\FaqControl…[39m
+  [33mPUT[39m             [37madmin/settings/faqs/[39m[33m{faq}[39m[38;2;108;114;128m ... admin.settings.faqs.update › Admin\FaqController@update[39m
+  [31mDELETE[39m          [37madmin/settings/faqs/[39m[33m{faq}[39m[38;2;108;114;128m . admin.settings.faqs.destroy › Admin\FaqController@destroy[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/settings/faqs/[39m[33m{faq}[39m[37m/edit[39m[38;2;108;114;128m .. admin.settings.faqs.edit › Admin\FaqController@edit[39m
+  [33mPATCH[39m           [37madmin/settings/faqs/[39m[33m{faq}[39m[37m/toggle-published[39m[38;2;108;114;128m admin.settings.faqs.toggle-published › Ad…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/settings/features[39m[38;2;108;114;128m admin.settings.features.index › Admin\FeatureControlsControl…[39m
+  [33mPOST[39m            [37madmin/settings/features[39m[38;2;108;114;128m admin.settings.features.update › Admin\FeatureControlsContro…[39m
+  [33mPATCH[39m           [37madmin/settings/features/[39m[33m{key}[39m[37m/toggle[39m[38;2;108;114;128m admin.settings.features.toggle › Admin\FeatureC…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/settings/financial[39m[38;2;108;114;128m admin.settings.financial.index › Admin\FinancialSettingsCon…[39m
+  [33mPOST[39m            [37madmin/settings/financial[39m[38;2;108;114;128m admin.settings.financial.update › Admin\FinancialSettingsCo…[39m
+  [33mPATCH[39m           [37madmin/settings/financial/[39m[33m{key}[39m[38;2;108;114;128m admin.settings.financial.update-single › Admin\Financ…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/settings/general[39m[38;2;108;114;128m admin.settings.general.index › Admin\GeneralSettingsControlle…[39m
+  [33mPOST[39m            [37madmin/settings/general[39m[38;2;108;114;128m admin.settings.general.update › Admin\GeneralSettingsControll…[39m
+  [33mPATCH[39m           [37madmin/settings/general/[39m[33m{key}[39m[38;2;108;114;128m admin.settings.general.update-single › Admin\GeneralSet…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/settings/roles[39m[38;2;108;114;128m .. admin.settings.roles.index › Admin\AdminRolesController@index[39m
+  [33mPOST[39m            [37madmin/settings/roles[39m[38;2;108;114;128m .. admin.settings.roles.store › Admin\AdminRolesController@store[39m
+  [33mPOST[39m            [37madmin/settings/roles/assign[39m[38;2;108;114;128m admin.settings.roles.assign › Admin\AdminRolesController…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/settings/roles/create[39m[38;2;108;114;128m admin.settings.roles.create › Admin\AdminRolesController…[39m
+  [33mPUT[39m             [37madmin/settings/roles/[39m[33m{role}[39m[38;2;108;114;128m admin.settings.roles.update › Admin\AdminRolesController…[39m
+  [31mDELETE[39m          [37madmin/settings/roles/[39m[33m{role}[39m[38;2;108;114;128m admin.settings.roles.destroy › Admin\AdminRolesControlle…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/settings/roles/[39m[33m{role}[39m[37m/edit[39m[38;2;108;114;128m admin.settings.roles.edit › Admin\AdminRolesControl…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/settings/security[39m[38;2;108;114;128m admin.settings.security.index › Admin\SecuritySettingsContro…[39m
+  [33mPOST[39m            [37madmin/settings/security[39m[38;2;108;114;128m admin.settings.security.update › Admin\SecuritySettingsContr…[39m
+  [33mPATCH[39m           [37madmin/settings/security/[39m[33m{key}[39m[38;2;108;114;128m admin.settings.security.update-single › Admin\Security…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/subjects[39m[38;2;108;114;128m ....................... admin.subjects.index › SubjectController@index[39m
+  [33mPOST[39m            [37madmin/subjects[39m[38;2;108;114;128m ....................... admin.subjects.store › SubjectController@store[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/subjects/create[39m[38;2;108;114;128m .............. admin.subjects.create › SubjectController@create[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/subjects/[39m[33m{subject}[39m[38;2;108;114;128m ............... admin.subjects.show › SubjectController@show[39m
+  [33mPUT[39m[38;2;108;114;128m|[39m[33mPATCH[39m       [37madmin/subjects/[39m[33m{subject}[39m[38;2;108;114;128m ........... admin.subjects.update › SubjectController@update[39m
+  [31mDELETE[39m          [37madmin/subjects/[39m[33m{subject}[39m[38;2;108;114;128m ......... admin.subjects.destroy › SubjectController@destroy[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/subjects/[39m[33m{subject}[39m[37m/edit[39m[38;2;108;114;128m .......... admin.subjects.edit › SubjectController@edit[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/subscriptions[39m[38;2;108;114;128m admin.subscriptions.index › Admin\SubscriptionPlanController@ind…[39m
+  [33mPOST[39m            [37madmin/subscriptions[39m[38;2;108;114;128m admin.subscriptions.store › Admin\SubscriptionPlanController@sto…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/subscriptions/create[39m[38;2;108;114;128m admin.subscriptions.create › Admin\SubscriptionPlanContro…[39m
+  [33mPOST[39m            [37madmin/subscriptions/[39m[33m{subscriptionPlan}[39m[37m/duplicate[39m[38;2;108;114;128m admin.subscriptions.duplicate › Adm…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/subscriptions/[39m[33m{subscriptionPlan}[39m[37m/enrolled-users[39m[38;2;108;114;128m admin.subscriptions.enrolled-u…[39m
+  [33mPOST[39m            [37madmin/subscriptions/[39m[33m{subscriptionPlan}[39m[37m/toggle-active[39m[38;2;108;114;128m admin.subscriptions.toggle-acti…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/subscriptions/[39m[33m{subscription}[39m[38;2;108;114;128m admin.subscriptions.show › Admin\SubscriptionPlan…[39m
+  [33mPUT[39m[38;2;108;114;128m|[39m[33mPATCH[39m       [37madmin/subscriptions/[39m[33m{subscription}[39m[38;2;108;114;128m admin.subscriptions.update › Admin\SubscriptionPl…[39m
+  [31mDELETE[39m          [37madmin/subscriptions/[39m[33m{subscription}[39m[38;2;108;114;128m admin.subscriptions.destroy › Admin\SubscriptionP…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/subscriptions/[39m[33m{subscription}[39m[37m/edit[39m[38;2;108;114;128m admin.subscriptions.edit › Admin\Subscriptio…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/users[39m[38;2;108;114;128m .......................... admin.users.index › Admin\RoleController@index[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37madmin/users/[39m[33m{user}[39m[37m/edit-role[39m[38;2;108;114;128m ...... admin.users.edit-role › Admin\RoleController@edit[39m
+  [33mPATCH[39m           [37madmin/users/[39m[33m{user}[39m[37m/role[39m[38;2;108;114;128m ....... admin.users.update-role › Admin\RoleController@update[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mapi/notifications[39m[38;2;108;114;128m .............. api.notifications › Api\NotificationController@index[39m
+  [33mPOST[39m            [37mapi/notifications/read-all[39m[38;2;108;114;128m api.notifications.read-all › Api\NotificationController@m…[39m
+  [33mPOST[39m            [37mapi/notifications/[39m[33m{id}[39m[37m/read[39m[38;2;108;114;128m api.notifications.read › Api\NotificationController@mark…[39m
+  [33mPOST[39m            [37mapi/payment/webhook/[39m[33m{gateway}[39m[38;2;108;114;128m ........... payment.webhook › PaymentController@webhook[39m
+  [33mPOST[39m            [37mapi/zoom/webhook[39m[38;2;108;114;128m ........................ zoom.webhook › ZoomWebhookController@handle[39m
+  [33mPOST[39m            [37mattachments[39m[38;2;108;114;128m ................ attachments.upload › EvidenceAttachmentController@upload[39m
+  [31mDELETE[39m          [37mattachments/[39m[33m{attachment}[39m[38;2;108;114;128m ... attachments.delete › EvidenceAttachmentController@delete[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mattachments/[39m[33m{attachment}[39m[37m/download[39m[38;2;108;114;128m attachments.download › EvidenceAttachmentControlle…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mconfirm-password[39m[38;2;108;114;128m ......... password.confirm › Auth\ConfirmablePasswordController@show[39m
+  [33mPOST[39m            [37mconfirm-password[39m[38;2;108;114;128m ........................... Auth\ConfirmablePasswordController@store[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mdashboard[39m[38;2;108;114;128m ................................................................. dashboard[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mdisputes[39m[38;2;108;114;128m ................................... disputes.index › DisputeController@index[39m
+  [33mPOST[39m            [37mdisputes[39m[38;2;108;114;128m ................................... disputes.store › DisputeController@store[39m
+  [31mDELETE[39m          [37mdisputes/attachments/[39m[33m{attachment}[39m[38;2;108;114;128m disputes.attachments.delete › DisputeController@de…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mdisputes/attachments/[39m[33m{attachment}[39m[37m/download[39m[38;2;108;114;128m disputes.attachments.download › DisputeCo…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mdisputes/create[39m[38;2;108;114;128m .......................... disputes.create › DisputeController@create[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mdisputes/[39m[33m{dispute}[39m[38;2;108;114;128m ........................... disputes.show › DisputeController@show[39m
+  [33mPUT[39m             [37mdisputes/[39m[33m{dispute}[39m[38;2;108;114;128m ....................... disputes.update › DisputeController@update[39m
+  [33mPOST[39m            [37mdisputes/[39m[33m{dispute}[39m[37m/attachments[39m[38;2;108;114;128m disputes.attachments.upload › DisputeController@uploa…[39m
+  [33mPOST[39m            [37mdisputes/[39m[33m{dispute}[39m[37m/contact[39m[38;2;108;114;128m ...... disputes.contact › DisputeController@contactParties[39m
+  [33mPOST[39m            [37memail/verification-notification[39m[38;2;108;114;128m verification.send › Auth\EmailVerificationNotificati…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mfaqs[39m[38;2;108;114;128m ........................................................................... faqs[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mfeedback[39m[38;2;108;114;128m .................................. feedback.index › FeedbackController@index[39m
+  [33mPOST[39m            [37mfeedback[39m[38;2;108;114;128m .................................. feedback.store › FeedbackController@store[39m
+  [31mDELETE[39m          [37mfeedback/attachments/[39m[33m{attachment}[39m[38;2;108;114;128m feedback.attachments.delete › FeedbackController@d…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mfeedback/attachments/[39m[33m{attachment}[39m[37m/download[39m[38;2;108;114;128m feedback.attachments.download › FeedbackC…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mfeedback/create[39m[38;2;108;114;128m ......................... feedback.create › FeedbackController@create[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mfeedback/[39m[33m{feedback}[39m[38;2;108;114;128m ......................... feedback.show › FeedbackController@show[39m
+  [33mPUT[39m             [37mfeedback/[39m[33m{feedback}[39m[38;2;108;114;128m ..................... feedback.update › FeedbackController@update[39m
+  [33mPOST[39m            [37mfeedback/[39m[33m{feedback}[39m[37m/attachments[39m[38;2;108;114;128m feedback.attachments.upload › FeedbackController@upl…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mforgot-password[39m[38;2;108;114;128m .......... password.request › Auth\PasswordResetLinkController@create[39m
+  [33mPOST[39m            [37mforgot-password[39m[38;2;108;114;128m ............. password.email › Auth\PasswordResetLinkController@store[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mguardian/dashboard[39m[38;2;108;114;128m .......... guardian.dashboard › Guardian\DashboardController@index[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mlogin[39m[38;2;108;114;128m ............................ login › Auth\AuthenticatedSessionController@create[39m
+  [33mPOST[39m            [37mlogin[39m[38;2;108;114;128m ..................................... Auth\AuthenticatedSessionController@store[39m
+  [33mPOST[39m            [37mlogout[39m[38;2;108;114;128m ......................... logout › Auth\AuthenticatedSessionController@destroy[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mnotifications[39m[38;2;108;114;128m ................ notifications.index › UserNotificationController@index[39m
+  [33mPOST[39m            [37mnotifications/read-all[39m[38;2;108;114;128m notifications.read-all › UserNotificationController@markAllAs…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mnotifications/[39m[33m{id}[39m[38;2;108;114;128m ............. notifications.show › UserNotificationController@show[39m
+  [31mDELETE[39m          [37mnotifications/[39m[33m{id}[39m[38;2;108;114;128m ....... notifications.destroy › UserNotificationController@destroy[39m
+  [33mPOST[39m            [37mnotifications/[39m[33m{id}[39m[37m/read[39m[38;2;108;114;128m .. notifications.read › UserNotificationController@markAsRead[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mpage/[39m[33m{slug}[39m[38;2;108;114;128m .......................... pages.show › Admin\ContentPagesController@show[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mpayment/methods/[39m[33m{plan}[39m[38;2;108;114;128m ....... payment.methods › PaymentController@showPaymentMethods[39m
+  [33mPOST[39m            [37mpayment/paystack/[39m[33m{plan}[39m[38;2;108;114;128m ........ payment.paystack › PaymentController@processPaystack[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mpayment/verify/[39m[33m{gateway}[39m[37m/[39m[33m{reference}[39m[38;2;108;114;128m payment.verify › PaymentController@verifyPayment[39m
+  [33mPOST[39m            [37mpayment/wallet/[39m[33m{plan}[39m[38;2;108;114;128m .............. payment.wallet › PaymentController@processWallet[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mregister[39m[38;2;108;114;128m ............................ register › Auth\RegisteredUserController@create[39m
+  [33mPOST[39m            [37mregister[39m[38;2;108;114;128m ........................................ Auth\RegisteredUserController@store[39m
+  [33mPOST[39m            [37mreset-password[39m[38;2;108;114;128m .................... password.store › Auth\NewPasswordController@store[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mreset-password/[39m[33m{token}[39m[38;2;108;114;128m ........... password.reset › Auth\NewPasswordController@create[39m
+  [31mDELETE[39m          [37mresponses/attachments/[39m[33m{attachment}[39m[38;2;108;114;128m responses.attachments.delete › TicketResponseCont…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mresponses/attachments/[39m[33m{attachment}[39m[37m/download[39m[38;2;108;114;128m responses.attachments.download › TicketR…[39m
+  [33mPUT[39m             [37mresponses/[39m[33m{response}[39m[38;2;108;114;128m ............. responses.update › TicketResponseController@update[39m
+  [31mDELETE[39m          [37mresponses/[39m[33m{response}[39m[38;2;108;114;128m ........... responses.destroy › TicketResponseController@destroy[39m
+  [33mPOST[39m            [37mresponses/[39m[33m{response}[39m[37m/attachments[39m[38;2;108;114;128m responses.attachments.upload › TicketResponseContro…[39m
+  [33mPOST[39m            [37mresponses/[39m[33m{response}[39m[37m/send[39m[38;2;108;114;128m ......... responses.send › TicketResponseController@sendNow[39m
+  [33mPOST[39m            [37msessions/[39m[33m{session}[39m[37m/mark-cancelled[39m[38;2;108;114;128m sessions.mark-cancelled › SessionAttendanceControl…[39m
+  [33mPOST[39m            [37msessions/[39m[33m{session}[39m[37m/mark-completed[39m[38;2;108;114;128m sessions.mark-completed › SessionAttendanceControl…[39m
+  [33mPOST[39m            [37msessions/[39m[33m{session}[39m[37m/mark-no-show[39m[38;2;108;114;128m sessions.mark-no-show › SessionAttendanceController@…[39m
+  [33mPOST[39m            [37msessions/[39m[33m{session}[39m[37m/student-join[39m[38;2;108;114;128m sessions.student-join › SessionAttendanceController@…[39m
+  [33mPOST[39m            [37msessions/[39m[33m{session}[39m[37m/student-leave[39m[38;2;108;114;128m sessions.student-leave › SessionAttendanceControlle…[39m
+  [33mPOST[39m            [37msessions/[39m[33m{session}[39m[37m/teacher-join[39m[38;2;108;114;128m sessions.teacher-join › SessionAttendanceController@…[39m
+  [33mPOST[39m            [37msessions/[39m[33m{session}[39m[37m/teacher-leave[39m[38;2;108;114;128m sessions.teacher-leave › SessionAttendanceControlle…[39m
+  [33mPOST[39m            [37msessions/[39m[33m{session}[39m[37m/update-zoom-attendance[39m[38;2;108;114;128m sessions.update-zoom-attendance › SessionA…[39m
+  [31mANY[39m             [37msettings[39m[38;2;108;114;128m .................................... Illuminate\Routing › RedirectController[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37msettings/appearance[39m[38;2;108;114;128m ...................................................... appearance[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37msettings/password[39m[38;2;108;114;128m .................. password.edit › Settings\PasswordController@edit[39m
+  [33mPUT[39m             [37msettings/password[39m[38;2;108;114;128m .............. password.update › Settings\PasswordController@update[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37msettings/profile[39m[38;2;108;114;128m ..................... profile.edit › Settings\ProfileController@edit[39m
+  [33mPATCH[39m[38;2;108;114;128m|[39m[33mPOST[39m      [37msettings/profile[39m[38;2;108;114;128m ................. profile.update › Settings\ProfileController@update[39m
+  [31mDELETE[39m          [37msettings/profile[39m[38;2;108;114;128m ............... profile.destroy › Settings\ProfileController@destroy[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mstorage/[39m[33m{path}[39m[38;2;108;114;128m ........................................................ storage.local[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mstudent/dashboard[39m[38;2;108;114;128m ............. student.dashboard › Student\DashboardController@index[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37msubscriptions/checkout/[39m[33m{plan}[39m[38;2;108;114;128m subscriptions.checkout › SubscriptionController@checko…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37msubscriptions/my[39m[38;2;108;114;128m .......... subscriptions.my › SubscriptionController@mySubscriptions[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37msubscriptions/plans[39m[38;2;108;114;128m .............. subscriptions.plans › SubscriptionController@plans[39m
+  [33mPOST[39m            [37msubscriptions/purchase/[39m[33m{plan}[39m[38;2;108;114;128m subscriptions.purchase › SubscriptionController@purcha…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37msubscriptions/[39m[33m{subscription}[39m[38;2;108;114;128m ....... subscriptions.show › SubscriptionController@show[39m
+  [33mPOST[39m            [37msubscriptions/[39m[33m{subscription}[39m[37m/cancel[39m[38;2;108;114;128m subscriptions.cancel › SubscriptionController@ca…[39m
+  [33mPOST[39m            [37msubscriptions/[39m[33m{subscription}[39m[37m/renew[39m[38;2;108;114;128m subscriptions.renew › SubscriptionController@renew[39m
+  [33mPOST[39m            [37msubscriptions/[39m[33m{subscription}[39m[37m/toggle-auto-renew[39m[38;2;108;114;128m subscriptions.toggle-auto-renew › Sub…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37msupport[39m[38;2;108;114;128m ............................... support.index › SupportTicketController@index[39m
+  [33mPOST[39m            [37msupport[39m[38;2;108;114;128m ............................... support.store › SupportTicketController@store[39m
+  [31mDELETE[39m          [37msupport/attachments/[39m[33m{attachment}[39m[38;2;108;114;128m support.attachments.delete › SupportTicketControlle…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37msupport/attachments/[39m[33m{attachment}[39m[37m/download[39m[38;2;108;114;128m support.attachments.download › SupportTick…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37msupport/create[39m[38;2;108;114;128m ...................... support.create › SupportTicketController@create[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37msupport/[39m[33m{ticket}[39m[38;2;108;114;128m ........................ support.show › SupportTicketController@show[39m
+  [33mPUT[39m             [37msupport/[39m[33m{ticket}[39m[38;2;108;114;128m .................... support.update › SupportTicketController@update[39m
+  [33mPOST[39m            [37msupport/[39m[33m{ticket}[39m[37m/attachments[39m[38;2;108;114;128m support.attachments.upload › SupportTicketController@up…[39m
+  [33mPOST[39m            [37msupport/[39m[33m{ticket}[39m[37m/responses[39m[38;2;108;114;128m ......... responses.store › TicketResponseController@store[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mteacher/dashboard[39m[38;2;108;114;128m ............. teacher.dashboard › Teacher\DashboardController@index[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mteacher/documents[39m[38;2;108;114;128m ................ teacher.documents.index › DocumentController@index[39m
+  [33mPOST[39m            [37mteacher/documents[39m[38;2;108;114;128m ................ teacher.documents.store › DocumentController@store[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mteacher/documents/create[39m[38;2;108;114;128m ....... teacher.documents.create › DocumentController@create[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mteacher/documents/[39m[33m{document}[39m[38;2;108;114;128m ....... teacher.documents.show › DocumentController@show[39m
+  [33mPUT[39m[38;2;108;114;128m|[39m[33mPATCH[39m       [37mteacher/documents/[39m[33m{document}[39m[38;2;108;114;128m ... teacher.documents.update › DocumentController@update[39m
+  [31mDELETE[39m          [37mteacher/documents/[39m[33m{document}[39m[38;2;108;114;128m . teacher.documents.destroy › DocumentController@destroy[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mteacher/documents/[39m[33m{document}[39m[37m/download[39m[38;2;108;114;128m teacher.documents.download › DocumentControlle…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mteacher/documents/[39m[33m{document}[39m[37m/edit[39m[38;2;108;114;128m .. teacher.documents.edit › DocumentController@edit[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mteacher/financial[39m[38;2;108;114;128m ... teacher.financial.dashboard › Teacher\FinancialController@index[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mteacher/financial/payout-requests[39m[38;2;108;114;128m teacher.financial.payout-requests › Teacher\Financ…[39m
+  [33mPOST[39m            [37mteacher/financial/payout-requests[39m[38;2;108;114;128m teacher.financial.payout-requests.store › Teacher\…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mteacher/financial/payout-requests/create[39m[38;2;108;114;128m teacher.financial.payout-requests.create › …[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mteacher/financial/payout-requests/[39m[33m{payoutRequest}[39m[38;2;108;114;128m teacher.financial.payout-requests.…[39m
+  [33mPOST[39m            [37mteacher/financial/payout-requests/[39m[33m{payoutRequest}[39m[37m/cancel[39m[38;2;108;114;128m teacher.financial.payout-re…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mteacher/financial/transactions[39m[38;2;108;114;128m teacher.financial.transactions › Teacher\FinancialCon…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mteacher/financial/transactions/[39m[33m{transaction}[39m[38;2;108;114;128m teacher.financial.transactions.show › T…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mteacher/subjects[39m[38;2;108;114;128m ................... teacher.subjects.index › SubjectController@index[39m
+  [33mPOST[39m            [37mteacher/subjects[39m[38;2;108;114;128m ................... teacher.subjects.store › SubjectController@store[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mteacher/subjects/create[39m[38;2;108;114;128m .......... teacher.subjects.create › SubjectController@create[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mteacher/subjects/[39m[33m{subject}[39m[38;2;108;114;128m ........... teacher.subjects.show › SubjectController@show[39m
+  [33mPUT[39m[38;2;108;114;128m|[39m[33mPATCH[39m       [37mteacher/subjects/[39m[33m{subject}[39m[38;2;108;114;128m ....... teacher.subjects.update › SubjectController@update[39m
+  [31mDELETE[39m          [37mteacher/subjects/[39m[33m{subject}[39m[38;2;108;114;128m ..... teacher.subjects.destroy › SubjectController@destroy[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mteacher/subjects/[39m[33m{subject}[39m[37m/edit[39m[38;2;108;114;128m ...... teacher.subjects.edit › SubjectController@edit[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37munassigned[39m[38;2;108;114;128m .................................. unassigned › UnassignedController@index[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mup[39m[38;2;108;114;128m .................................................................................. [39m
+  [33mPOST[39m            [37muser/status[39m[38;2;108;114;128m ........................ user.status.update › UserStatusController@update[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mverify-email[39m[38;2;108;114;128m ........... verification.notice › Auth\EmailVerificationPromptController[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mverify-email/[39m[33m{id}[39m[37m/[39m[33m{hash}[39m[38;2;108;114;128m ........... verification.verify › Auth\VerifyEmailController[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mwallet[39m[38;2;108;114;128m ....................... wallet.manage › PaymentController@managePaymentMethods[39m
+  [33mPOST[39m            [37mwallet/add-funds[39m[38;2;108;114;128m ...................... wallet.add-funds › PaymentController@addFunds[39m
+  [33mPOST[39m            [37mwallet/payment-method/default[39m[38;2;108;114;128m wallet.payment-method.default › PaymentController@setD…[39m
+  [33mPOST[39m            [37mwallet/payment-method/remove[39m[38;2;108;114;128m wallet.payment-method.remove › PaymentController@remove…[39m
+  [34mGET[39m[38;2;108;114;128m|[39m[38;2;108;114;128mHEAD[39m        [37mwallet/paystack/initialize[39m[38;2;108;114;128m wallet.paystack.initialize › PaymentController@initialize…[39m
+
+                                                                                   [34;1mShowing [214] routes[39;22m
+

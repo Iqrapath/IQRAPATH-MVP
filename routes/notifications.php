@@ -14,25 +14,44 @@ use Illuminate\Support\Facades\Route;
 */
 
 // Admin notification routes
-Route::middleware(['auth', 'verified', 'role:super-admin'])->prefix('admin/notifications')->name('admin.notifications.')->group(function () {
+Route::middleware(['auth', 'verified', 'role:super-admin'])->prefix('admin/notification')->name('admin.notification.')->group(function () {
+    // Define fixed routes first
     Route::get('/', [NotificationController::class, 'index'])->name('index');
     Route::get('/create', [NotificationController::class, 'create'])->name('create');
     Route::post('/', [NotificationController::class, 'store'])->name('store');
-    Route::get('/{notification}', [NotificationController::class, 'show'])->name('show');
-    Route::get('/{notification}/edit', [NotificationController::class, 'edit'])->name('edit');
-    Route::put('/{notification}', [NotificationController::class, 'update'])->name('update');
-    Route::delete('/{notification}', [NotificationController::class, 'destroy'])->name('destroy');
-    Route::post('/{notification}/send', [NotificationController::class, 'send'])->name('send');
     
+    // User search for notifications - must be before any wildcard routes
+    Route::get('/search-users', [NotificationController::class, 'searchUsers'])->name('search-users');
+    
+    // Development routes - only available in local environment
+    if (app()->environment('local')) {
+        Route::get('/create-test-user', [NotificationController::class, 'createTestUser'])->name('create-test-user');
+    }
+
     // Templates
     Route::get('/templates', [NotificationController::class, 'templates'])->name('templates');
     Route::get('/templates/create', [NotificationController::class, 'createTemplate'])->name('templates.create');
     Route::post('/templates', [NotificationController::class, 'storeTemplate'])->name('templates.store');
+    Route::get('/templates/{template}', [NotificationController::class, 'showTemplate'])->name('templates.show');
+    Route::get('/templates/{template}/edit', [NotificationController::class, 'editTemplate'])->name('templates.edit');
+    Route::put('/templates/{template}', [NotificationController::class, 'updateTemplate'])->name('templates.update');
+    Route::delete('/templates/{template}', [NotificationController::class, 'destroyTemplate'])->name('templates.destroy');
     
     // Triggers
     Route::get('/triggers', [NotificationController::class, 'triggers'])->name('triggers');
     Route::get('/triggers/create', [NotificationController::class, 'createTrigger'])->name('triggers.create');
     Route::post('/triggers', [NotificationController::class, 'storeTrigger'])->name('triggers.store');
+    Route::get('/triggers/{trigger}', [NotificationController::class, 'showTrigger'])->name('triggers.show');
+    Route::get('/triggers/{trigger}/edit', [NotificationController::class, 'editTrigger'])->name('triggers.edit');
+    Route::put('/triggers/{trigger}', [NotificationController::class, 'updateTrigger'])->name('triggers.update');
+    Route::delete('/triggers/{trigger}', [NotificationController::class, 'destroyTrigger'])->name('triggers.destroy');
+    
+    // Notification wildcard routes - these must come last
+    Route::get('/{notification}/edit', [NotificationController::class, 'edit'])->name('edit');
+    Route::put('/{notification}', [NotificationController::class, 'update'])->name('update');
+    Route::delete('/{notification}', [NotificationController::class, 'destroy'])->name('destroy');
+    Route::post('/{notification}/send', [NotificationController::class, 'send'])->name('send');
+    Route::get('/{notification}', [NotificationController::class, 'show'])->name('show');
 });
 
 // Add a separate route for notification history

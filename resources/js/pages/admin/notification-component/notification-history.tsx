@@ -81,7 +81,7 @@ export default function NotificationHistory({
   // Breadcrumb items
   const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/admin/dashboard' },
-    { title: 'Notifications', href: '/admin/notifications' },
+    { title: 'Notifications', href: '/admin/notification' },
     // { title: 'Notification History', href: '/admin/notification-history' },
     { title: 'Notification History', href: '#' },
   ];

@@ -10,6 +10,7 @@ use App\Models\NotificationTrigger;
 use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class NotificationController extends Controller
@@ -128,7 +129,7 @@ class NotificationController extends Controller
             $this->notificationService->sendNotification($notification);
         }
 
-        return redirect()->route('admin.notifications.index')
+        return redirect()->route('admin.notification.index')
             ->with('success', 'Notification created successfully.');
     }
 
@@ -150,6 +151,7 @@ class NotificationController extends Controller
         
         return Inertia::render('admin/notification-component/notification-show', [
             'notification' => $notification,
+            'recipients' => $notification->recipients,
             'analytics' => $analytics,
         ]);
     }
@@ -159,37 +161,39 @@ class NotificationController extends Controller
      */
     public function edit(Notification $notification)
     {
-        if ($notification->status !== 'draft') {
-            return redirect()->route('admin.notifications.show', $notification)
-                ->with('error', 'Only draft notifications can be edited.');
-        }
-        
-        $notification->load('recipients.user');
-        
-        // Determine recipient type and data
-        $recipientType = 'specific';
+        // Get recipient data
+        $recipientType = 'all';
         $roles = [];
         $userIds = [];
+        $channels = [];
+        $selectedUsers = [];
         
         $recipients = $notification->recipients;
-        if ($recipients->count() === User::count()) {
-            $recipientType = 'all';
-        } else {
-            // Check if recipients are grouped by role
-            $recipientUsers = User::whereIn('id', $recipients->pluck('user_id')->unique())->get();
-            $roleGroups = $recipientUsers->groupBy('role');
-            
-            if ($roleGroups->count() < $recipientUsers->count()) {
-                $recipientType = 'role';
-                $roles = $roleGroups->keys()->toArray();
-            } else {
-                $userIds = $recipients->pluck('user_id')->unique()->toArray();
+        if ($recipients->isNotEmpty()) {
+            // Check if it's for all users
+            $allUsers = $recipients->where('user_id', null)->first();
+            if (!$allUsers) {
+                // Check if it's for specific roles
+                $roleRecipients = $recipients->where('role', '!=', null);
+                if ($roleRecipients->isNotEmpty()) {
+                    $recipientType = 'role';
+                    $roles = $roleRecipients->pluck('role')->unique()->toArray();
+                } else {
+                    // It's for specific users
+                    $recipientType = 'specific';
+                    $userIds = $recipients->pluck('user_id')->unique()->toArray();
+                    
+                    // Get user details for selected users
+                    $selectedUsers = User::whereIn('id', $userIds)
+                        ->select('id', 'name', 'email', 'role', 'avatar')
+                        ->get();
+                }
             }
+            
+            // Get channels
+            $channels = $recipients->pluck('channel')->unique()->toArray();
         }
-        
-        // Get channels
-        $channels = $recipients->pluck('channel')->unique()->toArray();
-        
+
         return Inertia::render('admin/notification-component/notification-edit', [
             'notification' => $notification,
             'recipientType' => $recipientType,
@@ -197,6 +201,7 @@ class NotificationController extends Controller
             'userIds' => $userIds,
             'channels' => $channels,
             'allRoles' => ['super-admin', 'admin', 'teacher', 'student', 'guardian'],
+            'selectedUsers' => $selectedUsers,
         ]);
     }
 
@@ -205,15 +210,13 @@ class NotificationController extends Controller
      */
     public function update(Request $request, Notification $notification)
     {
-        if ($notification->status !== 'draft') {
-            return redirect()->route('admin.notifications.show', $notification)
-                ->with('error', 'Only draft notifications can be edited.');
-        }
+        // Allow updating regardless of status
         
         $request->validate([
             'title' => 'required|string|max:255',
             'body' => 'required|string',
             'type' => 'required|string',
+            'status' => 'required|string|in:draft,scheduled,sent,delivered,read,failed',
             'recipient_type' => 'required|string|in:all,role,specific',
             'roles' => 'required_if:recipient_type,role|array',
             'user_ids' => 'required_if:recipient_type,specific|array',
@@ -226,6 +229,7 @@ class NotificationController extends Controller
             'title' => $request->title,
             'body' => $request->body,
             'type' => $request->type,
+            'status' => $request->status,
             'scheduled_at' => $request->scheduled_at,
         ]);
 
@@ -249,7 +253,7 @@ class NotificationController extends Controller
         
         $this->notificationService->addRecipients($notification, $recipientData);
 
-        return redirect()->route('admin.notifications.show', $notification)
+        return redirect()->route('admin.notification.show', $notification)
             ->with('success', 'Notification updated successfully.');
     }
 
@@ -259,17 +263,17 @@ class NotificationController extends Controller
     public function send(Notification $notification)
     {
         if (!in_array($notification->status, ['draft', 'scheduled'])) {
-            return redirect()->route('admin.notifications.show', $notification)
+            return redirect()->route('admin.notification.show', $notification)
                 ->with('error', 'This notification has already been sent.');
         }
         
         $success = $this->notificationService->sendNotification($notification);
         
         if ($success) {
-            return redirect()->route('admin.notifications.show', $notification)
+            return redirect()->route('admin.notification.show', $notification)
                 ->with('success', 'Notification sent successfully.');
         } else {
-            return redirect()->route('admin.notifications.show', $notification)
+            return redirect()->route('admin.notification.show', $notification)
                 ->with('error', 'Failed to send notification.');
         }
     }
@@ -281,14 +285,14 @@ class NotificationController extends Controller
     {
         // Only allow deleting draft notifications
         if ($notification->status !== 'draft') {
-            return redirect()->route('admin.notifications.index')
+            return redirect()->route('admin.notification.index')
                 ->with('error', 'Only draft notifications can be deleted.');
         }
         
         $notification->recipients()->delete();
         $notification->delete();
         
-        return redirect()->route('admin.notifications.index')
+        return redirect()->route('admin.notification.index')
             ->with('success', 'Notification deleted successfully.');
     }
 
@@ -327,7 +331,7 @@ class NotificationController extends Controller
             ],
         ];
 
-        return Inertia::render('admin/notification-component/notification-templates', [
+        return Inertia::render('admin/notification-component/templates', [
             'templates' => $formattedTemplates,
             'filters' => $request->only(['search', 'type']),
         ]);
@@ -338,7 +342,7 @@ class NotificationController extends Controller
      */
     public function createTemplate()
     {
-        return Inertia::render('admin/notification-component/notification-templates');
+        return Inertia::render('admin/notification-component/template-create');
     }
 
     /**
@@ -347,11 +351,11 @@ class NotificationController extends Controller
     public function storeTemplate(Request $request)
     {
         $request->validate([
-            'name' => 'required|string|max:255|unique:notification_templates,name',
+            'name' => 'required|string|max:255',
             'title' => 'required|string|max:255',
             'body' => 'required|string',
             'type' => 'required|string',
-            'placeholders' => 'nullable|array',
+            'is_active' => 'boolean',
         ]);
 
         NotificationTemplate::create([
@@ -359,12 +363,76 @@ class NotificationController extends Controller
             'title' => $request->title,
             'body' => $request->body,
             'type' => $request->type,
-            'placeholders' => $request->placeholders,
-            'is_active' => true,
+            'is_active' => $request->is_active ?? true,
+            'created_by' => $request->user()->id,
         ]);
 
-        return redirect()->route('admin.notifications.templates')
+        return redirect()->route('admin.notification.templates')
             ->with('success', 'Template created successfully.');
+    }
+    
+    /**
+     * Display the specified template.
+     */
+    public function showTemplate(NotificationTemplate $template)
+    {
+        return Inertia::render('admin/notification-component/template-show', [
+            'template' => $template,
+        ]);
+    }
+    
+    /**
+     * Show the form for editing the specified template.
+     */
+    public function editTemplate(NotificationTemplate $template)
+    {
+        return Inertia::render('admin/notification-component/template-edit', [
+            'template' => $template,
+        ]);
+    }
+    
+    /**
+     * Update the specified template in storage.
+     */
+    public function updateTemplate(Request $request, NotificationTemplate $template)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'title' => 'required|string|max:255',
+            'body' => 'required|string',
+            'type' => 'required|string',
+            'placeholders' => 'nullable|array',
+            'is_active' => 'boolean',
+        ]);
+        
+        $template->update([
+            'name' => $request->name,
+            'title' => $request->title,
+            'body' => $request->body,
+            'type' => $request->type,
+            'placeholders' => $request->placeholders,
+            'is_active' => $request->is_active,
+        ]);
+        
+        return redirect()->route('admin.notification.templates')
+            ->with('success', 'Template updated successfully.');
+    }
+    
+    /**
+     * Remove the specified template from storage.
+     */
+    public function destroyTemplate(NotificationTemplate $template)
+    {
+        // Check if template is used by any triggers
+        if ($template->triggers()->count() > 0) {
+            return redirect()->route('admin.notification.templates')
+                ->with('error', 'Cannot delete template that is used by triggers.');
+        }
+        
+        $template->delete();
+        
+        return redirect()->route('admin.notification.templates')
+            ->with('success', 'Template deleted successfully.');
     }
 
     /**
@@ -377,8 +445,8 @@ class NotificationController extends Controller
                 $query->where('name', 'like', "%{$search}%")
                     ->orWhere('event', 'like', "%{$search}%");
             })
-            ->when($request->event, function ($query, $event) {
-                $query->where('event', $event);
+            ->when($request->status, function ($query, $status) {
+                $query->where('is_active', $status === 'active');
             })
             ->orderBy('name')
             ->paginate(10)
@@ -403,9 +471,9 @@ class NotificationController extends Controller
             ],
         ];
 
-        return Inertia::render('admin/notification-component/notification-triggers', [
+        return Inertia::render('admin/notification-component/triggers', [
             'triggers' => $formattedTriggers,
-            'filters' => $request->only(['search', 'event']),
+            'filters' => $request->only(['search', 'status']),
         ]);
     }
 
@@ -416,16 +484,13 @@ class NotificationController extends Controller
     {
         $templates = NotificationTemplate::active()->get();
         
-        return Inertia::render('Admin/Notifications/Triggers/Create', [
+        return Inertia::render('admin/notification-component/trigger-create', [
             'templates' => $templates,
-            'eventTypes' => [
-                'payment.successful' => 'Payment Successful',
-                'payment.failed' => 'Payment Failed',
-                'class.reminder' => 'Class Reminder',
-                'class.cancelled' => 'Class Cancelled',
-                'subscription.expiry' => 'Subscription Expiry',
+            'events' => [
                 'user.registered' => 'User Registered',
-                'user.verified' => 'User Verified',
+                'payment.processed' => 'Payment Processed',
+                'subscription.expiring' => 'Subscription Expiring',
+                'session.scheduled' => 'Session Scheduled',
             ],
         ]);
     }
@@ -439,140 +504,41 @@ class NotificationController extends Controller
             'name' => 'required|string|max:255',
             'event' => 'required|string',
             'template_id' => 'required|exists:notification_templates,id',
-            'audience_type' => 'required|string|in:all,role,specific_users',
-            'audience_filter' => 'nullable|array',
-            'channels' => 'required|array',
-            'timing_type' => 'required|string|in:immediate,before_event,after_event',
-            'timing_value' => 'required_unless:timing_type,immediate|nullable|integer',
-            'timing_unit' => 'required_unless:timing_type,immediate|nullable|string|in:minutes,hours,days',
+            'conditions' => 'nullable|array',
+            'is_active' => 'boolean',
         ]);
 
         NotificationTrigger::create([
             'name' => $request->name,
             'event' => $request->event,
             'template_id' => $request->template_id,
-            'audience_type' => $request->audience_type,
-            'audience_filter' => $request->audience_filter,
-            'channels' => $request->channels,
-            'timing_type' => $request->timing_type,
-            'timing_value' => $request->timing_value,
-            'timing_unit' => $request->timing_unit,
-            'is_enabled' => true,
+            'conditions' => $request->conditions ?? [],
+            'is_active' => $request->is_active ?? true,
+            'created_by' => $request->user()->id,
         ]);
 
-        return redirect()->route('admin.notifications.triggers')
+        return redirect()->route('admin.notification.triggers')
             ->with('success', 'Trigger created successfully.');
     }
-    
+
     /**
-     * Display the notification history page.
+     * Display a listing of notification history.
      */
     public function history(Request $request)
     {
-        // Get sent notifications with their recipients
-        $notifications = NotificationRecipient::with(['notification', 'user'])
-            ->whereHas('notification', function ($query) {
-                $query->whereIn('status', ['sent', 'delivered']);
-            })
+        $notifications = Notification::with('sender')
+            ->whereIn('status', ['sent', 'delivered'])
             ->when($request->search, function ($query, $search) {
-                $query->whereHas('user', function ($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%")
-                      ->orWhere('email', 'like', "%{$search}%");
-                });
+                $query->where('title', 'like', "%{$search}%")
+                    ->orWhere('body', 'like', "%{$search}%");
             })
-            ->when($request->status, function ($query, $status) {
-                if ($status !== 'all') {
-                    $query->where('status', $status);
-                }
-            })
-            ->when($request->subject, function ($query, $subject) {
-                if ($subject !== 'all') {
-                    $query->whereHas('notification', function ($q) use ($subject) {
-                        $q->where('type', $subject);
-                    });
-                }
+            ->when($request->type, function ($query, $type) {
+                $query->where('type', $type);
             })
             ->orderBy('created_at', 'desc')
             ->paginate(10)
             ->withQueryString();
             
-        // Get scheduled notifications
-        $scheduledNotifications = Notification::with(['sender'])
-            ->where('status', 'scheduled')
-            ->when($request->search, function ($query, $search) {
-                $query->where('title', 'like', "%{$search}%")
-                    ->orWhere('body', 'like', "%{$search}%");
-            })
-            ->when($request->status, function ($query, $status) {
-                if ($status !== 'all') {
-                    $query->where('status', $status);
-                }
-            })
-            ->when($request->subject, function ($query, $subject) {
-                if ($subject !== 'all') {
-                    $query->where('type', $subject);
-                }
-            })
-            ->orderBy('scheduled_at')
-            ->paginate(10)
-            ->withQueryString();
-            
-        // Get completed teaching sessions with relationships
-        $completedClasses = \App\Models\TeachingSession::with(['teacher', 'student', 'subject'])
-            ->where('status', 'completed')
-            ->when($request->search, function ($query, $search) {
-                $query->whereHas('teacher', function ($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%");
-                })
-                ->orWhereHas('student', function ($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%");
-                });
-            })
-            ->when($request->status, function ($query, $status) {
-                if ($status !== 'all') {
-                    $query->where('status', $status);
-                }
-            })
-            ->when($request->subject, function ($query, $subject) {
-                if ($subject !== 'all') {
-                    $query->whereHas('subject', function ($q) use ($subject) {
-                        $q->where('name', 'like', "%{$subject}%");
-                    });
-                }
-            })
-            ->orderBy('session_date', 'desc')
-            ->orderBy('start_time', 'desc')
-            ->paginate(10)
-            ->withQueryString();
-            
-        // For debugging - check pagination structure
-        if ($request->has('debug')) {
-            return response()->json([
-                'notifications' => $notifications,
-                'links' => $notifications->links(),
-                'meta' => [
-                    'current_page' => $notifications->currentPage(),
-                    'from' => $notifications->firstItem(),
-                    'last_page' => $notifications->lastPage(),
-                    'links' => $notifications->linkCollection()->toArray(),
-                    'path' => $notifications->path(),
-                    'per_page' => $notifications->perPage(),
-                    'to' => $notifications->lastItem(),
-                    'total' => $notifications->total(),
-                ],
-            ]);
-        }
-            
-        // Get urgent actions data from relevant models
-        $urgentActions = [
-            'withdrawalRequests' => \App\Models\PayoutRequest::where('status', 'pending')->count(),
-            'teacherApplications' => \App\Models\VerificationRequest::where('status', 'pending')->count(),
-            'pendingSessions' => \App\Models\TeachingSession::whereNull('teacher_id')
-                ->orWhere('status', 'pending_teacher')
-                ->count(),
-            'reportedDisputes' => \App\Models\Dispute::where('status', 'reported')->count(),
-        ];
-        
         // Format pagination data to match what the frontend expects
         $formattedNotifications = [
             'data' => $notifications->items(),
@@ -591,51 +557,58 @@ class NotificationController extends Controller
                 'total' => $notifications->total(),
             ],
         ];
-        
-        // Format scheduled notifications pagination data
-        $formattedScheduledNotifications = [
-            'data' => $scheduledNotifications->items(),
-            'links' => [
-                'prev' => $scheduledNotifications->previousPageUrl(),
-                'next' => $scheduledNotifications->nextPageUrl(),
-            ],
-            'meta' => [
-                'current_page' => $scheduledNotifications->currentPage(),
-                'from' => $scheduledNotifications->firstItem() ?? 0,
-                'last_page' => $scheduledNotifications->lastPage(),
-                'links' => $scheduledNotifications->linkCollection()->toArray(),
-                'path' => $scheduledNotifications->path(),
-                'per_page' => $scheduledNotifications->perPage(),
-                'to' => $scheduledNotifications->lastItem() ?? 0,
-                'total' => $scheduledNotifications->total(),
-            ],
-        ];
-        
-        // Format completed classes pagination data
-        $formattedCompletedClasses = [
-            'data' => $completedClasses->items(),
-            'links' => [
-                'prev' => $completedClasses->previousPageUrl(),
-                'next' => $completedClasses->nextPageUrl(),
-            ],
-            'meta' => [
-                'current_page' => $completedClasses->currentPage(),
-                'from' => $completedClasses->firstItem() ?? 0,
-                'last_page' => $completedClasses->lastPage(),
-                'links' => $completedClasses->linkCollection()->toArray(),
-                'path' => $completedClasses->path(),
-                'per_page' => $completedClasses->perPage(),
-                'to' => $completedClasses->lastItem() ?? 0,
-                'total' => $completedClasses->total(),
-            ],
-        ];
-        
+
         return Inertia::render('admin/notification-component/notification-history', [
             'notifications' => $formattedNotifications,
-            'scheduledNotifications' => $formattedScheduledNotifications,
-            'completedClasses' => $formattedCompletedClasses,
-            'urgentActions' => $urgentActions,
-            'filters' => $request->only(['search', 'status', 'subject', 'rating']),
+            'filters' => $request->only(['search', 'type']),
+        ]);
+    }
+
+    /**
+     * Search for users by name or email.
+     */
+    public function searchUsers(Request $request)
+    {
+        $query = $request->query('query');
+        
+        Log::info('User search query', [
+            'query' => $query,
+            'request_all' => $request->all()
+        ]);
+        
+        $request->validate([
+            'query' => 'required|string|min:2',
+        ]);
+
+        $users = User::where('name', 'like', "%{$query}%")
+            ->orWhere('email', 'like', "%{$query}%")
+            ->select('id', 'name', 'email', 'role', 'avatar')
+            ->limit(10)
+            ->get();
+        
+        Log::info('User search results', [
+            'count' => $users->count(),
+            'users' => $users->toArray()
+        ]);
+
+        return response()->json($users);
+    }
+
+    /**
+     * Create a test user for development purposes.
+     */
+    public function createTestUser()
+    {
+        $user = User::create([
+            'name' => 'Test User ' . rand(100, 999),
+            'email' => 'test' . rand(100, 999) . '@example.com',
+            'password' => bcrypt('password'),
+            'role' => array_rand(array_flip(['student', 'teacher', 'guardian', 'admin'])),
+        ]);
+
+        return response()->json([
+            'message' => 'Test user created successfully',
+            'user' => $user
         ]);
     }
 } 

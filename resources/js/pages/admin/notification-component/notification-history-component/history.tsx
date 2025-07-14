@@ -90,7 +90,7 @@ export default function History({ notifications = { data: [] }, filters = {} }: 
       {/* Notification History Header */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Notification History</h1>
-        <Link href="/admin/notifications/create">
+        <Link href="/admin/notification/create">
           <Button className="bg-teal-600 hover:bg-teal-700">
             Create New Notification
           </Button>

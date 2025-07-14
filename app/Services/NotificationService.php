@@ -233,18 +233,54 @@ class NotificationService
         $count = 0;
         $now = now();
         
-        // Get scheduled notifications that are due
-        $notifications = Notification::where('status', 'scheduled')
-            ->where('scheduled_at', '<=', $now)
-            ->get();
-            
-        foreach ($notifications as $notification) {
-            if ($this->sendNotification($notification)) {
-                $count++;
-            }
-        }
+        Log::info('Checking for scheduled notifications...', ['time' => $now->toDateTimeString()]);
         
-        return $count;
+        try {
+            // Get scheduled notifications that are due
+            $notifications = Notification::where('status', 'scheduled')
+                ->where('scheduled_at', '<=', $now)
+                ->get();
+            
+            Log::info('Found scheduled notifications', ['count' => $notifications->count()]);
+                
+            foreach ($notifications as $notification) {
+                try {
+                    Log::info('Sending scheduled notification', [
+                        'notification_id' => $notification->id,
+                        'title' => $notification->title,
+                        'scheduled_at' => $notification->scheduled_at
+                    ]);
+                    
+                    if ($this->sendNotification($notification)) {
+                        $count++;
+                        Log::info('Successfully sent scheduled notification', [
+                            'notification_id' => $notification->id
+                        ]);
+                    } else {
+                        Log::error('Failed to send scheduled notification', [
+                            'notification_id' => $notification->id
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Error sending scheduled notification: ' . $e->getMessage(), [
+                        'notification_id' => $notification->id,
+                        'exception' => $e
+                    ]);
+                }
+            }
+            
+            Log::info('Completed sending scheduled notifications', [
+                'total_processed' => $notifications->count(),
+                'successfully_sent' => $count
+            ]);
+            
+            return $count;
+        } catch (\Exception $e) {
+            Log::error('Error processing scheduled notifications: ' . $e->getMessage(), [
+                'exception' => $e
+            ]);
+            return 0;
+        }
     }
 
     /**

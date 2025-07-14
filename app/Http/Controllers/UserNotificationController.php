@@ -32,7 +32,7 @@ class UserNotificationController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate(20);
         
-        return Inertia::render('Notifications/Index', [
+        return Inertia::render('notifications/notification-index', [
             'notifications' => $notifications,
             'unreadCount' => $user->unreadNotifications()->count(),
         ]);
@@ -56,7 +56,7 @@ class UserNotificationController extends Controller
             $recipient->markAsRead();
         }
         
-        return Inertia::render('Notifications/Show', [
+        return Inertia::render('notifications/notification-show', [
             'notification' => [
                 'id' => $recipient->id,
                 'title' => $recipient->notification->title,

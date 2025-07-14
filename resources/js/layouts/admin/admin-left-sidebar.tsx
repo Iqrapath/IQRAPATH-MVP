@@ -199,7 +199,7 @@ export default function AdminLeftSidebar({ className, isMobile = false, onClose,
         },
         {
             title: 'Notification System',
-            href: '/admin/notifications',
+            href: '/admin/notification',
             icon: Bell,
         },
         {

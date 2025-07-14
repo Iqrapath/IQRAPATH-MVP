@@ -167,14 +167,14 @@ export default function NotificationPage({ notifications, filters = {} }: Notifi
                       </span>
                     </td>
                     <td className="py-4 px-4 text-center">
-                      <Link href={`/admin/notifications/${notification.id}/edit`} className="inline-flex">
+                      <Link href={`/admin/notification/${notification.id}/edit`} className="inline-flex">
                         <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-700">
                           <Pencil className="h-5 w-5" />
                         </Button>
                       </Link>
                     </td>
                     <td className="py-4 px-4 text-center">
-                      <Link href={`/admin/notifications/${notification.id}/show`} className="inline-flex">
+                      <Link href={`/admin/notification/${notification.id}`} className="inline-flex">
                         <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-700">
                           <Eye className="h-5 w-5" />
                         </Button>
@@ -232,8 +232,8 @@ export default function NotificationPage({ notifications, filters = {} }: Notifi
                           href={link.url}
                           className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
                             link.active 
-                              ? 'z-10 bg-primary border-primary text-white' 
-                              : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                              ? 'z-10 bg-teal-600 border-teal-600 text-white' 
+                              : 'bg-white text-[#338078] border-2 border-[#338078] rounded-full hover:bg-[#338078] hover:text-white transition-all duration-300 shadow-sm cursor-pointer'
                           } ${
                             link.label.includes('Previous') 
                               ? 'rounded-l-md' 
