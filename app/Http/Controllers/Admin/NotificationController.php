@@ -41,7 +41,7 @@ class NotificationController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        return Inertia::render('Admin/Notifications/Index', [
+        return Inertia::render('admin/notification', [
             'notifications' => $notifications,
             'filters' => $request->only(['search', 'type', 'status']),
         ]);
@@ -83,7 +83,7 @@ class NotificationController extends Controller
             'type' => $request->type,
             'status' => 'draft',
             'sender_type' => 'admin',
-            'sender_id' => auth()->id(),
+            'sender_id' => $request->user()->id,
             'scheduled_at' => $request->scheduled_at,
         ]);
 
