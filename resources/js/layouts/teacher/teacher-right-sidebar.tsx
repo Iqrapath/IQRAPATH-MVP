@@ -2,6 +2,9 @@ import { cn } from '@/lib/utils';
 import { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
+import { Avatar } from '@/components/ui/avatar';
+import { NotificationIcon } from '@/components/icons/notification-icon';
+import { MessageUserIcon } from '@/components/icons/message-user-icon';
 
 interface TeacherRightSidebarProps {
     children?: ReactNode;
@@ -17,47 +20,72 @@ export default function TeacherRightSidebar({
     onClose
 }: TeacherRightSidebarProps) {
     const defaultContent = (
-        <div className="rounded-lg bg-teal-600 p-6 text-white">
-            <div className="flex justify-center">
-                <img 
-                    src="/assets/images/quran.png" 
-                    alt="Quran" 
-                    className="w-40 h-auto"
-                />
-            </div>
-            <h3 className="text-xl font-semibold mb-2">Upcoming Sessions</h3>
-            <p className="text-sm mb-4">You have 3 teaching sessions scheduled for today.</p>
-            
-            <div className="space-y-3">
-                <div className="bg-teal-700 rounded p-2">
-                    <div className="flex justify-between items-center">
-                        <span className="font-medium">Ahmed Hassan</span>
-                        <span className="text-xs">10:00 AM</span>
-                    </div>
-                    <div className="text-xs mt-1">Quran Memorization - Surah Al-Baqarah</div>
+        <div className="space-y-8 bg-[#f0f9f6] p-2 rounded-lg">
+            {/* New Session Requests Section */}
+            <div className="rounded-lg bg-[#f0f9f6] p-4 shadow-sm">
+                <div className="flex items-center gap-2 mb-4">
+                    <MessageUserIcon className="h-6 w-6" />
+                    <h3 className="text-lg font-bold text-gray-800">New Session Requests</h3>
                 </div>
                 
-                <div className="bg-teal-700 rounded p-2">
-                    <div className="flex justify-between items-center">
-                        <span className="font-medium">Fatima Ali</span>
-                        <span className="text-xs">1:30 PM</span>
+                <div className="bg-white rounded-lg p-4 shadow-sm">
+                    <div className="flex items-center gap-3">
+                        <div className="text-blue-500">
+                            <NotificationIcon className="h-8 w-8" />
+                        </div>
+                        <div className="flex-1">
+                            <h4 className="font-bold text-gray-800">Fatima Ibrahim</h4>
+                            <p className="text-xs text-gray-600">Requested a Tajweed Class on March 10,5pm</p>
+                            <p className="text-xs text-gray-500 mt-1">3 hours ago</p>
+                        </div>
                     </div>
-                    <div className="text-xs mt-1">Tajweed Rules - Advanced</div>
-                </div>
-                
-                <div className="bg-teal-700 rounded p-2">
-                    <div className="flex justify-between items-center">
-                        <span className="font-medium">Ibrahim Khan</span>
-                        <span className="text-xs">4:00 PM</span>
+                    <div className="flex gap-2 mt-3">
+                        <Button className="bg-teal-600 hover:bg-teal-700 text-white text-xs px-4 py-1 h-8 rounded-full">Accept</Button>
+                        <Button variant="outline" className="border-red-500 text-red-500 hover:bg-red-50 text-xs px-4 py-1 h-8 rounded-full">Decline</Button>
                     </div>
-                    <div className="text-xs mt-1">Quran Memorization - Surah Yaseen</div>
                 </div>
             </div>
-            
-            <div className="mt-4 text-center">
-                <button className="bg-white text-teal-700 px-4 py-2 rounded text-sm font-medium">
-                    View All Sessions
-                </button>
+
+            {/* Online Student Section */}
+            <div className="rounded-lg bg-[#f0f9f6] p-4 shadow-sm">
+                <div className="flex items-center gap-2 mb-4">
+                    <MessageUserIcon className="h-6 w-6" />
+                    <h3 className="text-lg font-bold text-gray-800">Online Student</h3>
+                </div>
+                
+                <div className="space-y-4">
+                    {/* First message */}
+                    <div className="flex gap-3">
+                        <Avatar className="h-8 w-8">
+                            <img src="/assets/images/landing/testimonial1.png" alt="Ahmed Khalid" />
+                        </Avatar>
+                        <div className="flex-1">
+                            <div className="flex justify-between">
+                                <h4 className="font-bold text-gray-800">Ahmed Khalid</h4>
+                                <span className="text-xs text-gray-500">Jul 29</span>
+                            </div>
+                            <p className="text-xs text-gray-600">I'd like to book a session for Tajweed. Are you available this weekend?</p>
+                        </div>
+                    </div>
+
+                    {/* Second message */}
+                    <div className="flex gap-3">
+                        <Avatar className="h-8 w-8">
+                            <img src="/assets/images/landing/testimonial2.png" alt="Fatima Noor" />
+                        </Avatar>
+                        <div className="flex-1">
+                            <div className="flex justify-between">
+                                <h4 className="font-bold text-gray-800">Fatima Noor</h4>
+                                <span className="text-xs text-gray-500">Yesterday</span>
+                            </div>
+                            <p className="text-xs text-gray-600">Thank you for the last lesson!</p>
+                        </div>
+                    </div>
+                    
+                    <Button variant="ghost" className="w-full text-teal-600 hover:text-teal-700 hover:bg-teal-50 text-sm">
+                        View All Messages
+                    </Button>
+                </div>
             </div>
         </div>
     );

@@ -19,7 +19,8 @@ import {
     GraduationCap,
     Clock,
     MessageSquare,
-    X
+    X,
+    UserCircle
 } from 'lucide-react';
 import React from 'react';
 import { Button } from '@/components/ui/button';
@@ -82,30 +83,14 @@ export default function TeacherLeftSidebar({ className, isMobile = false, onClos
             icon: LayoutDashboard,
         },
         {
-            title: 'My Schedule',
+            title: 'Schedule',
             href: '/teacher/schedule',
             icon: Calendar,
         },
         {
-            title: 'My Students',
-            href: '/teacher/students',
-            icon: GraduationCap,
-        },
-        {
-            title: 'Teaching Sessions',
-            href: '/teacher/sessions',
-            icon: BookOpenCheck,
-        },
-        {
-            title: 'Availability',
-            href: '/teacher/availability',
-            icon: Clock,
-        },
-        {
-            title: 'Messages',
-            href: '/teacher/messages',
-            icon: MessageSquare,
-            divider: true,
+            title: 'Requests',
+            href: '/teacher/requests',
+            icon: FileText,
         },
         {
             title: 'Earnings',
@@ -113,10 +98,19 @@ export default function TeacherLeftSidebar({ className, isMobile = false, onClos
             icon: CreditCard,
         },
         {
-            title: 'Payout Requests',
-            href: '/teacher/payouts',
-            icon: CreditCard,
-            divider: true,
+            title: 'Messages',
+            href: '/teacher/messages',
+            icon: MessageSquare,
+        },
+        {
+            title: 'Profile',
+            href: '/teacher/profile',
+            icon: UserCircle,
+        },
+        {
+            title: 'Rating & Feedback',
+            href: '/teacher/feedback',
+            icon: Star,
         },
         {
             title: 'Settings',
@@ -124,15 +118,9 @@ export default function TeacherLeftSidebar({ className, isMobile = false, onClos
             icon: Settings,
         },
         {
-            title: 'Notifications',
+            title: 'Notification',
             href: '/teacher/notifications',
             icon: Bell,
-        },
-        {
-            title: 'Feedback & Support',
-            href: '/teacher/support',
-            icon: FeedbackSupportIcon,
-            iconType: 'custom',
         },
         {
             title: 'Log out',
@@ -159,7 +147,7 @@ export default function TeacherLeftSidebar({ className, isMobile = false, onClos
     return (
         <div
             className={cn(
-                "flex flex-col h-full bg-teal-600 text-white rounded-xl overflow-hidden relative",
+                "flex flex-col p-4 space-y-4 bg-teal-600 text-white rounded-xl overflow-hidden relative",
                 "w-60",
                 isMobile && "shadow-xl",
                 className
@@ -168,7 +156,7 @@ export default function TeacherLeftSidebar({ className, isMobile = false, onClos
         >
             {isMobile && (
                 <div className="flex justify-between items-center p-4 border-b border-teal-500">
-                    <p className="text-xs uppercase tracking-wider text-white/80 font-medium">TEACHER</p>
+                    <p className="text-xs uppercase tracking-wider text-white/80 font-medium">MAIN</p>
                     <Button variant="ghost" size="sm" className="text-white p-1 h-auto" onClick={onClose}>
                         <X className="h-4 w-4" />
                     </Button>
@@ -178,7 +166,7 @@ export default function TeacherLeftSidebar({ className, isMobile = false, onClos
                 <div className={`${isMobile ? '' : 'pt-5'} px-1`}>
                     {!isMobile && (
                         <p className="text-xs uppercase tracking-wider text-white/80 font-medium px-3 mb-1.5">
-                            TEACHER
+                            MAIN
                         </p>
                     )}
                     <nav className="space-y-1">
