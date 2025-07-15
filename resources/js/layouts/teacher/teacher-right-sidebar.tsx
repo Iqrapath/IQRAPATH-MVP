@@ -72,30 +72,102 @@ export default function TeacherRightSidebar({
     }, []);
     
     const setupEventListeners = () => {
-        // Try to get user ID from meta tag first
-        let userId = document.querySelector('meta[name="user-id"]')?.getAttribute('content');
+        // Try multiple methods to get the user ID
+        let userId = null;
         
-        // If not found, try to get from Inertia page props
+        // Method 1: Try to get from meta tag
+        userId = document.querySelector('meta[name="user-id"]')?.getAttribute('content');
+        if (userId) {
+            console.log('Found user ID in meta tag:', userId);
+        }
+        
+        // Method 2: Try to get from Inertia page props
         // @ts-ignore - Inertia is available globally but TypeScript doesn't know about it
         if (!userId && window.Inertia?.page?.props?.auth?.user?.id) {
             // @ts-ignore - Inertia is available globally but TypeScript doesn't know about it
             userId = window.Inertia.page.props.auth.user.id.toString();
             console.log('Found user ID in Inertia page props:', userId);
-            
+        }
+        
+        // Method 3: Try to get from window object (might be set by the server)
+        // @ts-ignore - userId might be set on window
+        if (!userId && window.userId) {
+            // @ts-ignore - userId might be set on window
+            userId = window.userId.toString();
+            console.log('Found user ID in window object:', userId);
+        }
+        
+        // Method 4: Try to get from localStorage (might be set during login)
+        if (!userId && localStorage.getItem('user_id')) {
+            userId = localStorage.getItem('user_id');
+            console.log('Found user ID in localStorage:', userId);
+        }
+        
+        // Method 5: Try to get from the URL (if it's in the URL)
+        const urlParams = new URLSearchParams(window.location.search);
+        if (!userId && urlParams.get('user_id')) {
+            userId = urlParams.get('user_id');
+            console.log('Found user ID in URL:', userId);
+        }
+        
+        // Method 6: Try to get from the HTML (might be embedded in a data attribute)
+        const userIdElement = document.getElementById('user-id');
+        if (!userId && userIdElement?.getAttribute('data-user-id')) {
+            userId = userIdElement.getAttribute('data-user-id');
+            console.log('Found user ID in HTML element:', userId);
+        }
+        
+        // Method 7: Try to get from an API call as a last resort
+        if (!userId) {
+                         // Make an API call to get the user ID
+             axios.get('/api/user-id')
+                 .then(response => {
+                     if (response.data && response.data.id) {
+                         userId = response.data.id.toString();
+                        console.log('Found user ID from API call:', userId);
+                        
+                        // Add meta tag dynamically
+                        const meta = document.createElement('meta');
+                        meta.name = 'user-id';
+                        meta.content = userId;
+                        document.head.appendChild(meta);
+                        
+                        // Save in localStorage for future use
+                        localStorage.setItem('user_id', userId);
+                        
+                        // Continue with setup now that we have the user ID
+                        continueSetup(userId);
+                    }
+                })
+                .catch(error => {
+                    console.error('Failed to get user ID from API:', error);
+                });
+        }
+        
+        // If we found a user ID through any of the methods above
+        if (userId) {
             // Add meta tag dynamically if it doesn't exist
-            if (!document.querySelector('meta[name="user-id"]') && userId) {
+            if (!document.querySelector('meta[name="user-id"]')) {
                 const meta = document.createElement('meta');
                 meta.name = 'user-id';
                 meta.content = userId;
                 document.head.appendChild(meta);
                 console.log('Added user ID meta tag dynamically');
+                
+                // Save in localStorage for future use
+                localStorage.setItem('user_id', userId);
             }
-        }
-        
-        if (!userId) {
-            console.error('User ID not found in meta tag or Inertia props. Real-time notifications will not work.');
+            
+            // Continue with setup
+            return continueSetup(userId);
+        } else {
+            console.error('User ID not found. Real-time notifications will not work.');
             return;
         }
+    };
+    
+    // Continue setup once we have a user ID
+    const continueSetup = (userId: string) => {
         
         if (!window.Echo) {
             console.error('Laravel Echo is not initialized. Real-time notifications will not work.');
@@ -104,7 +176,7 @@ export default function TeacherRightSidebar({
             setTimeout(() => {
                 if (window.Echo) {
                     console.log('Echo is now available, setting up event listeners...');
-                    setupEventListeners();
+                    continueSetup(userId);
                 } else {
                     console.error('Echo still not available after waiting');
                 }
@@ -164,8 +236,13 @@ export default function TeacherRightSidebar({
     };
     
     const removeEventListeners = () => {
-        // Try to get user ID from meta tag first
+        // Try to get user ID using the same methods as setupEventListeners
         let userId = document.querySelector('meta[name="user-id"]')?.getAttribute('content');
+        
+        if (!userId) {
+            // Try localStorage as a backup
+            userId = localStorage.getItem('user_id');
+        }
         
         // If not found, try to get from Inertia page props
         // @ts-ignore - Inertia is available globally but TypeScript doesn't know about it

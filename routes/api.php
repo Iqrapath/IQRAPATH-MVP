@@ -20,6 +20,14 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
 
+// Simple endpoint to get the current user's ID for WebSocket connections
+Route::middleware('auth')->get('/user-id', function (Request $request) {
+    return response()->json([
+        'id' => $request->user()->id,
+        'success' => true
+    ]);
+});
+
 // Notification routes
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notifications', [NotificationController::class, 'index'])

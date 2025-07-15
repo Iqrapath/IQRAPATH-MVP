@@ -6,6 +6,12 @@
         <meta name="csrf-token" content="{{ csrf_token() }}">
         @auth
         <meta name="user-id" content="{{ auth()->id() }}">
+        <script>
+            // Store user ID in localStorage for redundancy
+            localStorage.setItem('user_id', '{{ auth()->id() }}');
+            // Make user ID available globally
+            window.userId = '{{ auth()->id() }}';
+        </script>
         @endauth
 
         {{-- Inline script to detect system dark mode preference and apply it immediately --}}
@@ -48,7 +54,7 @@
         @vite(['resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx"])
         @inertiaHead
     </head>
-    <body class="font-sans antialiased">
+    <body class="font-sans antialiased" @auth id="user-id" data-user-id="{{ auth()->id() }}" @endauth>
         @inertia
     </body>
 </html>
