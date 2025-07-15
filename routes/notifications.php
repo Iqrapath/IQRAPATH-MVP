@@ -67,6 +67,16 @@ Route::middleware(['auth'])->prefix('api')->group(function () {
     
     Route::post('/notifications/read-all', [App\Http\Controllers\Api\NotificationController::class, 'markAllAsRead'])
         ->name('api.notifications.read-all');
+        
+    // Get user notifications for dropdown
+    Route::get('/user-notifications', [NotificationController::class, 'getUserNotifications'])
+        ->name('api.user.notifications');
+        
+    // Create a test notification (only in local/development environment)
+    if (app()->environment(['local', 'development'])) {
+        Route::post('/create-test-notification', [App\Http\Controllers\Api\NotificationController::class, 'createTestNotification'])
+            ->name('api.create-test-notification');
+    }
 });
 
 // User notification routes

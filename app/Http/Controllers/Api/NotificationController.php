@@ -50,18 +50,22 @@ class NotificationController extends Controller
      */
     public function markAsRead(Request $request, $id)
     {
-        $recipient = NotificationRecipient::findOrFail($id);
+        $user = $request->user();
         
-        // Ensure the user can only mark their own notifications as read
-        if ($recipient->user_id !== $request->user()->id) {
-            return response()->json(['error' => 'Unauthorized'], 403);
+        // Find the notification recipient for this user and notification
+        $recipient = NotificationRecipient::where('notification_id', $id)
+            ->where('user_id', $user->id)
+            ->first();
+        
+        if (!$recipient) {
+            return response()->json(['error' => 'Notification not found'], 404);
         }
         
         $recipient->markAsRead();
         
         return response()->json([
             'success' => true,
-            'unread_count' => $request->user()->unreadNotifications()->count(),
+            'unread_count' => $user->unreadNotifications()->count(),
         ]);
     }
 
@@ -78,6 +82,49 @@ class NotificationController extends Controller
         return response()->json([
             'success' => true,
             'unread_count' => 0,
+        ]);
+    }
+    
+    /**
+     * Create a test notification for the current user.
+     * This is only available in local/development environment.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function createTestNotification(Request $request)
+    {
+        if (!app()->environment(['local', 'development'])) {
+            return response()->json(['error' => 'Not available in this environment'], 403);
+        }
+        
+        $user = $request->user();
+        $types = ['system', 'payment', 'session', 'reminder'];
+        $randomType = $types[array_rand($types)];
+        
+        // Create a notification
+        $notification = \App\Models\Notification::create([
+            'title' => 'Test Notification - ' . ucfirst($randomType),
+            'body' => 'This is a test notification of type "' . $randomType . '". Created at ' . now()->format('Y-m-d H:i:s'),
+            'type' => $randomType,
+            'status' => 'sent',
+            'sender_type' => 'system',
+            'sent_at' => now(),
+        ]);
+        
+        // Add the current user as a recipient
+        \App\Models\NotificationRecipient::create([
+            'notification_id' => $notification->id,
+            'user_id' => $user->id,
+            'status' => 'delivered',
+            'channel' => 'in-app',
+            'delivered_at' => now(),
+        ]);
+        
+        return response()->json([
+            'success' => true,
+            'notification' => $notification,
+            'message' => 'Test notification created successfully',
         ]);
     }
 } 

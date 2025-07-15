@@ -13,7 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, X, Search, Loader2 } from 'lucide-react';
+import { PlusCircle, X, Search, Loader2, AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import axios from 'axios';
 import debounce from 'lodash/debounce';
 
@@ -65,6 +66,7 @@ export default function NotificationEdit({
   const [sendNow, setSendNow] = useState(!notification.scheduled_at);
   const [scheduleForLater, setScheduleForLater] = useState(!!notification.scheduled_at);
   const [selectedRoles, setSelectedRoles] = useState<string[]>(initialRoles);
+  const [dateError, setDateError] = useState<string | null>(null);
   
   // User search state
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -191,6 +193,18 @@ export default function NotificationEdit({
     
     setData('channels', channels);
     
+    // Validate scheduled date is not in the past
+    if (scheduleForLater && data.scheduled_at) {
+      const scheduledDate = new Date(data.scheduled_at);
+      const now = new Date();
+      
+      if (scheduledDate <= now) {
+        setDateError("Cannot schedule notifications in the past. Please select a future date and time.");
+        return;
+      }
+    }
+    
+    setDateError(null);
     put(route('admin.notification.update', notification.id));
   };
   
@@ -496,38 +510,64 @@ export default function NotificationEdit({
                 <div className="w-32">
                   <Label className="text-base font-medium">Schedule Delivery Time:</Label>
                 </div>
-                <div className="flex items-center gap-6">
-                  <div className="flex items-center gap-2">
-                    <Switch 
-                      checked={sendNow} 
-                      onCheckedChange={(checked) => {
-                        setSendNow(checked);
-                        setScheduleForLater(!checked);
-                        if (checked) {
-                          setData('scheduled_at', null);
-                        }
-                      }}
-                    />
-                    <span className="text-sm">Send Now</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Switch 
-                      checked={scheduleForLater} 
-                      onCheckedChange={(checked) => {
-                        setScheduleForLater(checked);
-                        setSendNow(!checked);
-                      }}
-                    />
-                    <span className="text-sm">Schedule for Later</span>
-                  </div>
-                  {scheduleForLater && (
-                    <div className="ml-2">
-                      <Input 
-                        type="datetime-local"
-                        defaultValue={notification.scheduled_at ? new Date(notification.scheduled_at).toISOString().slice(0, 16) : undefined}
-                        onChange={(e) => setData('scheduled_at', new Date(e.target.value))}
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-2">
+                      <Switch 
+                        checked={sendNow} 
+                        onCheckedChange={(checked) => {
+                          setSendNow(checked);
+                          setScheduleForLater(!checked);
+                          if (checked) {
+                            setData('scheduled_at', null);
+                            setDateError(null);
+                          }
+                        }}
                       />
+                      <span className="text-sm">Send Now</span>
                     </div>
+                    <div className="flex items-center gap-2">
+                      <Switch 
+                        checked={scheduleForLater} 
+                        onCheckedChange={(checked) => {
+                          setScheduleForLater(checked);
+                          setSendNow(!checked);
+                          if (!checked) {
+                            setDateError(null);
+                          }
+                        }}
+                      />
+                      <span className="text-sm">Schedule for Later</span>
+                    </div>
+                    {scheduleForLater && (
+                      <div className="ml-2">
+                        <Input 
+                          type="datetime-local"
+                          defaultValue={notification.scheduled_at ? new Date(notification.scheduled_at).toISOString().slice(0, 16) : undefined}
+                          onChange={(e) => {
+                            const selectedDate = new Date(e.target.value);
+                            const now = new Date();
+                            
+                            if (selectedDate <= now) {
+                              setDateError("Cannot schedule notifications in the past. Please select a future date and time.");
+                            } else {
+                              setDateError(null);
+                              setData('scheduled_at', selectedDate);
+                            }
+                          }}
+                          className={dateError ? "border-red-500" : ""}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  
+                  {dateError && (
+                    <Alert variant="destructive" className="mt-2">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        {dateError}
+                      </AlertDescription>
+                    </Alert>
                   )}
                 </div>
               </div>

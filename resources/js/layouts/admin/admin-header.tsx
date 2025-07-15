@@ -7,8 +7,8 @@ import { useInitials } from '@/hooks/use-initials';
 import { type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import { ChevronDown, Menu, PanelRight } from 'lucide-react';
-import BellNotificationIcon from '@/components/icons/bell-notification-icon';
 import MessageIcon from '@/components/icons/message-icon';
+import NotificationDropdown from '@/components/notification-dropdown';
 
 interface AdminHeaderProps {
     pageTitle: string;
@@ -58,12 +58,7 @@ export default function AdminHeader({
                 )}
                 
                 {/* Notifications */}
-                <Button variant="ghost" size="icon" className="relative">
-                    <BellNotificationIcon style={{ width: '32px', height: '32px' }} />
-                    <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">
-                        3
-                    </span>
-                </Button>
+                <NotificationDropdown />
 
                 {/* Messages - hide on smallest screens */}
                 {!isMobile && (

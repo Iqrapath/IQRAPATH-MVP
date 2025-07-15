@@ -91,6 +91,9 @@ export default function NotificationShow({ notification, recipients, analytics }
   const formattedDate = notification.scheduled_at 
     ? format(new Date(notification.scheduled_at), 'MMM dd, yyyy – h:mm a')
     : format(new Date(notification.created_at), 'MMM dd, yyyy – h:mm a');
+    
+  // Make sure the status is correctly displayed for scheduled notifications
+  const displayStatus = notification.status;
   
   // Calculate delivery analytics percentages
   const openRate = analytics.total > 0 ? Math.round((analytics.read / analytics.total) * 100) : 0;
@@ -105,13 +108,14 @@ export default function NotificationShow({ notification, recipients, analytics }
   
   // Filter recipients
   const filteredRecipients = recipients.filter(recipient => {
+    if (!recipient) return false;
     if (filterStatus && recipient.status !== filterStatus) return false;
     if (filterChannel && recipient.channel !== filterChannel) return false;
     return true;
   });
   
   // Get unique channels
-  const channels = Array.from(new Set(recipients.map(r => r.channel)));
+  const channels = Array.from(new Set(recipients.filter(r => r && r.channel).map(r => r.channel)));
   
   // Helper function to get status badge
   const getStatusBadge = (status: string) => {
@@ -169,7 +173,7 @@ export default function NotificationShow({ notification, recipients, analytics }
             <h2 className="text-lg font-semibold text-gray-700">
               <span className="capitalize">{notification.type}</span> Notification
             </h2>
-            {getStatusBadge(notification.status)}
+            {getStatusBadge(displayStatus)}
           </div>
           
           {/* Notification Card */}
@@ -187,7 +191,7 @@ export default function NotificationShow({ notification, recipients, analytics }
                 <div className="space-y-2">
                   <div className="flex items-center">
                     <span className="font-medium w-32">Sent By:</span> 
-                    <span>{notification.sender.name}</span>
+                    <span>{notification.sender ? notification.sender.name : 'System'}</span>
                   </div>
                   <div className="flex items-center">
                     <span className="font-medium w-32">Recipients:</span> 
@@ -197,7 +201,7 @@ export default function NotificationShow({ notification, recipients, analytics }
                 <div className="space-y-2">
                   <div className="flex items-center">
                     <span className="font-medium w-32">Status:</span> 
-                    {getStatusBadge(notification.status)}
+                    {getStatusBadge(displayStatus)}
                   </div>
                   <div className="flex items-center">
                     <span className="font-medium w-32">{notification.scheduled_at ? 'Scheduled For:' : 'Sent On:'}</span> 
@@ -405,16 +409,16 @@ export default function NotificationShow({ notification, recipients, analytics }
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Avatar className="h-8 w-8">
-                            <AvatarImage src={recipient.user.avatar} alt={recipient.user.name} />
-                            <AvatarFallback>{recipient.user.name.charAt(0).toUpperCase()}</AvatarFallback>
+                            <AvatarImage src={recipient.user?.avatar} alt={recipient.user?.name || 'User'} />
+                            <AvatarFallback>{recipient.user?.name?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
                           </Avatar>
-                          <span>{recipient.user.name}</span>
+                          <span>{recipient.user?.name || 'Unknown User'}</span>
                         </div>
                       </TableCell>
-                      <TableCell>{recipient.user.email}</TableCell>
+                      <TableCell>{recipient.user?.email || 'No email'}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="capitalize">
-                          {recipient.user.role}
+                          {recipient.user?.role || 'unknown'}
                         </Badge>
                       </TableCell>
                       <TableCell>{getChannelBadge(recipient.channel)}</TableCell>

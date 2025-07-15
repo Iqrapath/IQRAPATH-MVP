@@ -26,7 +26,7 @@ import { Button } from '@/components/ui/button';
 
 interface AdminLeftSidebarProps extends React.HTMLAttributes<HTMLDivElement> {
     isMobile?: boolean;
-    onClose?: () => void;
+    isOpen?: boolean;
 }
 
 type IconType = LucideIcon | any; // Allow any type for icons to support custom icons
@@ -120,9 +120,14 @@ const IconRenderer = ({ icon, size = 20, type = 'lucide' }: { icon: IconType; si
     return <Icon size={size} />;
 };
 
-export default function AdminLeftSidebar({ className, isMobile = false, onClose, ...props }: AdminLeftSidebarProps) {
+export default function AdminLeftSidebar({ className, isMobile = false, isOpen = true, ...props }: AdminLeftSidebarProps) {
     const { url } = usePage();
     const currentPath = url;
+
+    // If mobile and not open, don't render
+    if (isMobile && !isOpen) {
+        return null;
+    }
 
     // Handle logout with POST method
     const handleLogout = (e: React.MouseEvent) => {
@@ -243,7 +248,7 @@ export default function AdminLeftSidebar({ className, isMobile = false, onClose,
             {isMobile && (
                 <div className="flex justify-between items-center p-4 border-b border-teal-500">
                     <p className="text-xs uppercase tracking-wider text-white/80 font-medium">MAIN</p>
-                    <Button variant="ghost" size="sm" className="text-white p-1 h-auto" onClick={onClose}>
+                    <Button variant="ghost" size="sm" className="text-white p-1 h-auto">
                         <X className="h-4 w-4" />
                     </Button>
                 </div>
@@ -263,9 +268,6 @@ export default function AdminLeftSidebar({ className, isMobile = false, onClose,
                                     onClick={(e) => {
                                         if (item.onClick) {
                                             item.onClick(e);
-                                        }
-                                        if (isMobile && onClose) {
-                                            onClose();
                                         }
                                     }}
                                     className={cn(

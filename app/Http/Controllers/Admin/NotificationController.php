@@ -93,15 +93,21 @@ class NotificationController extends Controller
             'roles' => 'required_if:recipient_type,role|array',
             'user_ids' => 'required_if:recipient_type,specific|array',
             'channels' => 'required|array',
-            'scheduled_at' => 'nullable|date',
+            'scheduled_at' => 'nullable|date|after:now',
         ]);
+
+        // Determine initial status
+        $status = 'draft';
+        if ($request->scheduled_at) {
+            $status = 'scheduled';
+        }
 
         // Create notification
         $notification = $this->notificationService->createNotification([
             'title' => $request->title,
             'body' => $request->body,
             'type' => $request->type,
-            'status' => 'draft',
+            'status' => $status,
             'sender_type' => 'admin',
             'sender_id' => $request->user()->id,
             'scheduled_at' => $request->scheduled_at,
@@ -140,6 +146,15 @@ class NotificationController extends Controller
     {
         $notification->load(['sender', 'recipients.user']);
         
+        // Ensure sender is properly formatted even if null
+        $notificationData = $notification->toArray();
+        if (!$notification->sender) {
+            $notificationData['sender'] = [
+                'id' => null,
+                'name' => 'System'
+            ];
+        }
+        
         // Group recipients by status for analytics
         $analytics = [
             'total' => $notification->recipients->count(),
@@ -150,7 +165,7 @@ class NotificationController extends Controller
         ];
         
         return Inertia::render('admin/notification-component/notification-show', [
-            'notification' => $notification,
+            'notification' => $notificationData,
             'recipients' => $notification->recipients,
             'analytics' => $analytics,
         ]);
@@ -221,15 +236,23 @@ class NotificationController extends Controller
             'roles' => 'required_if:recipient_type,role|array',
             'user_ids' => 'required_if:recipient_type,specific|array',
             'channels' => 'required|array',
-            'scheduled_at' => 'nullable|date',
+            'scheduled_at' => 'nullable|date|after:now',
         ]);
+
+        // Determine status based on scheduling
+        $status = $request->status;
+        if ($request->scheduled_at) {
+            $status = 'scheduled';
+        } elseif (!$request->scheduled_at && in_array($status, ['draft', 'scheduled'])) {
+            $status = 'draft';
+        }
 
         // Update notification
         $notification->update([
             'title' => $request->title,
             'body' => $request->body,
             'type' => $request->type,
-            'status' => $request->status,
+            'status' => $status,
             'scheduled_at' => $request->scheduled_at,
         ]);
 
@@ -265,6 +288,15 @@ class NotificationController extends Controller
         if (!in_array($notification->status, ['draft', 'scheduled'])) {
             return redirect()->route('admin.notification.show', $notification)
                 ->with('error', 'This notification has already been sent.');
+        }
+        
+        // Check if notification is scheduled for future
+        if ($notification->scheduled_at && $notification->scheduled_at->isFuture()) {
+            $notification->status = 'scheduled';
+            $notification->save();
+            
+            return redirect()->route('admin.notification.show', $notification)
+                ->with('success', 'Notification has been scheduled for ' . $notification->scheduled_at->format('M d, Y h:i A'));
         }
         
         $success = $this->notificationService->sendNotification($notification);
@@ -609,6 +641,58 @@ class NotificationController extends Controller
         return response()->json([
             'message' => 'Test user created successfully',
             'user' => $user
+        ]);
+    }
+    
+    /**
+     * Get paginated notifications for the current user.
+     */
+    public function getUserNotifications(Request $request)
+    {
+        $user = $request->user();
+        $perPage = $request->query('per_page', 5);
+        $page = $request->query('page', 1);
+        
+        // Get notification recipients for this user
+        $recipients = NotificationRecipient::where('user_id', $user->id)
+            ->where('channel', 'in-app')
+            ->with(['notification' => function($query) {
+                $query->select('id', 'title', 'body', 'created_at', 'type', 'status');
+            }])
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage);
+            
+        // Format the notifications for the frontend
+        $notifications = $recipients->map(function($recipient) {
+            $notification = $recipient->notification;
+            return [
+                'id' => $notification->id,
+                'title' => $notification->title,
+                'body' => \Illuminate\Support\Str::limit($notification->body, 100),
+                'created_at' => $notification->created_at->diffForHumans(),
+                'type' => $notification->type,
+                'status' => $recipient->status,
+                'is_read' => !is_null($recipient->read_at),
+            ];
+        });
+        
+        // Get unread count
+        $unreadCount = NotificationRecipient::where('user_id', $user->id)
+            ->where('channel', 'in-app')
+            ->whereNull('read_at')
+            ->count();
+            
+        return response()->json([
+            'notifications' => $notifications,
+            'unread_count' => $unreadCount,
+            'pagination' => [
+                'total' => $recipients->total(),
+                'per_page' => $recipients->perPage(),
+                'current_page' => $recipients->currentPage(),
+                'last_page' => $recipients->lastPage(),
+                'from' => $recipients->firstItem() ?? 0,
+                'to' => $recipients->lastItem() ?? 0,
+            ]
         ]);
     }
 } 
