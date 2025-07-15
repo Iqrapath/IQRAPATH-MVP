@@ -2,9 +2,18 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\MessageReceived;
+use App\Events\NotificationReceived;
+use App\Events\SessionRequestReceived;
 use App\Http\Controllers\Controller;
+use App\Models\GuardianMessage;
+use App\Models\Notification;
 use App\Models\NotificationRecipient;
+use App\Models\Subject;
+use App\Models\TeachingSession;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class NotificationController extends Controller
 {
@@ -125,6 +134,218 @@ class NotificationController extends Controller
             'success' => true,
             'notification' => $notification,
             'message' => 'Test notification created successfully',
+        ]);
+    }
+    
+    /**
+     * Test sending a notification via real-time channels.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function testNotification(Request $request)
+    {
+        $request->validate([
+            'recipient_id' => 'required|exists:users,id',
+            'message' => 'required|string',
+        ]);
+        
+        $sender = Auth::user();
+        $recipient = User::findOrFail($request->recipient_id);
+        
+        // Create a notification
+        $notification = Notification::create([
+            'title' => 'Test Notification from ' . $sender->name,
+            'body' => $request->message,
+            'type' => 'system',
+            'status' => 'sent',
+            'sender_id' => $sender->id,
+            'sender_type' => 'user',
+            'sent_at' => now(),
+        ]);
+        
+        // Create a notification recipient
+        $notificationRecipient = NotificationRecipient::create([
+            'notification_id' => $notification->id,
+            'user_id' => $recipient->id,
+            'status' => 'delivered',
+            'channel' => 'in-app',
+            'delivered_at' => now(),
+        ]);
+        
+        // The event will be automatically dispatched by the model observer
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Test notification sent successfully',
+        ]);
+    }
+    
+    /**
+     * Test sending a session request via real-time channels.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function testSessionRequest(Request $request)
+    {
+        $request->validate([
+            'teacher_id' => 'required|exists:users,id',
+            'subject' => 'required|string',
+        ]);
+        
+        $student = Auth::user();
+        $teacher = User::findOrFail($request->teacher_id);
+        
+        if (!$teacher->hasRole('teacher')) {
+            return response()->json([
+                'error' => 'The specified user is not a teacher',
+            ], 422);
+        }
+        
+        // Find or create a subject
+        $subject = Subject::firstOrCreate(
+            ['name' => $request->subject],
+            ['description' => 'Test subject for ' . $request->subject]
+        );
+        
+        // Create a teaching session
+        $session = TeachingSession::create([
+            'teacher_id' => $teacher->id,
+            'student_id' => $student->id,
+            'subject_id' => $subject->id,
+            'session_date' => now()->addDays(1)->format('Y-m-d'),
+            'start_time' => now()->addDays(1)->format('H:i'),
+            'end_time' => now()->addDays(1)->addHour()->format('H:i'),
+            'status' => 'pending_confirmation',
+        ]);
+        
+        // The event will be automatically dispatched by the model observer
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Test session request sent successfully',
+        ]);
+    }
+    
+    /**
+     * Test sending a direct message via real-time channels.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function testMessage(Request $request)
+    {
+        $request->validate([
+            'recipient_id' => 'required|exists:users,id',
+            'message' => 'required|string',
+        ]);
+        
+        $sender = Auth::user();
+        $recipient = User::findOrFail($request->recipient_id);
+        
+        // Create a message
+        $message = GuardianMessage::create([
+            'sender_id' => $sender->id,
+            'recipient_id' => $recipient->id,
+            'message' => $request->message,
+            'is_read' => false,
+        ]);
+        
+        // The event will be automatically dispatched by the model observer
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Test message sent successfully',
+        ]);
+    }
+
+    /**
+     * Get notifications for the user dropdown.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getUserNotifications(Request $request)
+    {
+        $user = Auth::user();
+        $page = $request->input('page', 1);
+        $perPage = $request->input('per_page', 5);
+        
+        $notifications = NotificationRecipient::where('user_id', $user->id)
+            ->with('notification')
+            ->where('channel', 'in-app')
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage, ['*'], 'page', $page);
+            
+        $formattedNotifications = $notifications->items()->map(function ($recipient) {
+            return [
+                'id' => $recipient->id,
+                'title' => $recipient->notification->title,
+                'body' => $recipient->notification->body,
+                'type' => $recipient->notification->type,
+                'status' => $recipient->status,
+                'is_read' => $recipient->read_at !== null,
+                'created_at' => $recipient->created_at->diffForHumans(),
+            ];
+        });
+            
+        return response()->json([
+            'notifications' => $formattedNotifications,
+            'unread_count' => NotificationRecipient::where('user_id', $user->id)
+                ->where('channel', 'in-app')
+                ->where('read_at', null)
+                ->count(),
+            'pagination' => [
+                'total' => $notifications->total(),
+                'per_page' => $notifications->perPage(),
+                'current_page' => $notifications->currentPage(),
+                'last_page' => $notifications->lastPage(),
+                'from' => $notifications->firstItem(),
+                'to' => $notifications->lastItem(),
+            ],
+        ]);
+    }
+    
+    /**
+     * Get notifications for the admin dashboard.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getAdminNotifications(Request $request)
+    {
+        $user = Auth::user();
+        $limit = $request->input('limit', 5);
+        
+        if ($user->role !== 'admin' && $user->role !== 'super-admin') {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+        
+        $notifications = NotificationRecipient::where('user_id', $user->id)
+            ->with('notification')
+            ->where('channel', 'in-app')
+            ->orderBy('created_at', 'desc')
+            ->take($limit)
+            ->get()
+            ->map(function ($recipient) {
+                return [
+                    'id' => $recipient->id,
+                    'title' => $recipient->notification->title,
+                    'body' => $recipient->notification->body,
+                    'type' => $recipient->notification->type,
+                    'status' => $recipient->status,
+                    'is_read' => $recipient->read_at !== null,
+                    'created_at' => $recipient->created_at->diffForHumans(),
+                ];
+            });
+            
+        return response()->json([
+            'notifications' => $notifications,
+            'unread_count' => NotificationRecipient::where('user_id', $user->id)
+                ->where('channel', 'in-app')
+                ->where('read_at', null)
+                ->count(),
         ]);
     }
 } 

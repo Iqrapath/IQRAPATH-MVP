@@ -3,9 +3,13 @@
 use App\Http\Controllers\Admin\ContentPagesController;
 use App\Http\Controllers\Admin\FaqController;
 use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\DisputeController;
+use App\Http\Controllers\NotificationsTestController;
 use App\Http\Controllers\SubjectController;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use App\Http\Controllers\Teacher\SidebarController;
 
 /*
 |--------------------------------------------------------------------------
@@ -72,7 +76,7 @@ require __DIR__.'/sessions.php';
 require __DIR__.'/payments.php';
 require __DIR__.'/feedback.php';
 
-// Development routes - only available in local environment
+// Debug routes - only available in local environment
 if (app()->environment(['local', 'development'])) {
     Route::middleware(['auth'])->group(function () {
         Route::get('/test-notification', function () {
@@ -80,5 +84,53 @@ if (app()->environment(['local', 'development'])) {
             $response = app()->make(\App\Http\Controllers\Api\NotificationController::class)->createTestNotification($request);
             return redirect()->back()->with('success', 'Test notification created');
         })->name('test-notification');
+        
+        // Debug route for broadcasting - simplified
+        Route::get('/debug-broadcasting', function () {
+            return response()->json([
+                'success' => true,
+                'message' => 'Broadcasting system is configured',
+                'user_id' => Auth::id(),
+                'timestamp' => now()->format('Y-m-d H:i:s'),
+            ]);
+        })->name('debug-broadcasting');
     });
 }
+
+// Add the test route at the end of the file
+Route::middleware(['auth'])->group(function () {
+    Route::get('/notifications/test', function () {
+        return inertia('notifications/test');
+    })->name('notifications.test');
+    
+    // Test route to check CSRF token
+    Route::get('/test-csrf', function () {
+        return response()->json([
+            'csrf_token' => csrf_token(),
+            'session_status' => session()->isStarted() ? 'Started' : 'Not started',
+            'auth_user' => Auth::check() ? Auth::user()->id : 'Not authenticated'
+        ]);
+    });
+    
+    // Broadcasting auth routes with minimal middleware
+    Route::match(['get', 'post'], '/broadcasting/auth', [\App\Http\Controllers\BroadcastController::class, 'authenticate'])
+        ->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class]);
+        
+    // API-based broadcasting auth route
+    Route::match(['get', 'post'], '/api/broadcasting/auth', [\App\Http\Controllers\BroadcastController::class, 'authenticate'])
+        ->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class])
+        ->middleware('auth');
+});
+
+// Add admin notifications route for the admin panel
+Route::middleware(['auth', 'role:admin,super-admin'])->group(function () {
+    Route::get('/api/admin/notifications', [\App\Http\Controllers\Api\NotificationController::class, 'getAdminNotifications'])
+        ->name('admin.notifications.api');
+});
+
+// Teacher API routes
+Route::middleware(['auth'])->group(function () {
+    Route::get('/api/teacher/sidebar-data', [SidebarController::class, 'getData']);
+    Route::post('/api/teacher/session-requests/{id}/accept', [SidebarController::class, 'acceptSessionRequest']);
+    Route::post('/api/teacher/session-requests/{id}/decline', [SidebarController::class, 'declineSessionRequest']);
+});

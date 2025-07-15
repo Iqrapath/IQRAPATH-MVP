@@ -12,11 +12,13 @@ interface UserMenuContentProps {
 }
 
 export function UserMenuContent({ user }: UserMenuContentProps) {
-    const cleanup = useMobileNavigation();
+    const mobileNav = useMobileNavigation();
     const [statusMessage, setStatusMessage] = useState(user.status_message || '');
 
     const handleLogout = () => {
-        cleanup();
+        // Close mobile navigation if open
+        if (mobileNav.leftSidebarOpen) mobileNav.toggleLeftSidebar();
+        if (mobileNav.rightSidebarOpen) mobileNav.toggleRightSidebar();
         router.flushAll();
     };
 
@@ -27,7 +29,9 @@ export function UserMenuContent({ user }: UserMenuContentProps) {
         }, {
             preserveScroll: true,
             onSuccess: () => {
-                cleanup();
+                // Close mobile navigation if open
+                if (mobileNav.leftSidebarOpen) mobileNav.toggleLeftSidebar();
+                if (mobileNav.rightSidebarOpen) mobileNav.toggleRightSidebar();
             }
         });
     };
@@ -39,8 +43,14 @@ export function UserMenuContent({ user }: UserMenuContentProps) {
     const handleStatusMessageKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') {
             e.preventDefault();
-            setStatus(user.status_type || 'online', statusMessage);
+            setStatus(user.status_type as StatusType || 'online', statusMessage);
         }
+    };
+
+    const handleSettingsClick = () => {
+        // Close mobile navigation if open
+        if (mobileNav.leftSidebarOpen) mobileNav.toggleLeftSidebar();
+        if (mobileNav.rightSidebarOpen) mobileNav.toggleRightSidebar();
     };
 
     return (
@@ -55,7 +65,7 @@ export function UserMenuContent({ user }: UserMenuContentProps) {
                 <DropdownMenuSub>
                     <DropdownMenuSubTrigger>
                         <div className="flex items-center">
-                            <UserStatus status={user.status_type || 'offline'} className="mr-2" showLabel={true} />
+                            <UserStatus status={user.status_type as StatusType || 'offline'} className="mr-2" showLabel={true} />
                             <span className="ml-auto">Set status</span>
                         </div>
                     </DropdownMenuSubTrigger>
@@ -91,7 +101,7 @@ export function UserMenuContent({ user }: UserMenuContentProps) {
                     </DropdownMenuSubContent>
                 </DropdownMenuSub>
                 <DropdownMenuItem asChild>
-                    <Link className="block w-full" href={route('profile.edit')} as="button" prefetch onClick={cleanup}>
+                    <Link className="block w-full" href={route('profile.edit')} as="button" prefetch onClick={handleSettingsClick}>
                         <Settings className="mr-2" />
                         Settings
                     </Link>

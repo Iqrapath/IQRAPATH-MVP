@@ -62,21 +62,161 @@ export default function TeacherRightSidebar({
         // Refresh data every 60 seconds
         const interval = setInterval(fetchSidebarData, 60000);
         
-        return () => clearInterval(interval);
+        // Listen for real-time events
+        setupEventListeners();
+        
+        return () => {
+            clearInterval(interval);
+            removeEventListeners();
+        };
     }, []);
+    
+    const setupEventListeners = () => {
+        // Try to get user ID from meta tag first
+        let userId = document.querySelector('meta[name="user-id"]')?.getAttribute('content');
+        
+        // If not found, try to get from Inertia page props
+        // @ts-ignore - Inertia is available globally but TypeScript doesn't know about it
+        if (!userId && window.Inertia?.page?.props?.auth?.user?.id) {
+            // @ts-ignore - Inertia is available globally but TypeScript doesn't know about it
+            userId = window.Inertia.page.props.auth.user.id.toString();
+            console.log('Found user ID in Inertia page props:', userId);
+            
+            // Add meta tag dynamically if it doesn't exist
+            if (!document.querySelector('meta[name="user-id"]') && userId) {
+                const meta = document.createElement('meta');
+                meta.name = 'user-id';
+                meta.content = userId;
+                document.head.appendChild(meta);
+                console.log('Added user ID meta tag dynamically');
+            }
+        }
+        
+        if (!userId) {
+            console.error('User ID not found in meta tag or Inertia props. Real-time notifications will not work.');
+            return;
+        }
+        
+        if (!window.Echo) {
+            console.error('Laravel Echo is not initialized. Real-time notifications will not work.');
+            
+            // Wait a bit and check again - Echo might be initialized asynchronously in app.tsx
+            setTimeout(() => {
+                if (window.Echo) {
+                    console.log('Echo is now available, setting up event listeners...');
+                    setupEventListeners();
+                } else {
+                    console.error('Echo still not available after waiting');
+                }
+            }, 2000);
+            
+            return;
+        }
+        
+        try {
+            console.log(`Setting up event listeners for user ${userId}`);
+            
+            // Listen for new session requests
+            window.Echo.private(`session-requests.${userId}`)
+                .listen('.session.requested', (data: { session: SessionRequest }) => {
+                    console.log('New session request received:', data);
+                    
+                    // Add the new session request to the list
+                    setSessionRequests(prev => [data.session, ...prev]);
+                    setPendingRequestCount(prev => prev + 1);
+                    
+                    // Show a toast notification
+                    toast.info(`New session request from ${data.session.student.name}`);
+                });
+            
+            // Listen for new messages
+            window.Echo.private(`messages.${userId}`)
+                .listen('.message.received', (data: { message: Message }) => {
+                    console.log('New message received:', data);
+                    
+                    // Add the new message to the list
+                    setMessages(prev => [data.message, ...prev]);
+                    setUnreadMessageCount(prev => prev + 1);
+                    
+                    // Show a toast notification
+                    toast.info(`New message from ${data.message.sender.name}`);
+                });
+            
+            // Listen for notifications
+            window.Echo.private(`notifications.${userId}`)
+                .listen('.notification.received', (data: any) => {
+                    console.log('New notification received:', data);
+                    
+                    // Show a toast notification
+                    toast.info(`New notification: ${data.notification?.title || 'System notification'}`);
+                })
+                .listen('.test.broadcast', (data: any) => {
+                    console.log('Test broadcast received:', data);
+                    
+                    // Show a toast notification
+                    toast.info(`Test broadcast: ${data.message || 'Test message'}`);
+                });
+            
+            console.log('Real-time event listeners set up successfully');
+        } catch (error) {
+            console.error('Error setting up real-time event listeners:', error);
+        }
+    };
+    
+    const removeEventListeners = () => {
+        // Try to get user ID from meta tag first
+        let userId = document.querySelector('meta[name="user-id"]')?.getAttribute('content');
+        
+        // If not found, try to get from Inertia page props
+        // @ts-ignore - Inertia is available globally but TypeScript doesn't know about it
+        if (!userId && window.Inertia?.page?.props?.auth?.user?.id) {
+            // @ts-ignore - Inertia is available globally but TypeScript doesn't know about it
+            userId = window.Inertia.page.props.auth.user.id.toString();
+        }
+        
+        if (!userId || !window.Echo) {
+            return;
+        }
+        
+        try {
+            console.log(`Removing event listeners for user ${userId}`);
+            
+            window.Echo.leave(`session-requests.${userId}`);
+            window.Echo.leave(`messages.${userId}`);
+            window.Echo.leave(`notifications.${userId}`);
+            
+            console.log('Real-time event listeners removed successfully');
+        } catch (error) {
+            console.error('Error removing real-time event listeners:', error);
+        }
+    };
     
     const fetchSidebarData = async () => {
         try {
             setLoading(true);
-            const response = await axios.get('/api/teacher/sidebar-data');
+            console.log('Fetching sidebar data...');
             
-            setSessionRequests(response.data.session_requests);
-            setMessages(response.data.messages);
-            setOnlineStudents(response.data.online_students);
-            setUnreadMessageCount(response.data.unread_message_count);
-            setPendingRequestCount(response.data.pending_request_count);
+            console.log('Trying endpoint: /api/teacher/sidebar-data');
+            const response = await axios.get('/api/teacher/sidebar-data');
+            console.log('Endpoint response:', response.data);
+            
+            setSessionRequests(response.data.session_requests || []);
+            setMessages(response.data.messages || []);
+            setOnlineStudents(response.data.online_students || []);
+            setUnreadMessageCount(response.data.unread_message_count || 0);
+            setPendingRequestCount(response.data.pending_request_count || 0);
         } catch (error) {
             console.error('Failed to fetch sidebar data:', error);
+            
+            // Set fallback data in case of error
+            setSessionRequests([]);
+            setMessages([]);
+            setOnlineStudents([]);
+            setUnreadMessageCount(0);
+            setPendingRequestCount(0);
+            
+            // Show a toast notification for the error
+            toast.error('Failed to load sidebar data. Please try again later.');
         } finally {
             setLoading(false);
         }

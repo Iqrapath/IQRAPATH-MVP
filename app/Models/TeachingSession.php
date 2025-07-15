@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Events\SessionRequestReceived;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -66,6 +67,15 @@ class TeachingSession extends Model
         'teacher_left_at' => 'datetime',
         'student_left_at' => 'datetime',
     ];
+    
+    /**
+     * The event map for the model.
+     *
+     * @var array
+     */
+    protected $dispatchesEvents = [
+        'created' => SessionRequestReceived::class,
+    ];
 
     /**
      * Boot the model.
@@ -78,6 +88,13 @@ class TeachingSession extends Model
             // Generate a unique session ID if not provided
             if (!$session->session_uuid) {
                 $session->session_uuid = 'S-' . date('ymd') . str_pad(random_int(1, 999), 3, '0', STR_PAD_LEFT);
+            }
+        });
+        
+        static::created(function ($session) {
+            // Only broadcast the event if the status is 'requested'
+            if ($session->status === 'requested') {
+                event(new SessionRequestReceived($session));
             }
         });
     }

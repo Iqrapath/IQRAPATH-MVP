@@ -1,6 +1,6 @@
 import { Head } from '@inertiajs/react';
 import AdminLayout from '@/layouts/admin/admin-layout';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -9,10 +9,38 @@ import { Eye, Pencil } from 'lucide-react';
 import { Link } from '@inertiajs/react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { type BreadcrumbItem } from '@/types';
+import { toast } from 'sonner';
+
+// Add debug component to check if user ID is available
+const DebugUserID = () => {
+  useEffect(() => {
+    const metaTag = document.querySelector('meta[name="user-id"]');
+    console.log('User ID Meta Tag:', metaTag);
+    console.log('User ID Content:', metaTag?.getAttribute('content'));
+    
+    // Check if we're in an iframe
+    console.log('Is in iframe:', window !== window.parent);
+    
+    // Check all meta tags
+    const allMeta = document.querySelectorAll('meta');
+    console.log('All meta tags:', allMeta);
+  }, []);
+  
+  return null;
+};
+
+interface Notification {
+  id: number;
+  title: string;
+  body: string;
+  type: string;
+  status: string;
+  created_at: string;
+}
 
 interface NotificationProps {
   notifications: {
-    data: any[];
+    data: Notification[];
     links: any;
     meta: {
       current_page: number;
@@ -32,7 +60,8 @@ interface NotificationProps {
   };
 }
 
-export default function NotificationPage({ notifications, filters = {} }: NotificationProps) {
+export default function NotificationPage({ notifications: initialNotifications, filters = {} }: NotificationProps) {
+  const [notifications, setNotifications] = useState(initialNotifications);
   const [search, setSearch] = useState(filters.search || '');
   const [status, setStatus] = useState(filters.status || '');
   const [subject, setSubject] = useState('');
@@ -44,7 +73,112 @@ export default function NotificationPage({ notifications, filters = {} }: Notifi
     { title: 'Notifications System', href: '/admin/notification' },
   ];
 
-  // Use notifications instead of triggers
+  // Set up real-time notification listeners - simplified implementation
+  useEffect(() => {
+    // Try to get user ID from meta tag first
+    let userId = document.querySelector('meta[name="user-id"]')?.getAttribute('content');
+    
+    // If not found, try to get from Inertia page props
+    // @ts-ignore - Inertia is available globally but TypeScript doesn't know about it
+    if (!userId && window.Inertia?.page?.props?.auth?.user?.id) {
+      // @ts-ignore - Inertia is available globally but TypeScript doesn't know about it
+      userId = window.Inertia.page.props.auth.user.id.toString();
+      console.log('Found user ID in Inertia page props:', userId);
+      
+      // Add meta tag dynamically if it doesn't exist
+      if (!document.querySelector('meta[name="user-id"]') && userId) {
+        const meta = document.createElement('meta');
+        meta.name = 'user-id';
+        meta.content = userId;
+        document.head.appendChild(meta);
+        console.log('Added user ID meta tag dynamically');
+      }
+    }
+    
+    console.log('Using user ID for WebSocket connection:', userId);
+    
+    // Function to set up the Echo listeners
+    const setupEchoListeners = (userId: string): (() => void) => {
+      try {
+        if (!window.Echo) {
+          console.error('Echo not available when trying to set up listeners');
+          return () => {}; // Return empty cleanup function
+        }
+        
+        // Listen for new notifications
+        const channel = window.Echo.private(`notifications.${userId}`);
+        
+        channel.listen('.notification.received', (data: { notification: Notification }) => {
+          console.log('New admin notification received:', data);
+          
+          // Add the new notification to the list if it's not already there
+          setNotifications(prev => {
+            const existingIds = new Set(prev.data.map(n => n.id));
+            if (!existingIds.has(data.notification.id)) {
+              return {
+                ...prev,
+                data: [data.notification, ...prev.data],
+                meta: {
+                  ...prev.meta,
+                  total: prev.meta.total + 1
+                }
+              };
+            }
+            return prev;
+          });
+          
+          // Show toast notification
+          toast.info(data.notification.title, {
+            description: data.notification.body,
+            duration: 5000,
+          });
+        });
+        
+        console.log('Successfully subscribed to notifications channel');
+        
+        // Return cleanup function
+        return () => {
+          channel.stopListening('.notification.received');
+          if (window.Echo) {
+            window.Echo.leave(`notifications.${userId}`);
+          }
+        };
+      } catch (error) {
+        console.error('Error setting up WebSocket connection:', error);
+        return () => {}; // Return empty cleanup function on error
+      }
+    };
+    
+    if (userId && window.Echo) {
+      // Set up listeners immediately if Echo is available
+      return setupEchoListeners(userId);
+    } else if (userId) {
+      // Wait for Echo to be initialized if it's not available yet
+      console.warn('Echo not available yet, will retry in 2 seconds');
+      
+      let cleanup: (() => void) | undefined;
+      
+      const timeoutId = setTimeout(() => {
+        if (window.Echo) {
+          console.log('Echo is now available, setting up listeners...');
+          cleanup = setupEchoListeners(userId);
+        } else {
+          console.error('Echo still not available after waiting');
+        }
+      }, 2000);
+      
+      // Clean up timeout and Echo listeners when component unmounts
+      return () => {
+        clearTimeout(timeoutId);
+        if (cleanup) cleanup();
+      };
+    } else {
+      console.error('User ID not available, WebSocket connection not established');
+      return () => {}; // Return empty cleanup function
+    }
+  }, []);
+
+  // Handle select all
   const handleSelectAll = (checked: boolean) => {
     if (checked && notifications?.data) {
       setSelectedItems(notifications.data.map(item => item.id));
@@ -53,6 +187,7 @@ export default function NotificationPage({ notifications, filters = {} }: Notifi
     }
   };
 
+  // Handle select item
   const handleSelectItem = (checked: boolean, id: number) => {
     if (checked) {
       setSelectedItems([...selectedItems, id]);
@@ -61,12 +196,15 @@ export default function NotificationPage({ notifications, filters = {} }: Notifi
     }
   };
 
+
+
   const isSelected = (id: number) => selectedItems.includes(id);
   const isAllSelected = notifications?.data?.length > 0 && selectedItems.length === notifications.data.length;
 
   return (
     <AdminLayout pageTitle="Notification Management" showRightSidebar={false}>
       <Head title="Auto-Notification Management" />
+      <DebugUserID />
       
       <div className="py-6">
         {/* Breadcrumbs */}
@@ -74,7 +212,9 @@ export default function NotificationPage({ notifications, filters = {} }: Notifi
           <Breadcrumbs breadcrumbs={breadcrumbs} />
         </div>
         
-        <h1 className="text-2xl font-bold mb-6">Auto-Notification Table</h1>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">Auto-Notification Table</h1>
+        </div>
         
         {/* Search and filters */}
         <div className="flex flex-wrap gap-4 mb-6">

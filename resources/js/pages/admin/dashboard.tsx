@@ -2,6 +2,7 @@ import { Head } from '@inertiajs/react';
 import { type AdminProfile } from '@/types';
 import AdminLayout from '@/layouts/admin/admin-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import AdminNotificationPanel from '@/components/admin/admin-notification-panel';
 
 interface AdminDashboardProps {
     adminProfile: AdminProfile;
@@ -54,6 +55,11 @@ export default function AdminDashboard({ adminProfile }: AdminDashboardProps) {
                             <p>System settings functionality will be implemented here.</p>
                         </CardContent>
                     </Card>
+                </div>
+                
+                {/* Admin Notification Panel */}
+                <div className="mt-6">
+                    <AdminNotificationPanel />
                 </div>
             </div>
         </AdminLayout>

@@ -3,55 +3,49 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\TeachingSession;
 use App\Models\GuardianMessage;
+use App\Models\TeachingSession;
 use App\Models\User;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class TeacherSidebarController extends Controller
 {
     /**
-     * Get data for teacher right sidebar
-     * 
-     * @param  \Illuminate\Http\Request  $request
+     * Get data for the teacher sidebar.
+     *
      * @return \Illuminate\Http\JsonResponse
      */
-    public function getSidebarData(Request $request)
+    public function getSidebarData()
     {
-        $user = $request->user();
-        
-        if (!$user->isTeacher()) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-        
+        $user = Auth::user();
+        $teacher = $user->teacherProfile;
+
         // Get pending session requests
-        $sessionRequests = TeachingSession::where('teacher_id', $user->id)
-            ->where('status', 'requested')
-            ->with('student:id,name,avatar,status_type,last_active_at')
-            ->with('subject:id,name')
-            ->orderBy('created_at', 'desc')
-            ->take(3)
+        $sessionRequests = TeachingSession::with('student.user')
+            ->where('teacher_id', $user->id)
+            ->where('status', 'pending_confirmation')
+            ->latest()
+            ->take(5)
             ->get()
             ->map(function ($session) {
                 return [
                     'id' => $session->id,
                     'student' => [
-                        'id' => $session->student->id,
-                        'name' => $session->student->name,
-                        'avatar' => $session->student->avatar,
-                        'is_online' => $session->student->isOnline(),
+                        'id' => $session->student->user->id,
+                        'name' => $session->student->user->name,
+                        'avatar' => $session->student->user->avatar,
+                        'is_online' => $session->student->user->isOnline(),
                     ],
                     'subject' => $session->subject->name,
-                    'scheduled_at' => $session->scheduled_at,
-                    'created_at' => $session->created_at,
-                    'time_ago' => $this->formatTimeAgo($session->created_at),
+                    'scheduled_at' => $session->scheduled_at->format('M d, Y h:i A'),
+                    'time_ago' => $session->created_at->diffForHumans(),
                 ];
             });
-        
-        // Get recent messages
-        $messages = GuardianMessage::where('recipient_id', $user->id)
-            ->with('sender:id,name,avatar,status_type,last_active_at')
+
+        // Get unread messages
+        $messages = GuardianMessage::with('sender.user')
+            ->where('recipient_id', $user->id)
             ->orderBy('created_at', 'desc')
             ->take(5)
             ->get()
@@ -59,131 +53,93 @@ class TeacherSidebarController extends Controller
                 return [
                     'id' => $message->id,
                     'sender' => [
-                        'id' => $message->sender->id,
-                        'name' => $message->sender->name,
-                        'avatar' => $message->sender->avatar,
-                        'is_online' => $message->sender->isOnline(),
+                        'id' => $message->sender->user->id,
+                        'name' => $message->sender->user->name,
+                        'avatar' => $message->sender->user->avatar,
+                        'is_online' => $message->sender->user->isOnline(),
                     ],
-                    'message' => $message->message,
-                    'created_at' => $message->created_at,
-                    'time_ago' => $this->formatTimeAgo($message->created_at),
+                    'message' => \Illuminate\Support\Str::limit($message->message, 50),
+                    'time_ago' => $message->created_at->diffForHumans(),
                     'is_read' => $message->is_read,
                 ];
             });
-        
+
         // Get online students
-        $onlineStudents = User::whereHas('studentProfile')
-            ->whereHas('teachingSessions', function ($query) use ($user) {
-                $query->where('teacher_id', $user->id)
-                      ->whereIn('status', ['scheduled', 'completed']);
+        $onlineStudents = User::where('role', 'student')
+            ->whereHas('studentProfile.teachingSessions', function ($query) use ($user) {
+                $query->where('teacher_id', $user->id);
             })
-            ->where('status_type', 'online')
-            ->select('id', 'name', 'avatar')
-            ->take(5)
-            ->get();
-        
+            ->where(function ($query) {
+                $query->whereNotNull('last_active_at')
+                    ->where('last_active_at', '>', now()->subMinutes(5));
+            })
+            ->take(10)
+            ->get()
+            ->map(function ($user) {
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'avatar' => $user->avatar,
+                    'is_online' => true,
+                ];
+            });
+
+        // Count all pending requests
+        $pendingRequestCount = TeachingSession::where('teacher_id', $user->id)
+            ->where('status', 'pending_confirmation')
+            ->count();
+
+        // Count all unread messages
+        $unreadMessageCount = GuardianMessage::where('recipient_id', $user->id)
+            ->where('is_read', false)
+            ->count();
+
         return response()->json([
             'session_requests' => $sessionRequests,
             'messages' => $messages,
             'online_students' => $onlineStudents,
-            'unread_message_count' => GuardianMessage::where('recipient_id', $user->id)
-                                        ->where('is_read', false)
-                                        ->count(),
-            'pending_request_count' => TeachingSession::where('teacher_id', $user->id)
-                                        ->where('status', 'requested')
-                                        ->count(),
+            'pending_request_count' => $pendingRequestCount,
+            'unread_message_count' => $unreadMessageCount,
         ]);
     }
-    
+
     /**
-     * Format time ago from timestamp
-     * 
-     * @param  \Carbon\Carbon  $timestamp
-     * @return string
-     */
-    private function formatTimeAgo($timestamp)
-    {
-        $now = Carbon::now();
-        $diff = $timestamp->diffInSeconds($now);
-        
-        if ($diff < 60) {
-            return 'just now';
-        } elseif ($diff < 3600) {
-            $minutes = floor($diff / 60);
-            return $minutes . ' ' . ($minutes == 1 ? 'min' : 'mins') . ' ago';
-        } elseif ($diff < 86400) {
-            $hours = floor($diff / 3600);
-            return $hours . ' ' . ($hours == 1 ? 'hour' : 'hours') . ' ago';
-        } elseif ($diff < 172800) {
-            return 'Yesterday';
-        } else {
-            return $timestamp->format('M d');
-        }
-    }
-    
-    /**
-     * Accept a session request
-     * 
-     * @param  \Illuminate\Http\Request  $request
+     * Accept a session request.
+     *
      * @param  int  $id
      * @return \Illuminate\Http\JsonResponse
      */
-    public function acceptSessionRequest(Request $request, $id)
+    public function acceptSessionRequest($id)
     {
-        $user = $request->user();
-        
-        if (!$user->isTeacher()) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-        
+        $user = Auth::user();
         $session = TeachingSession::where('id', $id)
             ->where('teacher_id', $user->id)
-            ->where('status', 'requested')
-            ->first();
-            
-        if (!$session) {
-            return response()->json(['error' => 'Session request not found'], 404);
-        }
-        
-        $session->status = 'scheduled';
+            ->where('status', 'pending_confirmation')
+            ->firstOrFail();
+
+        $session->status = 'confirmed';
         $session->save();
-        
-        return response()->json([
-            'success' => true,
-            'message' => 'Session request accepted',
-        ]);
+
+        return response()->json(['message' => 'Session request accepted successfully']);
     }
-    
+
     /**
-     * Decline a session request
-     * 
-     * @param  \Illuminate\Http\Request  $request
+     * Decline a session request.
+     *
      * @param  int  $id
      * @return \Illuminate\Http\JsonResponse
      */
-    public function declineSessionRequest(Request $request, $id)
+    public function declineSessionRequest($id)
     {
-        $user = $request->user();
-        
-        if (!$user->isTeacher()) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-        
+        $user = Auth::user();
         $session = TeachingSession::where('id', $id)
             ->where('teacher_id', $user->id)
-            ->where('status', 'requested')
-            ->first();
-            
-        if (!$session) {
-            return response()->json(['error' => 'Session request not found'], 404);
-        }
-        
+            ->where('status', 'pending_confirmation')
+            ->firstOrFail();
+
         $session->status = 'declined';
         $session->save();
-        
-        return response()->json([
-            'success' => true,
-            'message' => 'Session request declined',
-        ]);
+
+        return response()->json(['message' => 'Session request declined successfully']);
     }
 } 

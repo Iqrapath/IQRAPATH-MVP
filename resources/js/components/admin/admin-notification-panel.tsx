@@ -3,9 +3,9 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from '@inertiajs/react';
-import { Bell, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Bell, CheckCircle, RefreshCw } from 'lucide-react';
 import axios from 'axios';
 import { PaymentIcon } from '@/components/icons/payment-icon';
 import { NotificationIcon } from '@/components/icons/notification-icon';
@@ -23,62 +23,63 @@ interface Notification {
   is_read: boolean;
 }
 
-interface PaginationInfo {
-  total: number;
-  per_page: number;
-  current_page: number;
-  last_page: number;
-  from: number;
-  to: number;
-}
-
-interface NotificationDropdownProps {
-  userRole: 'admin' | 'teacher' | 'student' | 'guardian';
-  viewAllLink?: string;
-  notificationDetailBaseUrl?: string;
+interface AdminNotificationPanelProps {
   className?: string;
-  triggerClassName?: string;
+  limit?: number;
 }
 
-export default function NotificationDropdown({
-  userRole = 'teacher',
-  viewAllLink = '/notifications',
-  notificationDetailBaseUrl = '/notifications',
+export default function AdminNotificationPanel({
   className = '',
-  triggerClassName = ''
-}: NotificationDropdownProps) {
+  limit = 5
+}: AdminNotificationPanelProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
-  const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
-  const [isOpen, setIsOpen] = useState<boolean>(false);
-  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
 
-  const fetchNotifications = async (page = 1) => {
+  const fetchNotifications = async () => {
     setLoading(true);
     try {
-      const response = await axios.get('/api/user-notifications', {
-        params: { page, per_page: 5, role: userRole }
+      const response = await axios.get('/api/admin/notifications', {
+        params: { limit }
       });
       
       setNotifications(response.data.notifications);
       setUnreadCount(response.data.unread_count);
-      setPagination(response.data.pagination);
     } catch (error) {
-      console.error('Error fetching notifications:', error);
+      console.error('Error fetching admin notifications:', error);
+      // Try the alternative endpoint if the first one fails
+      try {
+        const response = await axios.get('/admin/notifications', {
+          params: { limit }
+        });
+        
+        setNotifications(response.data.notifications);
+        setUnreadCount(response.data.unread_count);
+      } catch (secondError) {
+        console.error('Error fetching admin notifications from alternative endpoint:', secondError);
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchNotifications(currentPage);
+  const refreshNotifications = async () => {
+    setRefreshing(true);
+    try {
+      await fetchNotifications();
+      toast.success('Notifications refreshed');
+    } catch (error) {
+      console.error('Error refreshing notifications:', error);
+    } finally {
+      setRefreshing(false);
     }
-  }, [isOpen, currentPage]);
+  };
 
-  // Set up real-time notification listeners
   useEffect(() => {
+    fetchNotifications();
+    
+    // Set up real-time notification listeners
     const userId = document.querySelector('meta[name="user-id"]')?.getAttribute('content');
     
     if (userId && window.Echo) {
@@ -86,10 +87,10 @@ export default function NotificationDropdown({
       const channel = window.Echo.private(`notifications.${userId}`);
       
       channel.listen('.notification.received', (data: { notification: Notification }) => {
-        console.log('New notification received:', data);
+        console.log('New admin notification received:', data);
         
         // Add the new notification to the top of the list
-        setNotifications(prev => [data.notification, ...prev.slice(0, 4)]);
+        setNotifications(prev => [data.notification, ...prev.slice(0, limit - 1)]);
         
         // Increment unread count
         setUnreadCount(prev => prev + 1);
@@ -109,7 +110,7 @@ export default function NotificationDropdown({
         }
       };
     }
-  }, []);
+  }, [limit]);
 
   const handleMarkAsRead = async (id: number) => {
     try {
@@ -142,20 +143,10 @@ export default function NotificationDropdown({
       
       // Reset unread count
       setUnreadCount(0);
+      
+      toast.success('All notifications marked as read');
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
-    }
-  };
-
-  const handlePrevPage = () => {
-    if (pagination && currentPage > 1) {
-      setCurrentPage(prev => prev - 1);
-    }
-  };
-
-  const handleNextPage = () => {
-    if (pagination && currentPage < pagination.last_page) {
-      setCurrentPage(prev => prev + 1);
     }
   };
 
@@ -197,36 +188,50 @@ export default function NotificationDropdown({
   };
 
   return (
-    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className={`relative ${triggerClassName}`}>
-          <Bell className="h-5 w-5" />
-          {unreadCount > 0 && (
-            <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </span>
-          )}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className={`w-80 ${className}`}>
-        <div className="flex items-center justify-between p-4 border-b">
-          <h3 className="font-medium">Notifications</h3>
-          {unreadCount > 0 && (
+    <Card className={className}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Bell className="h-5 w-5" />
+            <CardTitle>Recent Notifications</CardTitle>
+            {unreadCount > 0 && (
+              <Badge variant="destructive" className="ml-2">
+                {unreadCount} new
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
             <Button 
               variant="ghost" 
               size="sm" 
-              onClick={handleMarkAllAsRead}
-              className="text-xs h-8"
+              onClick={refreshNotifications}
+              disabled={refreshing}
+              className="h-8 w-8 p-0"
             >
-              <CheckCircle className="mr-1 h-3 w-3" />
-              Mark all as read
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              <span className="sr-only">Refresh</span>
             </Button>
-          )}
+            {unreadCount > 0 && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleMarkAllAsRead}
+                className="text-xs h-8"
+              >
+                <CheckCircle className="mr-1 h-3 w-3" />
+                Mark all as read
+              </Button>
+            )}
+          </div>
         </div>
-        
-        <ScrollArea className="h-[300px]">
+        <CardDescription>
+          System notifications and alerts
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="p-0">
+        <ScrollArea className="h-[400px] px-6">
           {loading ? (
-            <div className="p-4 space-y-4">
+            <div className="space-y-4 py-4">
               {[1, 2, 3].map((i) => (
                 <div key={i} className="flex flex-col space-y-2">
                   <Skeleton className="h-4 w-3/4" />
@@ -236,11 +241,11 @@ export default function NotificationDropdown({
               ))}
             </div>
           ) : notifications.length > 0 ? (
-            <div>
+            <div className="divide-y">
               {notifications.map((notification) => (
                 <div 
                   key={notification.id}
-                  className={`p-3 border-b last:border-0 hover:bg-muted/50 ${!notification.is_read ? 'bg-muted/30' : ''}`}
+                  className={`py-4 ${!notification.is_read ? 'bg-muted/30' : ''}`}
                 >
                   <div className="flex justify-between items-start mb-1">
                     <div className="flex items-center gap-2">
@@ -248,7 +253,7 @@ export default function NotificationDropdown({
                         {getNotificationIcon(notification.type)}
                       </div>
                       <Link 
-                        href={`${notificationDetailBaseUrl}/${notification.id}`}
+                        href={`/admin/notification/${notification.id}`}
                         className="font-medium text-sm line-clamp-1"
                         onClick={() => !notification.is_read && handleMarkAsRead(notification.id)}
                       >
@@ -284,49 +289,19 @@ export default function NotificationDropdown({
               ))}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center h-full p-4">
-              <p className="text-sm text-muted-foreground">No notifications</p>
+            <div className="py-8 text-center text-muted-foreground">
+              No notifications to display
             </div>
           )}
         </ScrollArea>
-        
-        {pagination && pagination.last_page > 1 && (
-          <div className="flex items-center justify-between p-2 border-t">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handlePrevPage}
-              disabled={currentPage === 1 || loading}
-              className="h-8 px-2"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Prev
+        <div className="p-4 border-t">
+          <Link href="/admin/notification">
+            <Button variant="outline" className="w-full">
+              View All Notifications
             </Button>
-            <span className="text-xs text-muted-foreground">
-              {pagination.current_page} of {pagination.last_page}
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleNextPage}
-              disabled={currentPage === pagination.last_page || loading}
-              className="h-8 px-2"
-            >
-              Next
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
-        
-        <div className="p-2 border-t">
-          <Link 
-            href={viewAllLink} 
-            className="block w-full text-center text-sm py-2 bg-muted/50 hover:bg-muted rounded-md"
-          >
-            View all notifications
           </Link>
         </div>
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </CardContent>
+    </Card>
   );
 } 

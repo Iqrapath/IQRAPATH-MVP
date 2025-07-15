@@ -6,6 +6,7 @@ use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RedirectBasedOnRole;
 use App\Http\Middleware\TrackUserActivity;
+use App\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -20,6 +21,13 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
+        // Exclude broadcasting/auth endpoints from CSRF protection to ensure WebSockets work
+        $middleware->validateCsrfTokens(except: [
+            'broadcasting/auth',
+            'api/broadcasting/auth',
+            '/broadcasting/auth',
+            '/api/broadcasting/auth'
+        ]);
 
         $middleware->web(append: [
             ApplySystemSettings::class,

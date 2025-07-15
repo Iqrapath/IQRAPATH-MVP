@@ -3,6 +3,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\Admin\UrgentActionsController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\TeacherSidebarController;
+use App\Http\Controllers\Teacher\SidebarController;
 
 /*
 |--------------------------------------------------------------------------
@@ -27,6 +28,18 @@ Route::middleware('auth:sanctum')->group(function () {
         ->name('api.notifications.mark-read');
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead'])
         ->name('api.notifications.mark-all-read');
+        
+    // Test routes for real-time notifications
+    Route::post('/notifications/test', [NotificationController::class, 'testNotification'])
+        ->name('api.notifications.test');
+    Route::post('/session-requests/test', [NotificationController::class, 'testSessionRequest'])
+        ->name('api.session-requests.test');
+    Route::post('/messages/test', [NotificationController::class, 'testMessage'])
+        ->name('api.messages.test');
+    
+    // User notifications for dropdown
+    Route::get('/user-notifications', [NotificationController::class, 'getUserNotifications'])
+        ->name('api.user-notifications');
 });
 
 // Teacher sidebar routes
@@ -39,10 +52,41 @@ Route::middleware(['auth:sanctum', 'role:teacher'])->group(function () {
         ->name('api.teacher.decline-session-request');
 });
 
+// Mock API endpoint for testing
+Route::middleware('auth:sanctum')->get('/teacher/sidebar-data-mock', function (Request $request) {
+    return response()->json([
+        'session_requests' => [],
+        'messages' => [],
+        'online_students' => [],
+        'pending_request_count' => 0,
+        'unread_message_count' => 0,
+    ]);
+})->name('api.teacher.sidebar-data-mock');
+
+// Teacher sidebar data endpoints
+Route::middleware(['auth'])->group(function () {
+    // Real endpoint for sidebar data
+    Route::get('/api/teacher/sidebar-data', [SidebarController::class, 'getData']);
+    
+    // Mock endpoint for testing
+    Route::get('/api/teacher/sidebar-data-mock', [SidebarController::class, 'getMockData']);
+    
+    // Session request actions
+    Route::post('/api/teacher/session-requests/{id}/accept', [SidebarController::class, 'acceptSessionRequest']);
+    Route::post('/api/teacher/session-requests/{id}/decline', [SidebarController::class, 'declineSessionRequest']);
+});
+
 // Admin API routes
 Route::middleware(['auth:sanctum', 'role:admin,super-admin'])
     ->prefix('admin')
     ->group(function () {
         Route::get('/urgent-actions', [UrgentActionsController::class, 'index'])
             ->name('api.admin.urgent-actions');
-    }); 
+        Route::get('/notifications', [NotificationController::class, 'getAdminNotifications'])
+            ->name('api.admin.notifications');
+    });
+
+// Add a route for admin notifications that doesn't require sanctum
+Route::middleware(['auth', 'role:admin,super-admin'])
+    ->get('/admin/notifications', [NotificationController::class, 'getAdminNotifications'])
+    ->name('api.admin.notifications.web'); 
