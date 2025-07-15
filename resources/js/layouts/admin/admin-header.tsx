@@ -58,7 +58,11 @@ export default function AdminHeader({
                 )}
                 
                 {/* Notifications */}
-                <NotificationDropdown />
+                <NotificationDropdown 
+                    userRole="admin"
+                    viewAllLink="/admin/notification"
+                    notificationDetailBaseUrl="/admin/notification"
+                />
 
                 {/* Messages - hide on smallest screens */}
                 {!isMobile && (

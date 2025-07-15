@@ -7,8 +7,8 @@ import { useInitials } from '@/hooks/use-initials';
 import { type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import { ChevronDown, Menu, PanelRight } from 'lucide-react';
-import BellNotificationIcon from '@/components/icons/bell-notification-icon';
 import MessageIcon from '@/components/icons/message-icon';
+import NotificationDropdown from '@/components/notification-dropdown';
 
 interface GuardianHeaderProps {
     pageTitle: string;
@@ -28,7 +28,7 @@ export default function GuardianHeader({
     const getInitials = useInitials();
 
     return (
-        <header className="bg-white border-b border-gray-200 h-16 flex items-center px-6">
+        <header className="bg-gradient-to-r from-[#FFF7E4]/30 to-[#FFF7E4]/30 border-b border-gray-200 h-16 flex items-center px-6">
             {/* Mobile menu button */}
             {isMobile && (
                 <Button variant="ghost" size="icon" className="mr-2" onClick={toggleLeftSidebar}>
@@ -58,12 +58,11 @@ export default function GuardianHeader({
                 )}
                 
                 {/* Notifications */}
-                <Button variant="ghost" size="icon" className="relative">
-                    <BellNotificationIcon style={{ width: '32px', height: '32px' }} />
-                    <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">
-                        2
-                    </span>
-                </Button>
+                <NotificationDropdown 
+                    userRole="guardian"
+                    viewAllLink="/guardian/notifications"
+                    notificationDetailBaseUrl="/guardian/notifications"
+                />
 
                 {/* Messages - hide on smallest screens */}
                 {!isMobile && (

@@ -5,8 +5,12 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Link } from '@inertiajs/react';
-import { Bell, CheckCircle, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { Bell, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import axios from 'axios';
+import { PaymentIcon } from '@/components/icons/payment-icon';
+import { NotificationIcon } from '@/components/icons/notification-icon';
+import { MessageIcon } from '@/components/icons/message-icon';
+import { AlertIcon } from '@/components/icons/alert-icon';
 
 interface Notification {
   id: number;
@@ -27,7 +31,21 @@ interface PaginationInfo {
   to: number;
 }
 
-export default function NotificationDropdown() {
+interface NotificationDropdownProps {
+  userRole: 'admin' | 'teacher' | 'student' | 'guardian';
+  viewAllLink?: string;
+  notificationDetailBaseUrl?: string;
+  className?: string;
+  triggerClassName?: string;
+}
+
+export default function NotificationDropdown({
+  userRole = 'teacher',
+  viewAllLink = '/notifications',
+  notificationDetailBaseUrl = '/notifications',
+  className = '',
+  triggerClassName = ''
+}: NotificationDropdownProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
@@ -39,7 +57,7 @@ export default function NotificationDropdown() {
     setLoading(true);
     try {
       const response = await axios.get('/api/user-notifications', {
-        params: { page, per_page: 5 }
+        params: { page, per_page: 5, role: userRole }
       });
       
       setNotifications(response.data.notifications);
@@ -106,12 +124,36 @@ export default function NotificationDropdown() {
     }
   };
 
-  const getNotificationTypeColor = (type: string) => {
-    switch (type) {
+  const getNotificationIcon = (type: string) => {
+    switch (type.toLowerCase()) {
       case 'payment':
+        return <PaymentIcon className="h-5 w-5 text-green-500" />;
+      case 'session':
+      case 'request':
+        return <NotificationIcon className="h-5 w-5 text-blue-500" />;
+      case 'message':
+        return <MessageIcon className="h-5 w-5 text-blue-500" />;
+      case 'alert':
+      case 'admin':
+        return <AlertIcon className="h-5 w-5 text-amber-500" />;
+      default:
+        return <NotificationIcon className="h-5 w-5 text-gray-500" />;
+    }
+  };
+
+  const getNotificationTypeColor = (type: string) => {
+    switch (type.toLowerCase()) {
+      case 'payment':
+      case 'withdrawal':
         return 'bg-green-100 text-green-800';
       case 'session':
+      case 'request':
         return 'bg-blue-100 text-blue-800';
+      case 'message':
+        return 'bg-sky-100 text-sky-800';
+      case 'alert':
+      case 'admin':
+        return 'bg-amber-100 text-amber-800';
       case 'system':
         return 'bg-purple-100 text-purple-800';
       default:
@@ -122,7 +164,7 @@ export default function NotificationDropdown() {
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
+        <Button variant="ghost" size="icon" className={`relative ${triggerClassName}`}>
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
             <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">
@@ -131,7 +173,7 @@ export default function NotificationDropdown() {
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80">
+      <DropdownMenuContent align="end" className={`w-80 ${className}`}>
         <div className="flex items-center justify-between p-4 border-b">
           <h3 className="font-medium">Notifications</h3>
           {unreadCount > 0 && (
@@ -166,13 +208,18 @@ export default function NotificationDropdown() {
                   className={`p-3 border-b last:border-0 hover:bg-muted/50 ${!notification.is_read ? 'bg-muted/30' : ''}`}
                 >
                   <div className="flex justify-between items-start mb-1">
-                    <Link 
-                      href={`/admin/notification/${notification.id}`}
-                      className="font-medium text-sm line-clamp-1"
-                      onClick={() => !notification.is_read && handleMarkAsRead(notification.id)}
-                    >
-                      {notification.title}
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-shrink-0">
+                        {getNotificationIcon(notification.type)}
+                      </div>
+                      <Link 
+                        href={`${notificationDetailBaseUrl}/${notification.id}`}
+                        className="font-medium text-sm line-clamp-1"
+                        onClick={() => !notification.is_read && handleMarkAsRead(notification.id)}
+                      >
+                        {notification.title}
+                      </Link>
+                    </div>
                     <Badge 
                       variant="outline" 
                       className={`ml-2 text-[10px] py-0 h-5 ${getNotificationTypeColor(notification.type)}`}
@@ -180,10 +227,10 @@ export default function NotificationDropdown() {
                       {notification.type}
                     </Badge>
                   </div>
-                  <p className="text-xs text-muted-foreground line-clamp-2 mb-1">
+                  <p className="text-xs text-muted-foreground line-clamp-2 mb-1 ml-7">
                     {notification.body}
                   </p>
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center ml-7">
                     <span className="text-[10px] text-muted-foreground">
                       {notification.created_at}
                     </span>
@@ -238,7 +285,7 @@ export default function NotificationDropdown() {
         
         <div className="p-2 border-t">
           <Link 
-            href="/admin/notification" 
+            href={viewAllLink} 
             className="block w-full text-center text-sm py-2 bg-muted/50 hover:bg-muted rounded-md"
           >
             View all notifications
