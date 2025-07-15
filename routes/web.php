@@ -31,7 +31,11 @@ Route::get('/faqs', function () {
 })->name('faqs');
 
 // Teacher document routes
-Route::middleware(['auth', 'verified', 'role:teacher'])->prefix('teacher')->name('teacher.')->group(function () {
+Route::middleware(['auth', 'verified', 'role:teacher'])->prefix('teacher')->group(function () {
+    Route::get('/dashboard', [App\Http\Controllers\Teacher\DashboardController::class, 'index'])->name('teacher.dashboard');
+    Route::get('/notifications', function () {
+        return inertia('teacher/notifications');
+    })->name('teacher.notifications');
     // Subject routes nested under teacher
     Route::resource('subjects', SubjectController::class);
     

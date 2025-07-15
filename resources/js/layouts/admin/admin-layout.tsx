@@ -77,7 +77,7 @@ export default function AdminLayout({
                 <div className={`${isMobile ? 'absolute z-30 h-full' : 'pl-25 pt-2'} ${isMobile && !showLeftSidebar ? 'hidden' : 'block'}`}>
                     <AdminLeftSidebar 
                         isMobile={isMobile}
-                        onClose={closeLeftSidebar}
+                        // onClose={closeLeftSidebar}
                         // className="h-full overflow-y-auto"
                     />
                 </div>
