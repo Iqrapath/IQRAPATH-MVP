@@ -44,6 +44,22 @@ Route::middleware(['auth', 'verified', 'role:teacher'])->prefix('teacher')->grou
     Route::get('/documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
 });
 
+// Student routes
+Route::middleware(['auth', 'verified', 'role:student'])->prefix('student')->group(function () {
+    Route::get('/dashboard', [App\Http\Controllers\Student\DashboardController::class, 'index'])->name('student.dashboard');
+    Route::get('/notifications', function () {
+        return inertia('student/notifications');
+    })->name('student.notifications');
+});
+
+// Guardian routes
+Route::middleware(['auth', 'verified', 'role:guardian'])->prefix('guardian')->group(function () {
+    Route::get('/dashboard', [App\Http\Controllers\Guardian\DashboardController::class, 'index'])->name('guardian.dashboard');
+    Route::get('/notifications', function () {
+        return inertia('guardian/notifications');
+    })->name('guardian.notifications');
+});
+
 // Include other route files
 require __DIR__.'/auth.php';
 require __DIR__.'/settings.php';
@@ -55,3 +71,14 @@ require __DIR__.'/notifications.php';
 require __DIR__.'/sessions.php';
 require __DIR__.'/payments.php';
 require __DIR__.'/feedback.php';
+
+// Development routes - only available in local environment
+if (app()->environment(['local', 'development'])) {
+    Route::middleware(['auth'])->group(function () {
+        Route::get('/test-notification', function () {
+            $request = request();
+            $response = app()->make(\App\Http\Controllers\Api\NotificationController::class)->createTestNotification($request);
+            return redirect()->back()->with('success', 'Test notification created');
+        })->name('test-notification');
+    });
+}

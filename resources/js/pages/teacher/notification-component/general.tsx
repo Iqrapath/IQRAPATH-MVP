@@ -7,19 +7,21 @@ import { PaymentIcon } from '@/components/icons/payment-icon';
 
 interface Notification {
   id: string;
-  type: 'message' | 'alert' | 'system' | 'request';
+  type: 'message' | 'alert' | 'system' | 'request' | 'payment';
   title: string;
   message?: string;
   time: string;
   sender?: string;
   hasAction?: boolean;
+  read?: boolean;
 }
 
 interface GeneralNotificationsProps {
   notifications: Notification[];
+  onMarkAsRead?: (id: string) => void;
 }
 
-export default function GeneralNotifications({ notifications }: GeneralNotificationsProps) {
+export default function GeneralNotifications({ notifications, onMarkAsRead }: GeneralNotificationsProps) {
   const getIcon = (type: string) => {
     switch (type) {
       case 'message':
@@ -35,10 +37,20 @@ export default function GeneralNotifications({ notifications }: GeneralNotificat
     }
   };
 
+  const handleAction = (id: string) => {
+    if (onMarkAsRead) {
+      onMarkAsRead(id);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {notifications.map((notification) => (
-        <div key={notification.id} className="bg-white rounded-lg shadow-sm p-4 flex items-start gap-4">
+        <div 
+          key={notification.id} 
+          className={`bg-white rounded-lg shadow-sm p-4 flex items-start gap-4 ${!notification.read ? 'border-l-4 border-teal-600' : ''}`}
+          onClick={() => handleAction(notification.id)}
+        >
           <div className="flex-shrink-0">
             {getIcon(notification.type)}
           </div>

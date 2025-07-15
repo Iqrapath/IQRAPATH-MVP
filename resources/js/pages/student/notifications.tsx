@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import TeacherLayout from '@/layouts/teacher/teacher-layout';
+import StudentLayout from '@/layouts/student/student-layout';
 import { Head } from '@inertiajs/react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import GeneralNotifications from './notification-component/general';
-import PaymentNotifications from './notification-component/payment';
+import GeneralNotifications from '../teacher/notification-component/general';
+import PaymentNotifications from '../teacher/notification-component/payment';
 import axios from 'axios';
 import { toast } from 'sonner';
 
@@ -17,7 +17,7 @@ interface Notification {
   hasAction?: boolean;
 }
 
-export default function TeacherNotifications() {
+export default function StudentNotifications() {
   const [activeTab, setActiveTab] = useState('general');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,7 +119,7 @@ export default function TeacherNotifications() {
   );
 
   return (
-    <TeacherLayout pageTitle="Notifications">
+    <StudentLayout pageTitle="Notifications">
       <Head title="Notifications" />
       
       <div className="container max-w-4xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
@@ -199,6 +199,6 @@ export default function TeacherNotifications() {
           )}
         </Tabs>
       </div>
-    </TeacherLayout>
+    </StudentLayout>
   );
 } 

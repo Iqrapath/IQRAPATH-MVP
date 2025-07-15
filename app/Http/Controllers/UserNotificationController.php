@@ -3,87 +3,115 @@
 namespace App\Http\Controllers;
 
 use App\Models\NotificationRecipient;
-use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class UserNotificationController extends Controller
 {
-    protected $notificationService;
-
-    public function __construct(NotificationService $notificationService)
-    {
-        $this->notificationService = $notificationService;
-    }
-
     /**
-     * Display the user's notification center.
+     * Display a listing of the user's notifications.
      *
      * @param  \Illuminate\Http\Request  $request
      * @return \Inertia\Response
      */
     public function index(Request $request)
     {
+        // This route is not used directly as we have role-specific notification pages
+        // Instead, we redirect to the appropriate role-specific notification page
         $user = $request->user();
         
-        $notifications = $user->receivedNotifications()
-            ->with('notification')
-            ->where('channel', 'in-app')
-            ->orderBy('created_at', 'desc')
-            ->paginate(20);
-        
-        return Inertia::render('notifications/notification-index', [
-            'notifications' => $notifications,
-            'unreadCount' => $user->unreadNotifications()->count(),
-        ]);
+        return match($user->role) {
+            'teacher' => redirect()->route('teacher.notifications'),
+            'student' => redirect()->route('student.notifications'),
+            'guardian' => redirect()->route('guardian.notifications'),
+            'super-admin' => redirect()->route('admin.notification.index'),
+            default => redirect()->route('dashboard'),
+        };
     }
 
     /**
-     * Show a specific notification.
+     * Display the specified notification.
      *
-     * @param  \Illuminate\Http\Request  $request
      * @param  int  $id
-     * @return \Inertia\Response
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Inertia\Response|\Illuminate\Http\RedirectResponse
      */
-    public function show(Request $request, $id)
+    public function show($id, Request $request)
     {
-        $recipient = NotificationRecipient::with('notification')
-            ->where('user_id', $request->user()->id)
-            ->findOrFail($id);
+        $user = $request->user();
         
-        // Mark as read if not already
-        if (!$recipient->read_at) {
-            $recipient->markAsRead();
+        // Find the notification recipient for this user
+        $recipient = NotificationRecipient::where('id', $id)
+            ->where('user_id', $user->id)
+            ->with('notification')
+            ->first();
+        
+        if (!$recipient) {
+            return redirect()->back()->with('error', 'Notification not found');
         }
         
-        return Inertia::render('notifications/notification-show', [
-            'notification' => [
-                'id' => $recipient->id,
-                'title' => $recipient->notification->title,
-                'body' => $recipient->notification->body,
-                'type' => $recipient->notification->type,
-                'metadata' => $recipient->notification->metadata,
-                'created_at' => $recipient->created_at,
-                'read_at' => $recipient->read_at,
-            ],
-        ]);
+        // Mark as read
+        $recipient->markAsRead();
+        
+        // Return the appropriate view based on user role
+        return match($user->role) {
+            'teacher' => Inertia::render('teacher/notifications/show', [
+                'notification' => [
+                    'id' => $recipient->id,
+                    'title' => $recipient->notification->title,
+                    'body' => $recipient->notification->body,
+                    'type' => $recipient->notification->type,
+                    'created_at' => $recipient->created_at,
+                    'read_at' => $recipient->read_at,
+                ]
+            ]),
+            'student' => Inertia::render('student/notifications/show', [
+                'notification' => [
+                    'id' => $recipient->id,
+                    'title' => $recipient->notification->title,
+                    'body' => $recipient->notification->body,
+                    'type' => $recipient->notification->type,
+                    'created_at' => $recipient->created_at,
+                    'read_at' => $recipient->read_at,
+                ]
+            ]),
+            'guardian' => Inertia::render('guardian/notifications/show', [
+                'notification' => [
+                    'id' => $recipient->id,
+                    'title' => $recipient->notification->title,
+                    'body' => $recipient->notification->body,
+                    'type' => $recipient->notification->type,
+                    'created_at' => $recipient->created_at,
+                    'read_at' => $recipient->read_at,
+                ]
+            ]),
+            default => redirect()->route('dashboard'),
+        };
     }
 
     /**
      * Mark a notification as read.
      *
-     * @param  \Illuminate\Http\Request  $request
      * @param  int  $id
+     * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\RedirectResponse
      */
-    public function markAsRead(Request $request, $id)
+    public function markAsRead($id, Request $request)
     {
-        $recipient = NotificationRecipient::where('user_id', $request->user()->id)
-            ->findOrFail($id);
+        $user = $request->user();
+        
+        // Find the notification recipient for this user
+        $recipient = NotificationRecipient::where('id', $id)
+            ->where('user_id', $user->id)
+            ->first();
+        
+        if (!$recipient) {
+            return redirect()->back()->with('error', 'Notification not found');
+        }
         
         $recipient->markAsRead();
         
-        return back()->with('success', 'Notification marked as read.');
+        return redirect()->back()->with('success', 'Notification marked as read');
     }
 
     /**
@@ -94,25 +122,36 @@ class UserNotificationController extends Controller
      */
     public function markAllAsRead(Request $request)
     {
-        $request->user()->markAllNotificationsAsRead();
+        $user = $request->user();
+        $user->markAllNotificationsAsRead();
         
-        return back()->with('success', 'All notifications marked as read.');
+        return redirect()->back()->with('success', 'All notifications marked as read');
     }
 
     /**
-     * Delete a notification.
+     * Remove the specified notification.
      *
-     * @param  \Illuminate\Http\Request  $request
      * @param  int  $id
+     * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\RedirectResponse
      */
-    public function destroy(Request $request, $id)
+    public function destroy($id, Request $request)
     {
-        $recipient = NotificationRecipient::where('user_id', $request->user()->id)
-            ->findOrFail($id);
+        $user = $request->user();
         
-        $recipient->delete();
+        // Find the notification recipient for this user
+        $recipient = NotificationRecipient::where('id', $id)
+            ->where('user_id', $user->id)
+            ->first();
         
-        return back()->with('success', 'Notification deleted.');
+        if (!$recipient) {
+            return redirect()->back()->with('error', 'Notification not found');
+        }
+        
+        // Update status to deleted
+        $recipient->status = 'deleted';
+        $recipient->save();
+        
+        return redirect()->back()->with('success', 'Notification deleted');
     }
 } 
