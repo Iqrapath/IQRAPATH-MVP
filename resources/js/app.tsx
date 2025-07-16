@@ -6,6 +6,9 @@ import { createInertiaApp } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { Toaster } from 'sonner';
 import { initializeTheme } from './hooks/use-appearance';
+import GlobalNotificationListener from './components/global-notification-listener';
+import Echo from 'laravel-echo';
+import Pusher from 'pusher-js';
 
 // Import Echo test script for debugging
 // import './test-echo';
@@ -19,33 +22,30 @@ if (!window.Echo) {
         const token = document.head.querySelector('meta[name="csrf-token"]');
         const csrfToken = token ? token.getAttribute('content') || '' : '';
         
-        // Import Echo and Pusher
-        import('laravel-echo').then(({ default: Echo }) => {
-            import('pusher-js').then(({ default: Pusher }) => {
-                // Make Pusher available globally
-                window.Pusher = Pusher;
-                
-                // Initialize Echo
-                window.Echo = new Echo({
-                    broadcaster: 'reverb',
-                    key: 'diawgqsegr5sajcpkowf', // From .env REVERB_APP_KEY
-                    wsHost: window.location.hostname,
-                    wsPort: 8080,
-                    forceTLS: false,
-                    enabledTransports: ['ws'],
-                    disableStats: true,
-                    authEndpoint: '/api/broadcasting/auth',
-                    auth: {
-                        headers: {
-                            'X-CSRF-TOKEN': csrfToken,
-                            'X-Requested-With': 'XMLHttpRequest'
-                        }
-                    }
-                });
-                
-                console.log('Echo initialized successfully in app.tsx');
-            });
+        // Debug info
+        console.log('Initializing WebSocket connection with:');
+        console.log('- Host:', window.location.hostname);
+        console.log('- Port: 8080');
+        console.log('- CSRF Token available:', !!csrfToken);
+        
+        window.Echo = new Echo({
+            broadcaster: 'reverb',
+            key: 'diawgqsegr5sajcpkowf', // From .env REVERB_APP_KEY
+            wsHost: window.location.hostname,
+            wsPort: 8080,
+            forceTLS: false,
+            enabledTransports: ['ws'],
+            disableStats: true,
+            authEndpoint: '/api/broadcasting/auth',
+            auth: {
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            }
         });
+        
+        console.log('Echo initialized successfully in app.tsx');
     } catch (error) {
         console.error('Failed to initialize Echo in app.tsx:', error);
     }
@@ -63,6 +63,7 @@ createInertiaApp({
             <>
                 <App {...props} />
                 <Toaster position="top-right" richColors />
+                <GlobalNotificationListener />
             </>
         );
     },

@@ -53,6 +53,13 @@ export default function NotificationDropdown({
   const [loading, setLoading] = useState<boolean>(false);
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [lastNotificationTimestamp, setLastNotificationTimestamp] = useState<number>(Date.now());
+
+  // Get the correct notification detail URL based on user role
+  const getNotificationDetailUrl = (notificationId: number) => {
+    // Use the universal notification route that will handle redirecting based on user role
+    return `/notification/${notificationId}`;
+  };
 
   const fetchNotifications = async (page = 1) => {
     setLoading(true);
@@ -77,6 +84,44 @@ export default function NotificationDropdown({
     }
   }, [isOpen, currentPage]);
 
+  // Listen for custom notification events from the global listener
+  useEffect(() => {
+    const handleNotificationReceived = (event: CustomEvent) => {
+      const data = event.detail;
+      console.log('Notification dropdown received custom event:', data);
+      
+      if (data && data.notification) {
+        // Check if notification already exists in the list
+        setNotifications(prev => {
+          // Check if we already have this notification
+          const exists = prev.some(n => n.id === data.notification.id);
+          
+          if (exists) {
+            // If it exists, don't add it again
+            return prev;
+          }
+          
+          // Add the new notification to the top of the list
+          return [data.notification, ...prev.slice(0, 4)];
+        });
+        
+        // Increment unread count
+        setUnreadCount(prev => prev + 1);
+        
+        // Update last notification timestamp
+        setLastNotificationTimestamp(Date.now());
+      }
+    };
+    
+    // Add event listener
+    window.addEventListener('notificationReceived', handleNotificationReceived as EventListener);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('notificationReceived', handleNotificationReceived as EventListener);
+    };
+  }, []);
+
   // Set up real-time notification listeners
   useEffect(() => {
     const userId = document.querySelector('meta[name="user-id"]')?.getAttribute('content');
@@ -86,33 +131,61 @@ export default function NotificationDropdown({
       const channel = window.Echo.private(`notifications.${userId}`);
       
       channel.listen('.notification.received', (data: { notification: Notification }) => {
-        console.log('New notification received:', data);
+        console.log('Notification dropdown: New notification received:', data);
         
-        // Add the new notification to the top of the list
-        setNotifications(prev => [data.notification, ...prev.slice(0, 4)]);
+        // Check if notification already exists in the list
+        setNotifications(prev => {
+          // Check if we already have this notification
+          const exists = prev.some(n => n.id === data.notification.id);
+          
+          if (exists) {
+            // If it exists, don't add it again
+            return prev;
+          }
+          
+          // Add the new notification to the top of the list
+          return [data.notification, ...prev.slice(0, 4)];
+        });
         
         // Increment unread count
         setUnreadCount(prev => prev + 1);
         
-        // Show toast notification
-        toast.info(data.notification.title, {
-          description: data.notification.body,
-          duration: 5000,
-        });
+        // Update last notification timestamp
+        setLastNotificationTimestamp(Date.now());
       });
       
       // Clean up listeners when component unmounts
       return () => {
         channel.stopListening('.notification.received');
-        if (window.Echo) {
-          window.Echo.leave(`notifications.${userId}`);
-        }
       };
     }
   }, []);
 
+  // Refresh notifications periodically when dropdown is closed
+  useEffect(() => {
+    if (!isOpen) {
+      const interval = setInterval(() => {
+        // If it's been more than 10 seconds since the last notification
+        // and we're not currently looking at the dropdown, refresh the count
+        if (Date.now() - lastNotificationTimestamp > 10000) {
+          // Fetch notification count from the main notifications endpoint
+          axios.get('/api/user-notifications', { params: { per_page: 1 } })
+            .then(response => {
+              setUnreadCount(response.data.unread_count);
+            })
+            .catch(err => {
+              console.error('Error fetching notification count:', err);
+            });
+        }
+      }, 30000); // Check every 30 seconds
+      
+      return () => clearInterval(interval);
+    }
+  }, [isOpen, lastNotificationTimestamp]);
+
   const handleMarkAsRead = async (id: number) => {
     try {
+      // The API expects the notification recipient ID, not the notification ID
       await axios.post(`/api/notifications/${id}/read`);
       
       // Update the notification in the local state
@@ -126,8 +199,33 @@ export default function NotificationDropdown({
       
       // Decrement unread count
       setUnreadCount(prev => Math.max(0, prev - 1));
+      
+      return Promise.resolve();
     } catch (error) {
       console.error('Error marking notification as read:', error);
+      
+      // If the API call fails, try with a different endpoint format
+      try {
+        // Try with the notification recipient ID format
+        await axios.post(`/api/user-notifications/${id}/read`);
+        
+        // Update the notification in the local state
+        setNotifications(prev => 
+          prev.map(notification => 
+            notification.id === id 
+              ? { ...notification, is_read: true } 
+              : notification
+          )
+        );
+        
+        // Decrement unread count
+        setUnreadCount(prev => Math.max(0, prev - 1));
+        
+        return Promise.resolve();
+      } catch (secondError) {
+        console.error('Error with fallback method for marking notification as read:', secondError);
+        return Promise.reject(secondError);
+      }
     }
   };
 
@@ -248,9 +346,24 @@ export default function NotificationDropdown({
                         {getNotificationIcon(notification.type)}
                       </div>
                       <Link 
-                        href={`${notificationDetailBaseUrl}/${notification.id}`}
+                        href={getNotificationDetailUrl(notification.id)}
                         className="font-medium text-sm line-clamp-1"
-                        onClick={() => !notification.is_read && handleMarkAsRead(notification.id)}
+                        onClick={(e) => {
+                          // Prevent default navigation if notification is unread
+                          if (!notification.is_read) {
+                            e.preventDefault();
+                            
+                            // Mark as read first, then navigate programmatically
+                            handleMarkAsRead(notification.id).then(() => {
+                              // After marking as read, navigate to the notification detail page
+                              window.location.href = getNotificationDetailUrl(notification.id);
+                            }).catch((error) => {
+                              // If marking as read fails, navigate anyway
+                              console.error('Error marking notification as read before navigation:', error);
+                              window.location.href = getNotificationDetailUrl(notification.id);
+                            });
+                          }
+                        }}
                       >
                         {notification.title}
                       </Link>

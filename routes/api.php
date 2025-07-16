@@ -28,6 +28,15 @@ Route::middleware('auth')->get('/user-id', function (Request $request) {
     ]);
 });
 
+// Add routes that work with regular auth (not sanctum)
+Route::middleware('auth')->group(function() {
+    Route::get('/user-notifications/count', [NotificationController::class, 'getUserNotificationCount']);
+    Route::get('/user-notifications', [NotificationController::class, 'getUserNotifications'])
+        ->name('api.user-notifications');
+    Route::post('/user-notifications/{id}/read', [NotificationController::class, 'markRecipientAsRead'])
+        ->name('api.user-notifications.read');
+});
+
 // Notification routes
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notifications', [NotificationController::class, 'index'])
@@ -45,9 +54,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/messages/test', [NotificationController::class, 'testMessage'])
         ->name('api.messages.test');
     
-    // User notifications for dropdown
-    Route::get('/user-notifications', [NotificationController::class, 'getUserNotifications'])
-        ->name('api.user-notifications');
+    // User notifications for dropdown - MOVED to auth middleware group above
+    // Route::get('/user-notifications', [NotificationController::class, 'getUserNotifications'])
+    //    ->name('api.user-notifications');
+    // Route::get('/user-notifications/count', [NotificationController::class, 'getUserNotificationCount']);
+    // Route::post('/user-notifications/{id}/read', [NotificationController::class, 'markRecipientAsRead'])
+    //    ->name('api.user-notifications.mark-read');
 });
 
 // Teacher sidebar routes

@@ -6,11 +6,16 @@
         <meta name="csrf-token" content="{{ csrf_token() }}">
         @auth
         <meta name="user-id" content="{{ auth()->id() }}">
+        <meta name="user-role" content="{{ auth()->user()->role }}">
         <script>
             // Store user ID in localStorage for redundancy
             localStorage.setItem('user_id', '{{ auth()->id() }}');
+            // Store user role in localStorage for redundancy
+            localStorage.setItem('user_role', '{{ auth()->user()->role }}');
             // Make user ID available globally
             window.userId = '{{ auth()->id() }}';
+            // Make user role available globally
+            window.userRole = '{{ auth()->user()->role }}';
         </script>
         @endauth
 

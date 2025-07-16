@@ -229,7 +229,7 @@ export default function NotificationCreate({ templates, roles }: NotificationCre
   // Breadcrumb items
   const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/admin/dashboard' },
-    { title: 'Notifications', href: route('admin.notification.index') },
+    { title: 'Notifications', href: route('admin.notification') },
     { title: 'Create Notification', href: '#' },
   ];
 

@@ -261,7 +261,50 @@ class NotificationController extends Controller
     }
 
     /**
-     * Get notifications for the user dropdown.
+     * Mark a notification recipient as read directly using the recipient ID.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function markRecipientAsRead(Request $request, $id)
+    {
+        $user = $request->user();
+        
+        // Find the notification recipient by its ID
+        $recipient = NotificationRecipient::where('id', $id)
+            ->where('user_id', $user->id)
+            ->first();
+        
+        if (!$recipient) {
+            return response()->json(['error' => 'Notification not found'], 404);
+        }
+        
+        $recipient->markAsRead();
+        
+        return response()->json([
+            'success' => true,
+            'unread_count' => $user->unreadNotifications()->count(),
+        ]);
+    }
+
+    /**
+     * Get just the unread notification count for the authenticated user.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getUserNotificationCount(Request $request)
+    {
+        $user = $request->user();
+        
+        return response()->json([
+            'unread_count' => $user->unreadNotifications()->count(),
+        ]);
+    }
+
+    /**
+     * Get the user's notifications with pagination.
      *
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\JsonResponse

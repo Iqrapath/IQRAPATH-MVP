@@ -21,7 +21,7 @@ interface Notification {
   title: string;
   body: string;
   type: string;
-  status: string;
+  status?: string;
   created_at: string;
   sender?: User;
 }
@@ -51,7 +51,12 @@ export default function NotificationShow({
     : 'Unknown date';
   
   // Helper function to get status badge
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status?: string) => {
+    // If status is undefined or null, return a default badge
+    if (!status) {
+      return <Badge className="bg-gray-500 hover:bg-gray-600">Unknown</Badge>;
+    }
+    
     switch (status.toLowerCase()) {
       case 'delivered':
         return <Badge className="bg-green-500 hover:bg-green-600">Delivered</Badge>;
@@ -74,6 +79,11 @@ export default function NotificationShow({
   
   // Helper function to get type badge
   const getTypeBadge = (type: string) => {
+    // Add null check for type as well
+    if (!type) {
+      return <Badge variant="outline">Unknown</Badge>;
+    }
+    
     switch (type.toLowerCase()) {
       case 'payment':
         return <Badge variant="outline" className="text-green-500 border-green-200 bg-green-50">Payment</Badge>;
@@ -109,7 +119,7 @@ export default function NotificationShow({
           <h1 className="text-2xl font-bold text-gray-800">Notification Details</h1>
         </div>
         <div className="flex gap-2">
-          {onReply && notification.type.toLowerCase() === 'message' && (
+          {onReply && notification.type && notification.type.toLowerCase() === 'message' && (
             <Button onClick={() => onReply(notification)} className="bg-teal-600 hover:bg-teal-700">
               <Reply className="h-4 w-4 mr-2" /> Reply
             </Button>
@@ -131,7 +141,7 @@ export default function NotificationShow({
           <div className="flex justify-between items-start mb-4">
             <div className="flex items-center gap-3">
               <h3 className="text-xl font-medium">{notification.title}</h3>
-              {getTypeBadge(notification.type)}
+              {notification.type && getTypeBadge(notification.type)}
             </div>
             {getStatusBadge(notification.status)}
           </div>

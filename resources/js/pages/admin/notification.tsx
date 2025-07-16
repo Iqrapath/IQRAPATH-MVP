@@ -64,14 +64,36 @@ export default function NotificationPage({ notifications: initialNotifications, 
   const [notifications, setNotifications] = useState(initialNotifications);
   const [search, setSearch] = useState(filters.search || '');
   const [status, setStatus] = useState(filters.status || '');
-  const [subject, setSubject] = useState('');
+  const [subject, setSubject] = useState(filters.type || '');
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   // Breadcrumb items
   const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/admin/dashboard' },
     { title: 'Notifications System', href: '/admin/notification' },
   ];
+
+  // Apply filters function
+  const applyFilters = () => {
+    setIsSearching(true);
+    
+    // Build query string with filters
+    const queryParams = new URLSearchParams();
+    if (search) queryParams.append('search', search);
+    if (status && status !== 'all') queryParams.append('status', status);
+    if (subject && subject !== 'all') queryParams.append('type', subject);
+    
+    // Redirect to the same page with filters
+    window.location.href = `/admin/notification?${queryParams.toString()}`;
+  };
+  
+  // Handle key press in search field
+  const handleSearchKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      applyFilters();
+    }
+  };
 
   // Set up real-time notification listeners - simplified implementation
   useEffect(() => {
@@ -220,9 +242,10 @@ export default function NotificationPage({ notifications: initialNotifications, 
         <div className="flex flex-wrap gap-4 mb-6">
           <div className="flex-1 min-w-[240px]">
             <Input 
-              placeholder="Search by Name / Email" 
+              placeholder="Search by Title / Content" 
               value={search} 
               onChange={(e) => setSearch(e.target.value)}
+              onKeyPress={handleSearchKeyPress}
               className="w-full"
             />
           </div>
@@ -257,6 +280,14 @@ export default function NotificationPage({ notifications: initialNotifications, 
               </SelectContent>
             </Select>
           </div>
+          
+          <Button 
+            onClick={applyFilters}
+            disabled={isSearching}
+            className="bg-[#338078] text-white hover:bg-[#2a6c64] transition-all duration-300"
+          >
+            {isSearching ? 'Searching...' : 'Search'}
+          </Button>
           
           <Link href="/admin/notification-history">
             <Button className="bg-white text-[#338078] border-2 border-[#338078] rounded-full hover:bg-[#338078] hover:text-white transition-all duration-300 cursor-pointer">
@@ -307,11 +338,10 @@ export default function NotificationPage({ notifications: initialNotifications, 
                       </span>
                     </td>
                     <td className="py-4 px-4 text-center">
-                      <Link href={`/admin/notification/${notification.id}/edit`} className="inline-flex">
-                        <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-700">
-                          <Pencil className="h-5 w-5" />
-                        </Button>
-                      </Link>
+                      {/* Remove edit button as there's no edit functionality in NotificationViewController */}
+                      <Button variant="ghost" size="sm" className="text-gray-400 cursor-not-allowed">
+                        <Pencil className="h-5 w-5" />
+                      </Button>
                     </td>
                     <td className="py-4 px-4 text-center">
                       <Link href={`/admin/notification/${notification.id}`} className="inline-flex">
@@ -336,12 +366,13 @@ export default function NotificationPage({ notifications: initialNotifications, 
           
           {/* Pagination */}
           {notifications?.meta && notifications.meta.last_page > 1 && (
-            <div className="px-4 py-3 flex items-center justify-between border-t border-gray-200">
+            <div className="px-6 py-3 flex items-center justify-between border-t border-gray-200">
               <div className="flex-1 flex justify-between sm:hidden">
                 <Button 
                   variant="outline" 
                   disabled={notifications.meta.current_page === 1}
                   onClick={() => window.location.href = notifications.links.prev}
+                  className="bg-white text-[#338078] border-2 border-[#338078] rounded-full hover:bg-[#338078] hover:text-white transition-all duration-300 cursor-pointer"
                 >
                   Previous
                 </Button>
@@ -349,6 +380,7 @@ export default function NotificationPage({ notifications: initialNotifications, 
                   variant="outline" 
                   disabled={notifications.meta.current_page === notifications.meta.last_page}
                   onClick={() => window.location.href = notifications.links.next}
+                  className="bg-white text-[#338078] border-2 border-[#338078] rounded-full hover:bg-[#338078] hover:text-white transition-all duration-300 cursor-pointer"
                 >
                   Next
                 </Button>

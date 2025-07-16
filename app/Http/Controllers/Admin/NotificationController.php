@@ -135,7 +135,7 @@ class NotificationController extends Controller
             $this->notificationService->sendNotification($notification);
         }
 
-        return redirect()->route('admin.notification.index')
+        return redirect()->route('admin.notification')
             ->with('success', 'Notification created successfully.');
     }
 
@@ -316,15 +316,15 @@ class NotificationController extends Controller
     public function destroy(Notification $notification)
     {
         // Only allow deleting draft notifications
-        if ($notification->status !== 'draft') {
-            return redirect()->route('admin.notification.index')
-                ->with('error', 'Only draft notifications can be deleted.');
-        }
+        // if ($notification->status !== 'draft') {
+        //     return redirect()->route('admin.notification')
+        //         ->with('error', 'Only draft notifications can be deleted.');
+        // }
         
         $notification->recipients()->delete();
         $notification->delete();
         
-        return redirect()->route('admin.notification.index')
+        return redirect()->route('admin.notification')
             ->with('success', 'Notification deleted successfully.');
     }
 

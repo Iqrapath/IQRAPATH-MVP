@@ -42,7 +42,7 @@ export default function TemplateCreate() {
   // Breadcrumb items
   const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/admin/dashboard' },
-    { title: 'Notifications', href: route('admin.notification.index') },
+    { title: 'Notifications', href: route('admin.notification') },
     { title: 'Templates', href: route('admin.notification.templates') },
     { title: 'Create Template', href: '#' },
   ];
