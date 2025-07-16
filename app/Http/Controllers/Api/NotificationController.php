@@ -35,8 +35,8 @@ class NotificationController extends Controller
             ->map(function ($recipient) {
                 return [
                     'id' => $recipient->id,
-                    'title' => $recipient->notification->title,
-                    'body' => $recipient->notification->body,
+                    'title' => $recipient->personalized_title,
+                    'body' => $recipient->personalized_body,
                     'type' => $recipient->notification->type,
                     'status' => $recipient->status,
                     'created_at' => $recipient->created_at,
@@ -324,8 +324,8 @@ class NotificationController extends Controller
         $formattedNotifications = $notifications->items()->map(function ($recipient) {
             return [
                 'id' => $recipient->id,
-                'title' => $recipient->notification->title,
-                'body' => $recipient->notification->body,
+                'title' => $recipient->personalized_title,
+                'body' => $recipient->personalized_body,
                 'type' => $recipient->notification->type,
                 'status' => $recipient->status,
                 'is_read' => $recipient->read_at !== null,
@@ -374,8 +374,8 @@ class NotificationController extends Controller
             ->map(function ($recipient) {
                 return [
                     'id' => $recipient->id,
-                    'title' => $recipient->notification->title,
-                    'body' => $recipient->notification->body,
+                    'title' => $recipient->personalized_title,
+                    'body' => $recipient->personalized_body,
                     'type' => $recipient->notification->type,
                     'status' => $recipient->status,
                     'is_read' => $recipient->read_at !== null,

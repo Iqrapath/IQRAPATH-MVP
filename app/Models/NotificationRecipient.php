@@ -23,6 +23,7 @@ class NotificationRecipient extends Model
         'channel',
         'delivered_at',
         'read_at',
+        'personalized_content',
     ];
 
     /**
@@ -33,6 +34,7 @@ class NotificationRecipient extends Model
     protected $casts = [
         'delivered_at' => 'datetime',
         'read_at' => 'datetime',
+        'personalized_content' => 'array',
     ];
     
     /**
@@ -58,6 +60,30 @@ class NotificationRecipient extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Get the personalized title for this notification recipient.
+     */
+    public function getPersonalizedTitleAttribute()
+    {
+        if (isset($this->personalized_content['title'])) {
+            return $this->personalized_content['title'];
+        }
+        
+        return $this->notification ? $this->notification->title : '';
+    }
+    
+    /**
+     * Get the personalized body for this notification recipient.
+     */
+    public function getPersonalizedBodyAttribute()
+    {
+        if (isset($this->personalized_content['body'])) {
+            return $this->personalized_content['body'];
+        }
+        
+        return $this->notification ? $this->notification->body : '';
     }
 
     /**

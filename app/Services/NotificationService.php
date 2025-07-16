@@ -133,6 +133,101 @@ class NotificationService
     }
 
     /**
+     * Create a notification from a template.
+     *
+     * @param string $templateName
+     * @param array $data
+     * @param array $recipientData
+     * @return Notification|null
+     */
+    public function createFromTemplate(string $templateName, array $data = [], array $recipientData = []): ?Notification
+    {
+        $template = NotificationTemplate::where('name', $templateName)
+            ->where('is_active', true)
+            ->first();
+            
+        if (!$template) {
+            return null;
+        }
+        
+        // Create notification with placeholders
+        $notification = $template->createNotification($data);
+        
+        if (!empty($recipientData)) {
+            $this->addRecipients($notification, $recipientData);
+        }
+        
+        return $notification;
+    }
+
+    /**
+     * Replace placeholders in notification content for a specific recipient.
+     * This should be called right before delivery to ensure most up-to-date data.
+     *
+     * @param Notification $notification
+     * @param User $user
+     * @return array Processed title and body
+     */
+    public function processPlaceholders(Notification $notification, User $user): array
+    {
+        $title = $notification->title;
+        $body = $notification->body;
+        
+        // Get metadata from notification (may contain custom placeholders)
+        $metadata = $notification->metadata ?? [];
+        
+        // Basic user placeholders
+        $placeholders = [
+            'user_name' => $user->name,
+            'user_email' => $user->email,
+            'user_role' => $user->role,
+            'first_name' => explode(' ', $user->name)[0] ?? $user->name,
+            'last_name' => array_slice(explode(' ', $user->name), 1) ? implode(' ', array_slice(explode(' ', $user->name), 1)) : '',
+            'date' => now()->format('F j, Y'),
+            'time' => now()->format('g:i A'),
+            'app_name' => config('app.name'),
+        ];
+        
+        // Role-specific placeholders
+        switch ($user->role) {
+            case 'teacher':
+                if ($user->teacherProfile) {
+                    $placeholders['teacher_subject'] = $user->teacherProfile->subject ?? '';
+                    $placeholders['teacher_rating'] = $user->teacherProfile->rating ?? '';
+                    $placeholders['teacher_experience'] = $user->teacherProfile->experience ?? '';
+                }
+                break;
+                
+            case 'student':
+                if ($user->studentProfile) {
+                    $placeholders['student_level'] = $user->studentProfile->level ?? '';
+                    $placeholders['student_grade'] = $user->studentProfile->grade ?? '';
+                }
+                break;
+                
+            case 'guardian':
+                if ($user->guardianProfile) {
+                    $placeholders['guardian_children'] = $user->guardianProfile->children_count ?? '';
+                }
+                break;
+        }
+        
+        // Merge with metadata placeholders (metadata takes precedence)
+        $placeholders = array_merge($placeholders, $metadata);
+        
+        // Replace all placeholders
+        foreach ($placeholders as $key => $value) {
+            $title = str_replace("[$key]", $value, $title);
+            $body = str_replace("[$key]", $value, $body);
+        }
+        
+        return [
+            'title' => $title,
+            'body' => $body
+        ];
+    }
+
+    /**
      * Deliver notification to a specific recipient.
      *
      * @param Notification $notification
@@ -148,21 +243,37 @@ class NotificationService
                 $recipient->save();
                 return false;
             }
+            
+            // Process placeholders for this specific user
+            $processed = $this->processPlaceholders($notification, $user);
+            
+            // Create a personalized notification copy with processed content
+            $personalizedNotification = clone $notification;
+            $personalizedNotification->title = $processed['title'];
+            $personalizedNotification->body = $processed['body'];
 
             switch ($recipient->channel) {
                 case 'in-app':
-                    // In-app notifications are just marked as delivered
+                    // Store the personalized content in the recipient record
+                    $recipient->personalized_content = [
+                        'title' => $processed['title'],
+                        'body' => $processed['body']
+                    ];
                     $recipient->status = 'delivered';
                     $recipient->delivered_at = now();
                     break;
 
                 case 'email':
-                    // Queue email delivery
-                    Queue::push(function () use ($notification, $user, $recipient) {
+                    // Queue email delivery with personalized content
+                    Queue::push(function () use ($personalizedNotification, $user, $recipient) {
                         try {
-                            Mail::to($user->email)->send(new \App\Mail\NotificationMail($notification));
+                            Mail::to($user->email)->send(new \App\Mail\NotificationMail($personalizedNotification));
                             $recipient->status = 'delivered';
                             $recipient->delivered_at = now();
+                            $recipient->personalized_content = [
+                                'title' => $personalizedNotification->title,
+                                'body' => $personalizedNotification->body
+                            ];
                             $recipient->save();
                         } catch (\Exception $e) {
                             Log::error('Failed to send email notification: ' . $e->getMessage(), [
@@ -290,33 +401,6 @@ class NotificationService
             ]);
             return 0;
         }
-    }
-
-    /**
-     * Create a notification from a template.
-     *
-     * @param string $templateName
-     * @param array $data
-     * @param array $recipientData
-     * @return Notification|null
-     */
-    public function createFromTemplate(string $templateName, array $data = [], array $recipientData = []): ?Notification
-    {
-        $template = NotificationTemplate::where('name', $templateName)
-            ->where('is_active', true)
-            ->first();
-            
-        if (!$template) {
-            return null;
-        }
-        
-        $notification = $template->createNotification($data);
-        
-        if (!empty($recipientData)) {
-            $this->addRecipients($notification, $recipientData);
-        }
-        
-        return $notification;
     }
 
     /**

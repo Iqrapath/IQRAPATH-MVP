@@ -434,9 +434,9 @@ class AdminNotificationController extends Controller
         $notifications = $recipients->map(function($recipient) {
             $notification = $recipient->notification;
             return [
-                'id' => $notification->id,
-                'title' => $notification->title,
-                'body' => \Illuminate\Support\Str::limit($notification->body, 100),
+                'id' => $recipient->id,
+                'title' => $recipient->personalized_title,
+                'body' => \Illuminate\Support\Str::limit($recipient->personalized_body, 100),
                 'created_at' => $notification->created_at->diffForHumans(),
                 'type' => $notification->type,
                 'status' => $recipient->status,
@@ -516,8 +516,8 @@ class AdminNotificationController extends Controller
             'data' => collect($notifications->items())->map(function ($recipient) {
                 return [
                     'id' => $recipient->id,
-                    'title' => $recipient->notification->title,
-                    'body' => $recipient->notification->body,
+                    'title' => $recipient->personalized_title,
+                    'body' => $recipient->personalized_body,
                     'type' => $recipient->notification->type,
                     'status' => $recipient->status,
                     'created_at' => $recipient->created_at->diffForHumans(),
@@ -577,8 +577,8 @@ class AdminNotificationController extends Controller
         // Format the notification data for the frontend
         $formattedNotification = [
             'id' => $notification->id,
-            'title' => $notification->notification->title,
-            'body' => $notification->notification->body,
+            'title' => $notification->personalized_title,
+            'body' => $notification->personalized_body,
             'type' => $notification->notification->type,
             'status' => $notification->status,
             'created_at' => $notification->created_at,

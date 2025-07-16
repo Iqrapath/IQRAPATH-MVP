@@ -18,6 +18,7 @@ return new class extends Migration
             $table->string('status')->default('pending'); // pending, sent, delivered, read, failed
             $table->string('channel')->default('in-app'); // in-app, email, sms
             $table->timestamp('delivered_at')->nullable();
+            $table->json('personalized_content')->nullable();
             $table->timestamp('read_at')->nullable();
             $table->timestamps();
 

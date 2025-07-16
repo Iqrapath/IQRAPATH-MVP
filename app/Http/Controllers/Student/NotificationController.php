@@ -43,8 +43,8 @@ class NotificationController extends Controller
         // Format the notification data for the frontend
         $formattedNotification = [
             'id' => $notification->id,
-            'title' => $notification->notification->title,
-            'body' => $notification->notification->body,
+            'title' => $notification->personalized_title,
+            'body' => $notification->personalized_body,
             'type' => $notification->notification->type,
             'status' => $notification->status,
             'created_at' => $notification->created_at,
