@@ -4,8 +4,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Link } from '@inertiajs/react';
-import { Bell, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Bell, CheckCircle, ChevronLeft, ChevronRight, UserCheck } from 'lucide-react';
 import axios from 'axios';
 import { PaymentIcon } from '@/components/icons/payment-icon';
 import { NotificationIcon } from '@/components/icons/notification-icon';
@@ -21,6 +22,7 @@ interface Notification {
   type: string;
   status: string;
   is_read: boolean;
+  is_personalized?: boolean;
 }
 
 interface PaginationInfo {
@@ -386,6 +388,20 @@ export default function NotificationDropdown({
                         }}
                       >
                         {notification.title}
+                        {notification.is_personalized && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="inline-block ml-1 text-teal-500">
+                                  <UserCheck className="h-3 w-3 inline" />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Personalized content</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
                       </Link>
                     </div>
                     <Badge 

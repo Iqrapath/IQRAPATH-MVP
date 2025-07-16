@@ -33,6 +33,10 @@ class NotificationController extends Controller
             ->take(10)
             ->get()
             ->map(function ($recipient) {
+                // Check if content is personalized
+                $isPersonalized = isset($recipient->personalized_content['title']) || 
+                                 isset($recipient->personalized_content['body']);
+                                 
                 return [
                     'id' => $recipient->id,
                     'title' => $recipient->personalized_title,
@@ -41,6 +45,7 @@ class NotificationController extends Controller
                     'status' => $recipient->status,
                     'created_at' => $recipient->created_at,
                     'read_at' => $recipient->read_at,
+                    'is_personalized' => $isPersonalized,
                 ];
             });
             
@@ -322,6 +327,10 @@ class NotificationController extends Controller
             ->paginate($perPage, ['*'], 'page', $page);
             
         $formattedNotifications = $notifications->items()->map(function ($recipient) {
+            // Check if content is personalized
+            $isPersonalized = isset($recipient->personalized_content['title']) || 
+                             isset($recipient->personalized_content['body']);
+                             
             return [
                 'id' => $recipient->id,
                 'title' => $recipient->personalized_title,
@@ -330,6 +339,7 @@ class NotificationController extends Controller
                 'status' => $recipient->status,
                 'is_read' => $recipient->read_at !== null,
                 'created_at' => $recipient->created_at->diffForHumans(),
+                'is_personalized' => $isPersonalized,
             ];
         });
             
@@ -372,6 +382,10 @@ class NotificationController extends Controller
             ->take($limit)
             ->get()
             ->map(function ($recipient) {
+                // Check if content is personalized
+                $isPersonalized = isset($recipient->personalized_content['title']) || 
+                                 isset($recipient->personalized_content['body']);
+                                 
                 return [
                     'id' => $recipient->id,
                     'title' => $recipient->personalized_title,
@@ -380,6 +394,7 @@ class NotificationController extends Controller
                     'status' => $recipient->status,
                     'is_read' => $recipient->read_at !== null,
                     'created_at' => $recipient->created_at->diffForHumans(),
+                    'is_personalized' => $isPersonalized,
                 ];
             });
             

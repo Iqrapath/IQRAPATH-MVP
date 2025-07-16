@@ -4,9 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { Reply, Trash2, ArrowLeft } from 'lucide-react';
+import { Reply, Trash2, ArrowLeft, UserCheck } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useInitials } from '@/hooks/use-initials';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface User {
   id: number;
@@ -24,6 +25,8 @@ interface Notification {
   status?: string;
   created_at: string;
   sender?: User;
+  is_personalized?: boolean;
+  metadata?: Record<string, any>;
 }
 
 interface NotificationShowProps {
@@ -101,6 +104,45 @@ export default function NotificationShow({
     }
   };
 
+  // Function to highlight placeholders in text
+  const highlightPlaceholders = (text: string) => {
+    if (!text) return '';
+    
+    // Regular expression to find placeholders like [placeholder_name]
+    const regex = /\[([\w_]+)\]/g;
+    
+    // Split the text by placeholders and create an array of parts
+    const parts = text.split(regex);
+    
+    if (parts.length <= 1) {
+      return text;
+    }
+    
+    // Create an array to hold JSX elements
+    const elements: React.ReactNode[] = [];
+    
+    // Process each part
+    for (let i = 0; i < parts.length; i++) {
+      // Even indices are regular text
+      if (i % 2 === 0) {
+        elements.push(<span key={`text-${i}`}>{parts[i]}</span>);
+      } 
+      // Odd indices are placeholders
+      else {
+        elements.push(
+          <span 
+            key={`placeholder-${i}`}
+            className="bg-teal-100 text-teal-800 px-1 rounded"
+          >
+            [{parts[i]}]
+          </span>
+        );
+      }
+    }
+    
+    return <>{elements}</>;
+  };
+
   return (
     <div className="py-6">
       <div className="mb-6 flex justify-between items-center">
@@ -140,15 +182,49 @@ export default function NotificationShow({
         <CardContent className="p-6">
           <div className="flex justify-between items-start mb-4">
             <div className="flex items-center gap-3">
-              <h3 className="text-xl font-medium">{notification.title}</h3>
+              <h3 className="text-xl font-medium">
+                {notification.title}
+                {notification.is_personalized && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-block ml-2">
+                          <UserCheck className="h-4 w-4 text-teal-500 inline" />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Personalized content</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </h3>
               {notification.type && getTypeBadge(notification.type)}
             </div>
             {getStatusBadge(notification.status)}
           </div>
           
           <div className="text-gray-700 whitespace-pre-wrap mb-6 bg-gray-50 p-4 rounded-md border">
-            {notification.body}
+            {userRole === 'admin' && notification.body.includes('[') && notification.body.includes(']')
+              ? highlightPlaceholders(notification.body)
+              : notification.body}
           </div>
+          
+          {notification.metadata && Object.keys(notification.metadata).length > 0 && userRole === 'admin' && (
+            <div className="mb-6">
+              <h4 className="text-sm font-semibold text-gray-600 mb-2">Metadata / Placeholders</h4>
+              <div className="bg-gray-50 p-3 rounded-md border text-sm">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {Object.entries(notification.metadata).map(([key, value]) => (
+                    <div key={key} className="flex gap-2">
+                      <span className="font-medium text-gray-700">[{key}]:</span>
+                      <span className="text-gray-600">{String(value)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
           
           <div className="flex justify-between items-center text-sm text-gray-600">
             <div className="flex items-center gap-3">

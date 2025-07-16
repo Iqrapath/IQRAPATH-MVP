@@ -574,6 +574,10 @@ class AdminNotificationController extends Controller
             $notification->markAsRead();
         }
         
+        // Check if content is personalized
+        $isPersonalized = isset($notification->personalized_content['title']) || 
+                         isset($notification->personalized_content['body']);
+        
         // Format the notification data for the frontend
         $formattedNotification = [
             'id' => $notification->id,
@@ -583,6 +587,8 @@ class AdminNotificationController extends Controller
             'status' => $notification->status,
             'created_at' => $notification->created_at,
             'sender' => $notification->notification->sender_id ? User::find($notification->notification->sender_id) : null,
+            'is_personalized' => $isPersonalized,
+            'metadata' => $notification->notification->metadata,
         ];
         
         return Inertia::render('admin/notifications/show', [
