@@ -8,7 +8,6 @@ import { type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import { ChevronDown, Menu, PanelRight } from 'lucide-react';
 import MessageIcon from '@/components/icons/message-icon';
-import { StudentNotificationDropdown } from '@/components/notification';
 
 interface StudentHeaderProps {
     pageTitle: string;
@@ -56,9 +55,6 @@ export default function StudentHeader({
                         <PanelRight className="h-5 w-5" />
                     </Button>
                 )}
-                
-                {/* Notifications */}
-                <StudentNotificationDropdown />
 
                 {/* Messages - hide on smallest screens */}
                 {!isMobile && (

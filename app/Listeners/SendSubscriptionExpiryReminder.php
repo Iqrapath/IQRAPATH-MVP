@@ -21,10 +21,10 @@ class SendSubscriptionExpiryReminder implements ShouldQueue
     /**
      * Create the event listener.
      */
-    public function __construct(NotificationService $notificationService)
-    {
-        $this->notificationService = $notificationService;
-    }
+    // public function __construct(NotificationService $notificationService)
+    // {
+    //     $this->notificationService = $notificationService;
+    // }
 
     /**
      * Handle the event.

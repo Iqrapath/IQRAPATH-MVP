@@ -6,7 +6,6 @@ import { createInertiaApp } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { Toaster } from 'sonner';
 import { initializeTheme } from './hooks/use-appearance';
-import GlobalNotificationListener from './components/global-notification-listener';
 import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
 
@@ -63,7 +62,6 @@ createInertiaApp({
             <>
                 <App {...props} />
                 <Toaster position="top-right" richColors />
-                <GlobalNotificationListener />
             </>
         );
     },

@@ -4,7 +4,6 @@ use App\Http\Controllers\Admin\ContentPagesController;
 use App\Http\Controllers\Admin\FaqController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\DisputeController;
-use App\Http\Controllers\NotificationsTestController;
 use App\Http\Controllers\SubjectController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -63,7 +62,6 @@ require __DIR__.'/dashboard.php';
 require __DIR__.'/admin.php';
 require __DIR__.'/financial.php';
 require __DIR__.'/subscriptions.php';
-require __DIR__.'/notifications.php';
 require __DIR__.'/sessions.php';
 require __DIR__.'/payments.php';
 require __DIR__.'/feedback.php';
@@ -71,11 +69,6 @@ require __DIR__.'/feedback.php';
 // Debug routes - only available in local environment
 if (app()->environment(['local', 'development'])) {
     Route::middleware(['auth'])->group(function () {
-        Route::get('/test-notification', function () {
-            $request = request();
-            $response = app()->make(\App\Http\Controllers\Api\NotificationController::class)->createTestNotification($request);
-            return redirect()->back()->with('success', 'Test notification created');
-        })->name('test-notification');
         
         // Debug route for broadcasting - simplified
         Route::get('/debug-broadcasting', function () {
@@ -91,9 +84,6 @@ if (app()->environment(['local', 'development'])) {
 
 // Add the test route at the end of the file
 Route::middleware(['auth'])->group(function () {
-    Route::get('/notifications/test', function () {
-        return inertia('notifications/test');
-    })->name('notifications.test');
     
     // Test route to check CSRF token
     Route::get('/test-csrf', function () {

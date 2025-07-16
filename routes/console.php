@@ -22,7 +22,6 @@ use Illuminate\Support\Facades\Log;
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
-
 Artisan::command('notification:create-test-scheduled', function () {
     $this->info('Creating a test scheduled notification...');
     
@@ -77,3 +76,4 @@ Artisan::command('notification:create-test-scheduled', function () {
         ]);
     }
 })->purpose('Create a test scheduled notification for immediate delivery');
+

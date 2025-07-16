@@ -24,7 +24,6 @@ class CustomResetPasswordNotification extends ResetPasswordNotification
                 'email' => $notifiable->getEmailForPasswordReset(),
             ], false));
         }
-
         return (new MailMessage)
             ->subject(Lang::get('IqraPath - Reset Your Password'))
             ->markdown('emails.reset-password', [
