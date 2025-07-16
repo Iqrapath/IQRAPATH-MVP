@@ -38,6 +38,10 @@ interface NotificationDropdownProps {
   notificationDetailBaseUrl?: string;
   className?: string;
   triggerClassName?: string;
+  customTypeColors?: Record<string, string>;
+  headerTitle?: string;
+  emptyStateMessage?: string;
+  customIcons?: Record<string, React.ReactNode>;
 }
 
 export default function NotificationDropdown({
@@ -45,7 +49,11 @@ export default function NotificationDropdown({
   viewAllLink = '/notifications',
   notificationDetailBaseUrl = '/notifications',
   className = '',
-  triggerClassName = ''
+  triggerClassName = '',
+  customTypeColors = {},
+  headerTitle = 'Notifications',
+  emptyStateMessage = 'No notifications',
+  customIcons = {}
 }: NotificationDropdownProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
@@ -258,6 +266,12 @@ export default function NotificationDropdown({
   };
 
   const getNotificationIcon = (type: string) => {
+    // Check if we have a custom icon for this type
+    if (customIcons && customIcons[type.toLowerCase()]) {
+      return customIcons[type.toLowerCase()];
+    }
+    
+    // Default icons
     switch (type.toLowerCase()) {
       case 'payment':
         return <PaymentIcon className="h-5 w-5 text-green-500" />;
@@ -275,6 +289,12 @@ export default function NotificationDropdown({
   };
 
   const getNotificationTypeColor = (type: string) => {
+    // Check if we have a custom color for this type
+    if (customTypeColors && customTypeColors[type.toLowerCase()]) {
+      return customTypeColors[type.toLowerCase()];
+    }
+    
+    // Default colors
     switch (type.toLowerCase()) {
       case 'payment':
       case 'withdrawal':
@@ -308,7 +328,7 @@ export default function NotificationDropdown({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className={`w-80 ${className}`}>
         <div className="flex items-center justify-between p-4 border-b">
-          <h3 className="font-medium">Notifications</h3>
+          <h3 className="font-medium">{headerTitle}</h3>
           {unreadCount > 0 && (
             <Button 
               variant="ghost" 
@@ -398,7 +418,7 @@ export default function NotificationDropdown({
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full p-4">
-              <p className="text-sm text-muted-foreground">No notifications</p>
+              <p className="text-sm text-muted-foreground">{emptyStateMessage}</p>
             </div>
           )}
         </ScrollArea>

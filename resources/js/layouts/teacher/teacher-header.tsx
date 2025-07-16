@@ -8,7 +8,7 @@ import { type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import { ChevronDown, Menu, PanelRight } from 'lucide-react';
 import MessageIcon from '@/components/icons/message-icon';
-import NotificationDropdown from '@/components/notification-dropdown';
+import { TeacherNotificationDropdown } from '@/components/notification';
 
 interface TeacherHeaderProps {
     pageTitle: string;
@@ -58,11 +58,7 @@ export default function TeacherHeader({
                 )}
                 
                 {/* Notifications */}
-                <NotificationDropdown 
-                    userRole="teacher"
-                    viewAllLink="/teacher/notifications"
-                    notificationDetailBaseUrl="/teacher/notifications"
-                />
+                <TeacherNotificationDropdown />
 
                 {/* Messages - hide on smallest screens */}
                 {!isMobile && (

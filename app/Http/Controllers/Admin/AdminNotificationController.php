@@ -5,15 +5,14 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Notification;
 use App\Models\NotificationRecipient;
-use App\Models\NotificationTemplate;
-use App\Models\NotificationTrigger;
 use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Auth;
 
-class NotificationController extends Controller
+class AdminNotificationController extends Controller
 {
     protected $notificationService;
 
@@ -72,7 +71,7 @@ class NotificationController extends Controller
      */
     public function create()
     {
-        $templates = NotificationTemplate::active()->get();
+        $templates = \App\Models\NotificationTemplate::active()->get();
         
         return Inertia::render('admin/notification-component/notification-create', [
             'templates' => $templates,
@@ -315,242 +314,11 @@ class NotificationController extends Controller
      */
     public function destroy(Notification $notification)
     {
-        // Only allow deleting draft notifications
-        // if ($notification->status !== 'draft') {
-        //     return redirect()->route('admin.notification')
-        //         ->with('error', 'Only draft notifications can be deleted.');
-        // }
-        
         $notification->recipients()->delete();
         $notification->delete();
         
         return redirect()->route('admin.notification')
             ->with('success', 'Notification deleted successfully.');
-    }
-
-    /**
-     * Display a listing of notification templates.
-     */
-    public function templates(Request $request)
-    {
-        $templates = NotificationTemplate::when($request->search, function ($query, $search) {
-                $query->where('name', 'like', "%{$search}%")
-                    ->orWhere('title', 'like', "%{$search}%");
-            })
-            ->when($request->type, function ($query, $type) {
-                $query->where('type', $type);
-            })
-            ->orderBy('name')
-            ->paginate(10)
-            ->withQueryString();
-            
-        // Format pagination data to match what the frontend expects
-        $formattedTemplates = [
-            'data' => $templates->items(),
-            'links' => [
-                'prev' => $templates->previousPageUrl(),
-                'next' => $templates->nextPageUrl(),
-            ],
-            'meta' => [
-                'current_page' => $templates->currentPage(),
-                'from' => $templates->firstItem() ?? 0,
-                'last_page' => $templates->lastPage(),
-                'links' => $templates->linkCollection()->toArray(),
-                'path' => $templates->path(),
-                'per_page' => $templates->perPage(),
-                'to' => $templates->lastItem() ?? 0,
-                'total' => $templates->total(),
-            ],
-        ];
-
-        return Inertia::render('admin/notification-component/templates', [
-            'templates' => $formattedTemplates,
-            'filters' => $request->only(['search', 'type']),
-        ]);
-    }
-
-    /**
-     * Show the form for creating a new template.
-     */
-    public function createTemplate()
-    {
-        return Inertia::render('admin/notification-component/template-create');
-    }
-
-    /**
-     * Store a newly created template in storage.
-     */
-    public function storeTemplate(Request $request)
-    {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'title' => 'required|string|max:255',
-            'body' => 'required|string',
-            'type' => 'required|string',
-            'is_active' => 'boolean',
-        ]);
-
-        NotificationTemplate::create([
-            'name' => $request->name,
-            'title' => $request->title,
-            'body' => $request->body,
-            'type' => $request->type,
-            'is_active' => $request->is_active ?? true,
-            'created_by' => $request->user()->id,
-        ]);
-
-        return redirect()->route('admin.notification.templates')
-            ->with('success', 'Template created successfully.');
-    }
-    
-    /**
-     * Display the specified template.
-     */
-    public function showTemplate(NotificationTemplate $template)
-    {
-        return Inertia::render('admin/notification-component/template-show', [
-            'template' => $template,
-        ]);
-    }
-    
-    /**
-     * Show the form for editing the specified template.
-     */
-    public function editTemplate(NotificationTemplate $template)
-    {
-        return Inertia::render('admin/notification-component/template-edit', [
-            'template' => $template,
-        ]);
-    }
-    
-    /**
-     * Update the specified template in storage.
-     */
-    public function updateTemplate(Request $request, NotificationTemplate $template)
-    {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'title' => 'required|string|max:255',
-            'body' => 'required|string',
-            'type' => 'required|string',
-            'placeholders' => 'nullable|array',
-            'is_active' => 'boolean',
-        ]);
-        
-        $template->update([
-            'name' => $request->name,
-            'title' => $request->title,
-            'body' => $request->body,
-            'type' => $request->type,
-            'placeholders' => $request->placeholders,
-            'is_active' => $request->is_active,
-        ]);
-        
-        return redirect()->route('admin.notification.templates')
-            ->with('success', 'Template updated successfully.');
-    }
-    
-    /**
-     * Remove the specified template from storage.
-     */
-    public function destroyTemplate(NotificationTemplate $template)
-    {
-        // Check if template is used by any triggers
-        if ($template->triggers()->count() > 0) {
-            return redirect()->route('admin.notification.templates')
-                ->with('error', 'Cannot delete template that is used by triggers.');
-        }
-        
-        $template->delete();
-        
-        return redirect()->route('admin.notification.templates')
-            ->with('success', 'Template deleted successfully.');
-    }
-
-    /**
-     * Display a listing of notification triggers.
-     */
-    public function triggers(Request $request)
-    {
-        $triggers = NotificationTrigger::with('template')
-            ->when($request->search, function ($query, $search) {
-                $query->where('name', 'like', "%{$search}%")
-                    ->orWhere('event', 'like', "%{$search}%");
-            })
-            ->when($request->status, function ($query, $status) {
-                $query->where('is_active', $status === 'active');
-            })
-            ->orderBy('name')
-            ->paginate(10)
-            ->withQueryString();
-            
-        // Format pagination data to match what the frontend expects
-        $formattedTriggers = [
-            'data' => $triggers->items(),
-            'links' => [
-                'prev' => $triggers->previousPageUrl(),
-                'next' => $triggers->nextPageUrl(),
-            ],
-            'meta' => [
-                'current_page' => $triggers->currentPage(),
-                'from' => $triggers->firstItem() ?? 0,
-                'last_page' => $triggers->lastPage(),
-                'links' => $triggers->linkCollection()->toArray(),
-                'path' => $triggers->path(),
-                'per_page' => $triggers->perPage(),
-                'to' => $triggers->lastItem() ?? 0,
-                'total' => $triggers->total(),
-            ],
-        ];
-
-        return Inertia::render('admin/notification-component/triggers', [
-            'triggers' => $formattedTriggers,
-            'filters' => $request->only(['search', 'status']),
-        ]);
-    }
-
-    /**
-     * Show the form for creating a new trigger.
-     */
-    public function createTrigger()
-    {
-        $templates = NotificationTemplate::active()->get();
-        
-        return Inertia::render('admin/notification-component/trigger-create', [
-            'templates' => $templates,
-            'events' => [
-                'user.registered' => 'User Registered',
-                'payment.processed' => 'Payment Processed',
-                'subscription.expiring' => 'Subscription Expiring',
-                'session.scheduled' => 'Session Scheduled',
-            ],
-        ]);
-    }
-
-    /**
-     * Store a newly created trigger in storage.
-     */
-    public function storeTrigger(Request $request)
-    {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'event' => 'required|string',
-            'template_id' => 'required|exists:notification_templates,id',
-            'conditions' => 'nullable|array',
-            'is_active' => 'boolean',
-        ]);
-
-        NotificationTrigger::create([
-            'name' => $request->name,
-            'event' => $request->event,
-            'template_id' => $request->template_id,
-            'conditions' => $request->conditions ?? [],
-            'is_active' => $request->is_active ?? true,
-            'created_by' => $request->user()->id,
-        ]);
-
-        return redirect()->route('admin.notification.triggers')
-            ->with('success', 'Trigger created successfully.');
     }
 
     /**
@@ -643,7 +411,7 @@ class NotificationController extends Controller
             'user' => $user
         ]);
     }
-    
+
     /**
      * Get paginated notifications for the current user.
      */
@@ -694,5 +462,183 @@ class NotificationController extends Controller
                 'to' => $recipients->lastItem() ?? 0,
             ]
         ]);
+    }
+
+    /**
+     * Display a listing of the admin's notifications.
+     *
+     * @return \Inertia\Response
+     */
+    public function viewUserNotifications(Request $request)
+    {
+        $user = Auth::user();
+        
+        // Get pagination parameters
+        $perPage = $request->input('per_page', 10);
+        
+        // Get search and filter parameters
+        $search = $request->input('search');
+        $type = $request->input('type');
+        $status = $request->input('status');
+        
+        // Query the notification recipients for this admin
+        $query = NotificationRecipient::where('user_id', $user->id)
+            ->where('channel', 'in-app')
+            ->with('notification');
+            
+        // Apply search filter if provided
+        if ($search) {
+            $query->whereHas('notification', function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                  ->orWhere('body', 'like', "%{$search}%");
+            });
+        }
+        
+        // Apply type filter if provided
+        if ($type && $type !== 'all') {
+            $query->whereHas('notification', function ($q) use ($type) {
+                $q->where('type', $type);
+            });
+        }
+        
+        // Apply status filter if provided
+        if ($status && $status !== 'all') {
+            $query->where('status', $status);
+        }
+        
+        // Get paginated results
+        $notifications = $query->orderBy('created_at', 'desc')
+                              ->paginate($perPage)
+                              ->withQueryString();
+        
+        // Format the notifications for the frontend
+        $formattedNotifications = [
+            'data' => collect($notifications->items())->map(function ($recipient) {
+                return [
+                    'id' => $recipient->id,
+                    'title' => $recipient->notification->title,
+                    'body' => $recipient->notification->body,
+                    'type' => $recipient->notification->type,
+                    'status' => $recipient->status,
+                    'created_at' => $recipient->created_at->diffForHumans(),
+                ];
+            })->toArray(),
+            'links' => [
+                'prev' => $notifications->previousPageUrl(),
+                'next' => $notifications->nextPageUrl(),
+            ],
+            'meta' => [
+                'current_page' => $notifications->currentPage(),
+                'from' => $notifications->firstItem() ?? 0,
+                'last_page' => $notifications->lastPage(),
+                'links' => $notifications->linkCollection()->map(function ($link) {
+                    return [
+                        'url' => $link['url'],
+                        'label' => $link['label'],
+                        'active' => $link['active'],
+                    ];
+                })->toArray(),
+                'path' => $notifications->path(),
+                'per_page' => $notifications->perPage(),
+                'to' => $notifications->lastItem() ?? 0,
+                'total' => $notifications->total(),
+            ],
+        ];
+        
+        return Inertia::render('admin/notification', [
+            'notifications' => $formattedNotifications,
+            'filters' => [
+                'search' => $search,
+                'type' => $type,
+                'status' => $status,
+            ],
+        ]);
+    }
+
+    /**
+     * Display the specified notification.
+     *
+     * @param  int  $id
+     * @return \Inertia\Response
+     */
+    public function viewUserNotification($id)
+    {
+        // Get the notification details
+        $notification = NotificationRecipient::with('notification')
+            ->where('id', $id)
+            ->where('user_id', Auth::id())
+            ->firstOrFail();
+        
+        // Mark as read if not already
+        if (!$notification->read_at) {
+            $notification->markAsRead();
+        }
+        
+        // Format the notification data for the frontend
+        $formattedNotification = [
+            'id' => $notification->id,
+            'title' => $notification->notification->title,
+            'body' => $notification->notification->body,
+            'type' => $notification->notification->type,
+            'status' => $notification->status,
+            'created_at' => $notification->created_at,
+            'sender' => $notification->notification->sender_id ? User::find($notification->notification->sender_id) : null,
+        ];
+        
+        return Inertia::render('admin/notifications/show', [
+            'notification' => $formattedNotification,
+            'currentUser' => Auth::user(),
+        ]);
+    }
+    
+    /**
+     * Mark a notification as read.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function markAsRead($id)
+    {
+        $notification = NotificationRecipient::where('id', $id)
+            ->where('user_id', Auth::id())
+            ->firstOrFail();
+            
+        $notification->markAsRead();
+        
+        return redirect()->back();
+    }
+    
+    /**
+     * Mark all notifications as read.
+     *
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function markAllAsRead()
+    {
+        $user = Auth::user();
+        
+        // Update all unread notifications for this user
+        NotificationRecipient::where('user_id', $user->id)
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
+        
+        return redirect()->back();
+    }
+    
+    /**
+     * Delete a notification.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function destroyUserNotification($id)
+    {
+        $notification = NotificationRecipient::where('id', $id)
+            ->where('user_id', Auth::id())
+            ->firstOrFail();
+            
+        $notification->delete();
+        
+        return redirect()->route('admin.notification');
     }
 } 

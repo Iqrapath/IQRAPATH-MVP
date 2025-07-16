@@ -8,7 +8,7 @@ import { type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import { ChevronDown, Menu, PanelRight } from 'lucide-react';
 import MessageIcon from '@/components/icons/message-icon';
-import NotificationDropdown from '@/components/notification-dropdown';
+import { GuardianNotificationDropdown } from '@/components/notification';
 
 interface GuardianHeaderProps {
     pageTitle: string;
@@ -58,11 +58,7 @@ export default function GuardianHeader({
                 )}
                 
                 {/* Notifications */}
-                <NotificationDropdown 
-                    userRole="guardian"
-                    viewAllLink="/guardian/notifications"
-                    notificationDetailBaseUrl="/guardian/notifications"
-                />
+                <GuardianNotificationDropdown />
 
                 {/* Messages - hide on smallest screens */}
                 {!isMobile && (

@@ -11,89 +11,31 @@ use Inertia\Inertia;
 class NotificationRedirectController extends Controller
 {
     /**
-     * Redirect to the appropriate notification page based on user role
+     * Redirect to the appropriate role-specific notification page.
      *
-     * @param Request $request
-     * @param int $id
-     * @return \Illuminate\Http\Response
+     * @param  int  $id
+     * @return \Illuminate\Http\RedirectResponse
      */
-    public function redirect(Request $request, $id)
+    public function redirect($id)
     {
         $user = Auth::user();
         
-        if (!$user) {
-            return redirect()->route('login');
-        }
-        
-        // Find the notification recipient
-        $notification = NotificationRecipient::with('notification')
-            ->where('id', $id)
+        // Verify that this notification belongs to the current user
+        $notification = NotificationRecipient::where('id', $id)
             ->where('user_id', $user->id)
             ->first();
-            
+        
         if (!$notification) {
-            // If notification doesn't exist or doesn't belong to this user,
-            // redirect to notifications list
-            return $this->redirectToNotificationsList($user->role);
+            return redirect()->route('dashboard')->with('error', 'Notification not found');
         }
         
-        // Mark as read if not already
-        if (!$notification->read_at) {
-            $notification->markAsRead();
-        }
-        
-        // Format the notification data for the frontend
-        $formattedNotification = [
-            'id' => $notification->id,
-            'title' => $notification->notification->title,
-            'body' => $notification->notification->body,
-            'type' => $notification->notification->type,
-            'status' => $notification->status,
-            'created_at' => $notification->created_at,
-            'sender' => $notification->notification->sender_id ? User::find($notification->notification->sender_id) : null,
-        ];
-        
-        // Return the appropriate view based on user role
-        switch ($user->role) {
-            case 'teacher':
-                return redirect()->route('teacher.notification.show', ['id' => $id]);
-            case 'student':
-                return redirect()->route('student.notification.show', ['id' => $id]);
-            case 'guardian':
-                return redirect()->route('guardian.notification.show', ['id' => $id]);
-            case 'admin':
-            case 'super-admin':
-                // For admin, we need to use the correct route name
-                // The route is defined as /admin/notification/{notification}
-                // But the parameter is named 'notification', not 'id'
-                return redirect()->route('admin.notification.show', ['notification' => $id]);
-                // return redirect("/admin/notification/{$id}");
-            default:
-                return redirect()->route('dashboard');
-        }
-    }
-    
-    /**
-     * Helper method to redirect to the appropriate notifications list page
-     *
-     * @param string $role
-     * @return \Illuminate\Http\RedirectResponse
-     */
-    private function redirectToNotificationsList($role)
-    {
-        switch ($role) {
-            case 'teacher':
-                return redirect()->route('teacher.notifications');
-            case 'student':
-                return redirect()->route('student.notifications');
-            case 'guardian':
-                return redirect()->route('guardian.notifications');
-            case 'admin':
-            case 'super-admin':
-                // For admin, we need to use the correct route
-                return redirect('/admin/notification');
-            default:
-                return redirect()->route('dashboard');
-        }
+        // Redirect based on user role
+        return match($user->role) {
+            'teacher' => redirect()->route('teacher.notification.show', $id),
+            'student' => redirect()->route('student.notification.show', $id),
+            'guardian' => redirect()->route('guardian.notification.show', $id),
+            'admin', 'super-admin' => redirect()->route('admin.notification.show', $id),
+            default => redirect()->route('dashboard'),
+        };
     }
 } 

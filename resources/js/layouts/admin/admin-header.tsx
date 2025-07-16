@@ -8,7 +8,7 @@ import { type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import { ChevronDown, Menu, PanelRight } from 'lucide-react';
 import MessageIcon from '@/components/icons/message-icon';
-import NotificationDropdown from '@/components/notification-dropdown';
+import { AdminNotificationDropdown } from '@/components/notification';
 
 interface AdminHeaderProps {
     pageTitle: string;
@@ -58,11 +58,7 @@ export default function AdminHeader({
                 )}
                 
                 {/* Notifications */}
-                <NotificationDropdown 
-                    userRole="admin"
-                    viewAllLink="/admin/notification"
-                    notificationDetailBaseUrl="/admin/notification"
-                />
+                <AdminNotificationDropdown />
 
                 {/* Messages - hide on smallest screens */}
                 {!isMobile && (
