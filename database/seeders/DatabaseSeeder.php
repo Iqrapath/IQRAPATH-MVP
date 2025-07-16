@@ -16,9 +16,6 @@ class DatabaseSeeder extends Seeder
         $this->call([
             SuperAdminSeeder::class,
             UserSeeder::class,
-            NotificationTemplateSeeder::class,
-            NotificationTriggerSeeder::class,
-            NotificationSeeder::class,
             TeachingSessionSeeder::class,
         ]);
 

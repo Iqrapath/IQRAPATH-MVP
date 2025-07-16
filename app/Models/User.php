@@ -466,7 +466,8 @@ class User extends Authenticatable
      */
     public function receivedNotifications(): HasMany
     {
-        return $this->hasMany(NotificationRecipient::class, 'user_id');
+        return $this->hasMany(Notification::class, 'notifiable_id')
+            ->where('notifiable_type', self::class);
     }
 
     /**
@@ -474,8 +475,8 @@ class User extends Authenticatable
      */
     public function sentNotifications(): HasMany
     {
-        return $this->hasMany(Notification::class, 'sender_id')
-            ->where('sender_type', '!=', 'system');
+        return $this->hasMany(Notification::class, 'notifiable_id')
+            ->where('notifiable_type', self::class);
     }
 
     /**
@@ -485,7 +486,7 @@ class User extends Authenticatable
     {
         return $this->receivedNotifications()
             ->whereNull('read_at')
-            ->whereIn('status', ['sent', 'delivered']);
+            ->where('channel', 'database');
     }
 
     /**
