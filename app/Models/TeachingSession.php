@@ -68,14 +68,7 @@ class TeachingSession extends Model
         'student_left_at' => 'datetime',
     ];
     
-    /**
-     * The event map for the model.
-     *
-     * @var array
-     */
-    protected $dispatchesEvents = [
-        'created' => SessionRequestReceived::class,
-    ];
+
 
     /**
      * Boot the model.
@@ -91,12 +84,7 @@ class TeachingSession extends Model
             }
         });
         
-        static::created(function ($session) {
-            // Only broadcast the event if the status is 'requested'
-            if ($session->status === 'requested') {
-                event(new SessionRequestReceived($session));
-            }
-        });
+
     }
 
     /**

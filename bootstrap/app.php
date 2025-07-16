@@ -21,13 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
-        // Exclude broadcasting/auth endpoints from CSRF protection to ensure WebSockets work
-        $middleware->validateCsrfTokens(except: [
-            'broadcasting/auth',
-            'api/broadcasting/auth',
-            '/broadcasting/auth',
-            '/api/broadcasting/auth'
-        ]);
+
 
         $middleware->web(append: [
             ApplySystemSettings::class,

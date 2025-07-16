@@ -62,226 +62,22 @@ export default function TeacherRightSidebar({
         // Refresh data every 60 seconds
         const interval = setInterval(fetchSidebarData, 60000);
         
-        // Listen for real-time events
-        setupEventListeners();
-        
         return () => {
             clearInterval(interval);
-            removeEventListeners();
         };
     }, []);
-    
-    const setupEventListeners = () => {
-        // Try multiple methods to get the user ID
-        let userId = null;
-        
-        // Method 1: Try to get from meta tag
-        userId = document.querySelector('meta[name="user-id"]')?.getAttribute('content');
-        if (userId) {
-            console.log('Found user ID in meta tag:', userId);
-        }
-        
-        // Method 2: Try to get from Inertia page props
-        // @ts-ignore - Inertia is available globally but TypeScript doesn't know about it
-        if (!userId && window.Inertia?.page?.props?.auth?.user?.id) {
-            // @ts-ignore - Inertia is available globally but TypeScript doesn't know about it
-            userId = window.Inertia.page.props.auth.user.id.toString();
-            console.log('Found user ID in Inertia page props:', userId);
-        }
-        
-        // Method 3: Try to get from window object (might be set by the server)
-        // @ts-ignore - userId might be set on window
-        if (!userId && window.userId) {
-            // @ts-ignore - userId might be set on window
-            userId = window.userId.toString();
-            console.log('Found user ID in window object:', userId);
-        }
-        
-        // Method 4: Try to get from localStorage (might be set during login)
-        if (!userId && localStorage.getItem('user_id')) {
-            userId = localStorage.getItem('user_id');
-            console.log('Found user ID in localStorage:', userId);
-        }
-        
-        // Method 5: Try to get from the URL (if it's in the URL)
-        const urlParams = new URLSearchParams(window.location.search);
-        if (!userId && urlParams.get('user_id')) {
-            userId = urlParams.get('user_id');
-            console.log('Found user ID in URL:', userId);
-        }
-        
-        // Method 6: Try to get from the HTML (might be embedded in a data attribute)
-        const userIdElement = document.getElementById('user-id');
-        if (!userId && userIdElement?.getAttribute('data-user-id')) {
-            userId = userIdElement.getAttribute('data-user-id');
-            console.log('Found user ID in HTML element:', userId);
-        }
-        
-        // Method 7: Try to get from an API call as a last resort
-        if (!userId) {
-                         // Make an API call to get the user ID
-             axios.get('/api/user-id')
-                 .then(response => {
-                     if (response.data && response.data.id) {
-                         userId = response.data.id.toString();
-                        console.log('Found user ID from API call:', userId);
-                        
-                        // Add meta tag dynamically
-                        const meta = document.createElement('meta');
-                        meta.name = 'user-id';
-                        meta.content = userId;
-                        document.head.appendChild(meta);
-                        
-                        // Save in localStorage for future use
-                        localStorage.setItem('user_id', userId);
-                        
-                        // Continue with setup now that we have the user ID
-                        continueSetup(userId);
-                    }
-                })
-                .catch(error => {
-                    console.error('Failed to get user ID from API:', error);
-                });
-        }
-        
-        // If we found a user ID through any of the methods above
-        if (userId) {
-            // Add meta tag dynamically if it doesn't exist
-            if (!document.querySelector('meta[name="user-id"]')) {
-                const meta = document.createElement('meta');
-                meta.name = 'user-id';
-                meta.content = userId;
-                document.head.appendChild(meta);
-                console.log('Added user ID meta tag dynamically');
-                
-                // Save in localStorage for future use
-                localStorage.setItem('user_id', userId);
-            }
-            
-            // Continue with setup
-            return continueSetup(userId);
-        } else {
-            console.error('User ID not found. Real-time notifications will not work.');
-            return;
-        }
-    };
-    
-    // Continue setup once we have a user ID
-    const continueSetup = (userId: string) => {
-        
-        if (!window.Echo) {
-            console.error('Laravel Echo is not initialized. Real-time notifications will not work.');
-            
-            // Wait a bit and check again - Echo might be initialized asynchronously in app.tsx
-            setTimeout(() => {
-                if (window.Echo) {
-                    console.log('Echo is now available, setting up event listeners...');
-                    continueSetup(userId);
-                } else {
-                    console.error('Echo still not available after waiting');
-                }
-            }, 2000);
-            
-            return;
-        }
-        
-        try {
-            console.log(`Setting up event listeners for user ${userId}`);
-            
-            // Listen for new session requests
-            window.Echo.private(`session-requests.${userId}`)
-                .listen('.session.requested', (data: { session: SessionRequest }) => {
-                    console.log('New session request received:', data);
-                    
-                    // Add the new session request to the list
-                    setSessionRequests(prev => [data.session, ...prev]);
-                    setPendingRequestCount(prev => prev + 1);
-                    
-                    // Show a toast notification
-                    toast.info(`New session request from ${data.session.student.name}`);
-                });
-            
-            // Listen for new messages
-            window.Echo.private(`messages.${userId}`)
-                .listen('.message.received', (data: { message: Message }) => {
-                    console.log('New message received:', data);
-                    
-                    // Add the new message to the list
-                    setMessages(prev => [data.message, ...prev]);
-                    setUnreadMessageCount(prev => prev + 1);
-                    
-                    // Show a toast notification
-                    toast.info(`New message from ${data.message.sender.name}`);
-                });
-            
-            // Listen for notifications
-            window.Echo.private(`notifications.${userId}`)
-                .listen('.notification.received', (data: any) => {
-                    console.log('New notification received:', data);
-                    
-                    // Show a toast notification
-                    toast.info(`New notification: ${data.notification?.title || 'System notification'}`);
-                })
-                .listen('.test.broadcast', (data: any) => {
-                    console.log('Test broadcast received:', data);
-                    
-                    // Show a toast notification
-                    toast.info(`Test broadcast: ${data.message || 'Test message'}`);
-                });
-            
-            console.log('Real-time event listeners set up successfully');
-        } catch (error) {
-            console.error('Error setting up real-time event listeners:', error);
-        }
-    };
-    
-    const removeEventListeners = () => {
-        // Try to get user ID using the same methods as setupEventListeners
-        let userId = document.querySelector('meta[name="user-id"]')?.getAttribute('content');
-        
-        if (!userId) {
-            // Try localStorage as a backup
-            userId = localStorage.getItem('user_id');
-        }
-        
-        // If not found, try to get from Inertia page props
-        // @ts-ignore - Inertia is available globally but TypeScript doesn't know about it
-        if (!userId && window.Inertia?.page?.props?.auth?.user?.id) {
-            // @ts-ignore - Inertia is available globally but TypeScript doesn't know about it
-            userId = window.Inertia.page.props.auth.user.id.toString();
-        }
-        
-        if (!userId || !window.Echo) {
-            return;
-        }
-        
-        try {
-            console.log(`Removing event listeners for user ${userId}`);
-            
-            window.Echo.leave(`session-requests.${userId}`);
-            window.Echo.leave(`messages.${userId}`);
-            window.Echo.leave(`notifications.${userId}`);
-            
-            console.log('Real-time event listeners removed successfully');
-        } catch (error) {
-            console.error('Error removing real-time event listeners:', error);
-        }
-    };
     
     const fetchSidebarData = async () => {
         try {
             setLoading(true);
             console.log('Fetching sidebar data...');
             
-            console.log('Trying endpoint: /api/teacher/sidebar-data');
-            const response = await axios.get('/api/teacher/sidebar-data');
-            console.log('Endpoint response:', response.data);
-            
-            setSessionRequests(response.data.session_requests || []);
-            setMessages(response.data.messages || []);
-            setOnlineStudents(response.data.online_students || []);
-            setUnreadMessageCount(response.data.unread_message_count || 0);
-            setPendingRequestCount(response.data.pending_request_count || 0);
+            // Set empty data since API endpoints have been removed
+            setSessionRequests([]);
+            setMessages([]);
+            setOnlineStudents([]);
+            setUnreadMessageCount(0);
+            setPendingRequestCount(0);
         } catch (error) {
             console.error('Failed to fetch sidebar data:', error);
             
@@ -291,9 +87,6 @@ export default function TeacherRightSidebar({
             setOnlineStudents([]);
             setUnreadMessageCount(0);
             setPendingRequestCount(0);
-            
-            // Show a toast notification for the error
-            toast.error('Failed to load sidebar data. Please try again later.');
         } finally {
             setLoading(false);
         }
@@ -302,9 +95,8 @@ export default function TeacherRightSidebar({
     const handleAcceptRequest = async (id: number) => {
         try {
             setProcessingRequestId(id);
-            await axios.post(`/api/teacher/session-requests/${id}/accept`);
             
-            // Remove the request from the list
+            // Remove the request from the list (API endpoint removed)
             setSessionRequests(sessionRequests.filter(request => request.id !== id));
             setPendingRequestCount(prev => prev - 1);
             
@@ -320,9 +112,8 @@ export default function TeacherRightSidebar({
     const handleDeclineRequest = async (id: number) => {
         try {
             setProcessingRequestId(id);
-            await axios.post(`/api/teacher/session-requests/${id}/decline`);
             
-            // Remove the request from the list
+            // Remove the request from the list (API endpoint removed)
             setSessionRequests(sessionRequests.filter(request => request.id !== id));
             setPendingRequestCount(prev => prev - 1);
             

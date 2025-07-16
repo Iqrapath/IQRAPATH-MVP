@@ -8,7 +8,7 @@ use App\Http\Controllers\SubjectController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use App\Http\Controllers\Teacher\SidebarController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -70,15 +70,7 @@ require __DIR__.'/feedback.php';
 if (app()->environment(['local', 'development'])) {
     Route::middleware(['auth'])->group(function () {
         
-        // Debug route for broadcasting - simplified
-        Route::get('/debug-broadcasting', function () {
-            return response()->json([
-                'success' => true,
-                'message' => 'Broadcasting system is configured',
-                'user_id' => Auth::id(),
-                'timestamp' => now()->format('Y-m-d H:i:s'),
-            ]);
-        })->name('debug-broadcasting');
+        
     });
 }
 
@@ -93,20 +85,4 @@ Route::middleware(['auth'])->group(function () {
             'auth_user' => Auth::check() ? Auth::user()->id : 'Not authenticated'
         ]);
     });
-    
-    // Broadcasting auth routes with minimal middleware
-    Route::match(['get', 'post'], '/broadcasting/auth', [\App\Http\Controllers\BroadcastController::class, 'authenticate'])
-        ->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class]);
-        
-    // API-based broadcasting auth route
-    Route::match(['get', 'post'], '/api/broadcasting/auth', [\App\Http\Controllers\BroadcastController::class, 'authenticate'])
-        ->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class])
-        ->middleware('auth');
-});
-
-// Teacher API routes
-Route::middleware(['auth'])->group(function () {
-    Route::get('/api/teacher/sidebar-data', [SidebarController::class, 'getData']);
-    Route::post('/api/teacher/session-requests/{id}/accept', [SidebarController::class, 'acceptSessionRequest']);
-    Route::post('/api/teacher/session-requests/{id}/decline', [SidebarController::class, 'declineSessionRequest']);
 });
