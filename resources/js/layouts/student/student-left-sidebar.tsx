@@ -19,9 +19,8 @@ import {
     GraduationCap,
     Clock,
     MessageSquare,
-    BookMarked,
-    Award,
-    X
+    X,
+    UserCircle
 } from 'lucide-react';
 import React from 'react';
 import { Button } from '@/components/ui/button';
@@ -84,41 +83,34 @@ export default function StudentLeftSidebar({ className, isMobile = false, onClos
             icon: LayoutDashboard,
         },
         {
-            title: 'My Courses',
-            href: '/student/courses',
-            icon: BookMarked,
-        },
-        {
-            title: 'My Sessions',
-            href: '/student/sessions',
+            title: 'Schedule',
+            href: '/student/schedule',
             icon: Calendar,
         },
         {
-            title: 'Learning Progress',
-            href: '/student/progress',
-            icon: Award,
+            title: 'Requests',
+            href: '/student/requests',
+            icon: FileText,
         },
         {
-            title: 'My Teachers',
-            href: '/student/teachers',
-            icon: GraduationCap,
+            title: 'Earnings',
+            href: '/student/earnings',
+            icon: CreditCard,
         },
         {
             title: 'Messages',
             href: '/student/messages',
             icon: MessageSquare,
-            divider: true,
         },
         {
-            title: 'Payments',
-            href: '/student/payments',
-            icon: CreditCard,
+            title: 'Profile',
+            href: '/student/profile',
+            icon: UserCircle,
         },
         {
-            title: 'Subscription',
-            href: '/student/subscription',
-            icon: BookOpenCheck,
-            divider: true,
+            title: 'Rating & Feedback',
+            href: '/student/feedback',
+            icon: Star,
         },
         {
             title: 'Settings',
@@ -126,15 +118,9 @@ export default function StudentLeftSidebar({ className, isMobile = false, onClos
             icon: Settings,
         },
         {
-            title: 'Notifications',
+            title: 'Notification',
             href: '/student/notifications',
             icon: Bell,
-        },
-        {
-            title: 'Feedback & Support',
-            href: '/student/support',
-            icon: FeedbackSupportIcon,
-            iconType: 'custom',
         },
         {
             title: 'Log out',
@@ -161,7 +147,7 @@ export default function StudentLeftSidebar({ className, isMobile = false, onClos
     return (
         <div
             className={cn(
-                "flex flex-col h-full bg-[#2c7870] text-white rounded-xl overflow-hidden relative",
+                "flex flex-col p-4 space-y-4 bg-teal-600 text-white rounded-xl overflow-hidden relative",
                 "w-60",
                 isMobile && "shadow-xl",
                 className
@@ -170,7 +156,7 @@ export default function StudentLeftSidebar({ className, isMobile = false, onClos
         >
             {isMobile && (
                 <div className="flex justify-between items-center p-4 border-b border-teal-500">
-                    <p className="text-xs uppercase tracking-wider text-white/80 font-medium">STUDENT</p>
+                    <p className="text-xs uppercase tracking-wider text-white/80 font-medium">MAIN</p>
                     <Button variant="ghost" size="sm" className="text-white p-1 h-auto" onClick={onClose}>
                         <X className="h-4 w-4" />
                     </Button>
@@ -180,7 +166,7 @@ export default function StudentLeftSidebar({ className, isMobile = false, onClos
                 <div className={`${isMobile ? '' : 'pt-5'} px-1`}>
                     {!isMobile && (
                         <p className="text-xs uppercase tracking-wider text-white/80 font-medium px-3 mb-1.5">
-                            STUDENT
+                            MAIN
                         </p>
                     )}
                     <nav className="space-y-1">

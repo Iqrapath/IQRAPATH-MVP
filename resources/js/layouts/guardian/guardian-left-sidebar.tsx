@@ -19,12 +19,8 @@ import {
     GraduationCap,
     Clock,
     MessageSquare,
-    BookMarked,
-    Award,
     X,
-    UserRound,
-    School,
-    HeartHandshake
+    UserCircle
 } from 'lucide-react';
 import React from 'react';
 import { Button } from '@/components/ui/button';
@@ -87,41 +83,34 @@ export default function GuardianLeftSidebar({ className, isMobile = false, onClo
             icon: LayoutDashboard,
         },
         {
-            title: 'My Children',
-            href: '/guardian/children',
-            icon: UserRound,
-        },
-        {
-            title: 'Sessions Calendar',
-            href: '/guardian/sessions',
+            title: 'Schedule',
+            href: '/guardian/schedule',
             icon: Calendar,
         },
         {
-            title: 'Learning Progress',
-            href: '/guardian/progress',
-            icon: Award,
+            title: 'Requests',
+            href: '/guardian/requests',
+            icon: FileText,
         },
         {
-            title: 'Teachers',
-            href: '/guardian/teachers',
-            icon: School,
+            title: 'Earnings',
+            href: '/guardian/earnings',
+            icon: CreditCard,
         },
         {
             title: 'Messages',
             href: '/guardian/messages',
             icon: MessageSquare,
-            divider: true,
         },
         {
-            title: 'Payments',
-            href: '/guardian/payments',
-            icon: CreditCard,
+            title: 'Profile',
+            href: '/guardian/profile',
+            icon: UserCircle,
         },
         {
-            title: 'Subscription',
-            href: '/guardian/subscription',
-            icon: BookOpenCheck,
-            divider: true,
+            title: 'Rating & Feedback',
+            href: '/guardian/feedback',
+            icon: Star,
         },
         {
             title: 'Settings',
@@ -129,14 +118,9 @@ export default function GuardianLeftSidebar({ className, isMobile = false, onClo
             icon: Settings,
         },
         {
-            title: 'Notifications',
+            title: 'Notification',
             href: '/guardian/notifications',
             icon: Bell,
-        },
-        {
-            title: 'Support',
-            href: '/guardian/support',
-            icon: HeartHandshake,
         },
         {
             title: 'Log out',
@@ -163,7 +147,7 @@ export default function GuardianLeftSidebar({ className, isMobile = false, onClo
     return (
         <div
             className={cn(
-                "flex flex-col h-full bg-[#3b6a64] text-white rounded-xl overflow-hidden relative",
+                "flex flex-col p-4 space-y-4 bg-teal-600 text-white rounded-xl overflow-hidden relative",
                 "w-60",
                 isMobile && "shadow-xl",
                 className
@@ -172,7 +156,7 @@ export default function GuardianLeftSidebar({ className, isMobile = false, onClo
         >
             {isMobile && (
                 <div className="flex justify-between items-center p-4 border-b border-teal-500">
-                    <p className="text-xs uppercase tracking-wider text-white/80 font-medium">GUARDIAN</p>
+                    <p className="text-xs uppercase tracking-wider text-white/80 font-medium">MAIN</p>
                     <Button variant="ghost" size="sm" className="text-white p-1 h-auto" onClick={onClose}>
                         <X className="h-4 w-4" />
                     </Button>
@@ -182,7 +166,7 @@ export default function GuardianLeftSidebar({ className, isMobile = false, onClo
                 <div className={`${isMobile ? '' : 'pt-5'} px-1`}>
                     {!isMobile && (
                         <p className="text-xs uppercase tracking-wider text-white/80 font-medium px-3 mb-1.5">
-                            GUARDIAN
+                            MAIN
                         </p>
                     )}
                     <nav className="space-y-1">

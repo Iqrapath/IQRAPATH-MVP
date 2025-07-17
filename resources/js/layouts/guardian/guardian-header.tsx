@@ -37,8 +37,8 @@ export default function GuardianHeader({
             )}
             
             {/* Logo at left with spacing */}
-            <div className={`flex items-center ${isMobile ? 'w-auto' : 'w-64 pl-4'}`}>
-                <Link href="/guardian/dashboard" className="flex items-center">
+            <div className={`flex items-center ${isMobile ? 'w-auto' : 'w-64 pl-30'}`}>
+                <Link href="/dashboard" className="flex items-center">
                     <AppLogoIcon className={`${isMobile ? 'w-24' : 'w-32'} h-auto`} />
                 </Link>
             </div>
@@ -49,7 +49,7 @@ export default function GuardianHeader({
             </div>
             
             {/* User profile at right with spacing */}
-            <div className={`flex items-center space-x-2 ${isMobile ? 'w-auto' : 'w-64 justify-end pr-4'}`}>
+            <div className={`flex items-center space-x-2 ${isMobile ? 'w-auto' : 'w-64 justify-end pr-20'}`}>
                 {/* Mobile right sidebar toggle */}
                 {isMobile && (
                     <Button variant="ghost" size="icon" onClick={toggleRightSidebar}>

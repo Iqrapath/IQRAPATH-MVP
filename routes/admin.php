@@ -90,4 +90,9 @@ Route::middleware(['auth', 'verified', 'role:super-admin'])->prefix('admin')->na
         Route::post('/faqs/update-order', [FaqController::class, 'updateOrder'])->name('faqs.update-order');
         Route::patch('/faqs/{faq}/toggle-published', [FaqController::class, 'togglePublished'])->name('faqs.toggle-published');
     });
+    
+    // Notifications
+    Route::get('/notifications', function () {
+        return inertia('admin/notifications/notifications');
+    })->name('notifications');
 }); 

@@ -1,8 +1,8 @@
 import { type ReactNode } from 'react';
 import GuardianHeader from './guardian-header';
+import { useState, useEffect } from 'react';
 import GuardianLeftSidebar from './guardian-left-sidebar';
 import GuardianRightSidebar from './guardian-right-sidebar';
-import { useState, useEffect } from 'react';
 
 interface GuardianLayoutProps {
     children: ReactNode;
@@ -65,24 +65,25 @@ export default function GuardianLayout({
     };
 
     return (
-        <div className="flex min-h-screen w-full flex-col">
+        <div className="flex flex-col h-screen w-full overflow-hidden bg-gray-50">
             <GuardianHeader 
                 pageTitle={pageTitle} 
                 toggleLeftSidebar={toggleLeftSidebar}
                 toggleRightSidebar={toggleRightSidebar}
                 isMobile={isMobile}
             />
-            <div className="flex flex-1 relative">
+            <div className="flex flex-1 relative overflow-hidden">
                 {/* Left Sidebar - Hidden on mobile by default, shown when toggled */}
                 <div className={`${isMobile ? 'absolute z-30 h-full' : 'pl-25 pt-2'} ${isMobile && !showLeftSidebar ? 'hidden' : 'block'}`}>
                     <GuardianLeftSidebar 
                         isMobile={isMobile}
-                        onClose={closeLeftSidebar}
+                        // onClose={closeLeftSidebar}
+                        // className="h-full overflow-y-auto"
                     />
                 </div>
 
                 {/* Main Content */}
-                <main className="flex-1 p-6 overflow-x-auto">
+                <main className="flex-1 p-6 overflow-y-auto scrollbar-hide scrollbar-thin scrollbar-thumb-teal-600 scrollbar-track-transparent">
                     {children}
                 </main>
 
@@ -92,6 +93,7 @@ export default function GuardianLayout({
                         <GuardianRightSidebar
                             isMobile={isMobile}
                             onClose={closeRightSidebar}
+                            className="h-full overflow-y-auto"
                         >
                             {rightSidebarContent}
                         </GuardianRightSidebar>

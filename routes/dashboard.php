@@ -41,16 +41,25 @@ Route::middleware(['auth', 'verified', 'role:super-admin'])->prefix('admin')->na
 // Teacher routes
 Route::middleware(['auth', 'verified', 'role:teacher'])->prefix('teacher')->name('teacher.')->group(function () {
     Route::get('/dashboard', [TeacherDashboardController::class, 'index'])->name('dashboard');
+    Route::get('/notifications', function () {
+        return Inertia::render('teacher/notifications/notifications');
+    })->name('notifications');
 });
 
 // Student routes
 Route::middleware(['auth', 'verified', 'role:student'])->prefix('student')->name('student.')->group(function () {
     Route::get('/dashboard', [StudentDashboardController::class, 'index'])->name('dashboard');
+    Route::get('/notifications', function () {
+        return Inertia::render('student/notifications/notifications');
+    })->name('notifications');
 });
 
 // Guardian routes
 Route::middleware(['auth', 'verified', 'role:guardian'])->prefix('guardian')->name('guardian.')->group(function () {
     Route::get('/dashboard', [GuardianDashboardController::class, 'index'])->name('dashboard');
+    Route::get('/notifications', function () {
+        return Inertia::render('guardian/notifications/notifications');
+    })->name('notifications');
 });
 
 // User status routes
