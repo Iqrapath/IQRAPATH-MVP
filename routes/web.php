@@ -65,6 +65,7 @@ require __DIR__.'/subscriptions.php';
 require __DIR__.'/sessions.php';
 require __DIR__.'/payments.php';
 require __DIR__.'/feedback.php';
+require __DIR__.'/notifications.php';
 
 // Debug routes - only available in local environment
 if (app()->environment(['local', 'development'])) {
