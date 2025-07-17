@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\NotificationResource;
 use App\Models\Notification;
+use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -34,6 +35,48 @@ class NotificationController extends Controller
         $notifications = $this->notificationService->getUserNotifications($request->user(), $perPage);
         
         return NotificationResource::collection($notifications);
+    }
+
+    /**
+     * Store a newly created notification in storage.
+     */
+    public function store(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'title' => 'required|string|min:3',
+            'message' => 'required|string|min:10',
+            'type' => 'required|string',
+            'level' => 'required|string|in:info,success,warning,error',
+            'action_text' => 'nullable|string',
+            'action_url' => 'nullable|string',
+            'image_url' => 'nullable|string',
+            'recipient_id' => 'required|integer|exists:users,id',
+        ]);
+        
+        // Get the recipient user
+        $recipient = User::findOrFail($validated['recipient_id']);
+        
+        // Create the notification using the service
+        $notificationType = 'App\\Notifications\\' . $validated['type'];
+        $notificationData = [
+            'title' => $validated['title'],
+            'message' => $validated['message'],
+            'action_text' => $validated['action_text'] ?? null,
+            'action_url' => $validated['action_url'] ?? null,
+            'image_url' => $validated['image_url'] ?? null,
+        ];
+        
+        $notification = $this->notificationService->createNotification(
+            $recipient,
+            $notificationType,
+            $notificationData,
+            $validated['level']
+        );
+        
+        return response()->json([
+            'message' => 'Notification created successfully',
+            'notification' => new NotificationResource($notification)
+        ], 201);
     }
 
     /**

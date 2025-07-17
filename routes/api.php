@@ -1,9 +1,15 @@
+<?php
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\Admin\UrgentActionsController;
+use App\Http\Controllers\API\Admin\UrgentActionsController;
 use App\Http\Controllers\API\NotificationController;
 use App\Http\Controllers\API\UserNotificationController;
 use App\Http\Controllers\API\MessageController;
+use App\Http\Controllers\API\Admin\UserController as AdminUserController;
+use App\Http\Controllers\API\UserController;
+use App\Models\User;
+use App\Http\Controllers\API\UserListController;
 
 /*
 |--------------------------------------------------------------------------
@@ -16,6 +22,18 @@ use App\Http\Controllers\API\MessageController;
 |
 */
 
+// Admin users endpoint for notifications
+Route::middleware('auth')->get('/admin/users', function (Request $request) {
+    // Check if user is admin or super-admin
+    if (!in_array($request->user()->role, ['admin', 'super-admin'])) {
+        return response()->json(['error' => 'Unauthorized'], 403);
+    }
+    
+    return User::select('id', 'name')
+        ->orderBy('name')
+        ->get();
+});
+
 // Test endpoint for notification system
 Route::get('/test-notification', function () {
     return response()->json([
@@ -24,6 +42,9 @@ Route::get('/test-notification', function () {
         'timestamp' => now()->toDateTimeString()
     ]);
 });
+
+// User list endpoint for notifications
+Route::middleware('auth')->get('/users/list', [UserListController::class, 'index']);
 
 Route::middleware('auth')->get('/user', function (Request $request) {
     return $request->user();
@@ -56,12 +77,19 @@ Route::middleware('auth')->group(function () {
     Route::get('/messages/user/{user}', [MessageController::class, 'withUser']);
     Route::post('/messages/{message}/read', [MessageController::class, 'markAsRead']);
     Route::post('/messages/read-all', [MessageController::class, 'markAllAsRead']);
+    
+    // User list for notifications
+    Route::get('/users/list', [UserListController::class, 'index']);
 });
 
 // Admin API routes
 Route::middleware(['auth', 'role:admin,super-admin'])
     ->prefix('admin')
     ->group(function () {
-        Route::get('/urgent-actions', [UrgentActionsController::class, 'index'])
-            ->name('api.admin.urgent-actions');
+        // Route::get('/urgent-actions', [UrgentActionsController::class, 'index'])
+        //     ->name('api.admin.urgent-actions');
+        
+        // Add users endpoint for notifications
+        Route::get('/users', [UserController::class, 'index'])
+            ->name('api.admin.users');
     }); 

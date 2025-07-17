@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Notification;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 class NotificationService
 {
@@ -51,6 +52,29 @@ class NotificationService
             ->where('notifiable_id', $user->id)
             ->whereNull('read_at')
             ->count();
+    }
+
+    /**
+     * Create a notification for a user
+     *
+     * @param User $recipient
+     * @param string $type
+     * @param array $data
+     * @param string $level
+     * @return Notification
+     */
+    public function createNotification(User $recipient, string $type, array $data, string $level = 'info'): Notification
+    {
+        $notification = new Notification();
+        $notification->id = (string) Str::uuid();
+        $notification->type = $type;
+        $notification->notifiable_type = User::class;
+        $notification->notifiable_id = $recipient->id;
+        $notification->level = $level;
+        $notification->data = $data;
+        $notification->save();
+        
+        return $notification;
     }
 
     /**

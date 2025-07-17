@@ -61,9 +61,18 @@ Route::prefix('api')->group(function () {
 
     // Auth required routes
     Route::middleware('auth')->group(function () {
+        // Get current user
+        Route::get('/user', function () {
+            return request()->user();
+        });
+        
+        // Get user list for notifications
+        Route::get('/users/list', [App\Http\Controllers\API\UserListController::class, 'index']);
+        
         // User notifications
         Route::get('/notifications', [App\Http\Controllers\API\NotificationController::class, 'index']);
         Route::get('/notifications/{notification}', [App\Http\Controllers\API\NotificationController::class, 'show']);
+        Route::post('/notifications', [App\Http\Controllers\API\NotificationController::class, 'store']);
         Route::post('/notifications/{notification}/read', [App\Http\Controllers\API\NotificationController::class, 'markAsRead']);
         Route::post('/notifications/read-all', [App\Http\Controllers\API\NotificationController::class, 'markAllAsRead']);
         Route::delete('/notifications/{notification}', [App\Http\Controllers\API\NotificationController::class, 'destroy']);
