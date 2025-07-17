@@ -14,7 +14,7 @@ import { useNotifications } from '@/hooks/use-notifications';
 import { BellNotificationIcon } from '@/components/icons/bell-notification-icon';
 import { formatDistanceToNow } from 'date-fns';
 import { Check, Trash2, Bell, BellOff } from 'lucide-react';
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { cn } from '@/lib/utils';
 
 interface NotificationDropdownProps {
@@ -23,6 +23,9 @@ interface NotificationDropdownProps {
 }
 
 export function NotificationDropdown({ className, iconSize = 24 }: NotificationDropdownProps) {
+  const { auth } = usePage().props as any;
+  const userRole = auth?.user?.role;
+  
   const {
     notifications,
     unreadCount,
@@ -57,6 +60,22 @@ export function NotificationDropdown({ className, iconSize = 24 }: NotificationD
       default:
         return <Bell className="h-4 w-4 text-gray-500" />;
     }
+  };
+  
+  // Get the correct notification route based on user role
+  const getNotificationsRoute = () => {
+    if (userRole === 'super-admin') {
+      return route('admin.notifications');
+    } else if (userRole === 'teacher') {
+      return route('teacher.notifications');
+    } else if (userRole === 'student') {
+      return route('student.notifications');
+    } else if (userRole === 'guardian') {
+      return route('guardian.notifications');
+    }
+    
+    // Fallback to the general notifications route
+    return route('notifications');
   };
 
   return (
@@ -195,7 +214,7 @@ export function NotificationDropdown({ className, iconSize = 24 }: NotificationD
         
         <DropdownMenuSeparator />
         <Link
-          href="/notifications"
+          href={getNotificationsRoute()}
           className="block w-full rounded-sm px-3 py-2 text-center text-xs font-medium hover:bg-muted"
         >
           View all notifications

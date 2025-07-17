@@ -4,6 +4,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\API\NotificationController;
 use App\Http\Controllers\API\UserNotificationController;
 use App\Http\Controllers\API\MessageController;
+use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 /*
 |--------------------------------------------------------------------------
@@ -11,55 +13,60 @@ use App\Http\Controllers\API\MessageController;
 |--------------------------------------------------------------------------
 |
 | Here is where you can register notification-related routes for your application.
+| This file contains both web routes (for UI pages) and API routes (for data).
 |
 */
 
-// Test endpoint for notification system
-Route::get('/test-notification', function () {
-    return response()->json([
-        'status' => 'success',
-        'message' => 'Notification system is working',
-        'timestamp' => now()->toDateTimeString()
-    ]);
+// WEB ROUTES - UI pages for notifications
+// Main notification page that redirects to role-specific pages
+Route::middleware(['auth', 'verified'])->group(function () {
+    // This is the main notification route that redirects based on role
+    Route::get('/notifications', function () {
+        $user = Auth::user();
+        $role = $user->role;
+        
+        if ($role === 'super-admin') {
+            return redirect()->route('admin.notifications');
+        } elseif ($role === 'teacher') {
+            return redirect()->route('teacher.notifications');
+        } elseif ($role === 'student') {
+            return redirect()->route('student.notifications');
+        } elseif ($role === 'guardian') {
+            return redirect()->route('guardian.notifications');
+        } else {
+            // Fallback to a generic notifications page
+            return Inertia::render('unassigned');
+        }
+    })->name('notifications');
 });
 
-// Notification routes
-Route::middleware('auth:sanctum')->group(function () {
+// API ROUTES - Data endpoints for notifications
+Route::prefix('api')->middleware('auth')->group(function () {
+    // Test endpoint for notification system - no auth required
+    Route::get('/test-notification', function () {
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Notification system is working',
+            'timestamp' => now()->toDateTimeString()
+        ]);
+    });
+    
     // User notifications
-    Route::get('/notifications', [NotificationController::class, 'index'])
-        ->name('notifications.index');
-    
-    Route::get('/notifications/{notification}', [NotificationController::class, 'show'])
-        ->name('notifications.show');
-    
-    Route::post('/notifications/{notification}/read', [NotificationController::class, 'markAsRead'])
-        ->name('notifications.read');
-    
-    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead'])
-        ->name('notifications.read.all');
-    
-    Route::delete('/notifications/{notification}', [NotificationController::class, 'destroy'])
-        ->name('notifications.destroy');
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::get('/notifications/{notification}', [NotificationController::class, 'show']);
+    Route::post('/notifications', [NotificationController::class, 'store']);
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+    Route::delete('/notifications/{notification}', [NotificationController::class, 'destroy']);
     
     // User-specific notification endpoints
-    Route::get('/user/notifications', [UserNotificationController::class, 'index'])
-        ->name('user.notifications.index');
-    
-    Route::get('/user/notifications/unread', [UserNotificationController::class, 'unread'])
-        ->name('user.notifications.unread');
-    
-    Route::get('/user/notifications/count', [UserNotificationController::class, 'count'])
-        ->name('user.notifications.count');
+    Route::get('/user/notifications', [UserNotificationController::class, 'index']);
+    Route::get('/user/notifications/unread', [UserNotificationController::class, 'unread']);
+    Route::get('/user/notifications/count', [UserNotificationController::class, 'count']);
     
     // Message endpoints
     Route::apiResource('messages', MessageController::class);
-    
-    Route::get('/messages/user/{user}', [MessageController::class, 'withUser'])
-        ->name('messages.with.user');
-    
-    Route::post('/messages/{message}/read', [MessageController::class, 'markAsRead'])
-        ->name('messages.read');
-    
-    Route::post('/messages/read-all', [MessageController::class, 'markAllAsRead'])
-        ->name('messages.read.all');
+    Route::get('/messages/user/{user}', [MessageController::class, 'withUser']);
+    Route::post('/messages/{message}/read', [MessageController::class, 'markAsRead']);
+    Route::post('/messages/read-all', [MessageController::class, 'markAllAsRead']);
 }); 
