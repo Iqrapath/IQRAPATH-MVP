@@ -68,6 +68,19 @@ export interface Notification {
     channel?: 'database' | 'mail' | 'broadcast';
 }
 
+export interface Message {
+    id: number;
+    sender_id: number;
+    recipient_id: number;
+    content: string;
+    read_at: string | null;
+    created_at: string;
+    updated_at: string;
+    sender?: User;
+    recipient?: User;
+    attachments?: any[];
+}
+
 export interface AdminProfile {
     id: number;
     user_id: number;

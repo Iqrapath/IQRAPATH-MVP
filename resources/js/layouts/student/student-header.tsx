@@ -7,8 +7,8 @@ import { useInitials } from '@/hooks/use-initials';
 import { type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import { ChevronDown, Menu, PanelRight } from 'lucide-react';
-import MessageIcon from '@/components/icons/message-icon';
 import { NotificationDropdown } from '@/components/notification/notification-dropdown';
+import { MessageDropdown } from '@/components/message/message-dropdown';
 
 interface StudentHeaderProps {
     pageTitle: string;
@@ -57,14 +57,10 @@ export default function StudentHeader({
                     </Button>
                 )}
 
-                {/* Messages - hide on smallest screens */}
-                {!isMobile && (
-                    <Button variant="ghost" size="icon" className="relative">
-                        <MessageIcon style={{ width: '40px', height: '40px' }} />
-                    </Button>
-                )}
+                {/* Messages */}
+                <MessageDropdown iconSize={isMobile ? 40 : 40} />
 
-                {/* Notifications dropdown */}
+                {/* Notifications */}
                 <NotificationDropdown iconSize={isMobile ? 24 : 32} />
 
                 {/* User Profile */}
