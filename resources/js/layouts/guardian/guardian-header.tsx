@@ -8,6 +8,7 @@ import { type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import { ChevronDown, Menu, PanelRight } from 'lucide-react';
 import MessageIcon from '@/components/icons/message-icon';
+import { NotificationDropdown } from '@/components/notification/notification-dropdown';
 
 interface GuardianHeaderProps {
     pageTitle: string;
@@ -55,6 +56,9 @@ export default function GuardianHeader({
                         <PanelRight className="h-5 w-5" />
                     </Button>
                 )}
+
+                {/* Notifications dropdown */}
+                <NotificationDropdown iconSize={isMobile ? 24 : 32} />
 
                 {/* Messages - hide on smallest screens */}
                 {!isMobile && (

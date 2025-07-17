@@ -47,6 +47,27 @@ export interface User {
     email_verified_at?: string | null;
 }
 
+export interface Notification {
+    id: string;
+    type: string;
+    notifiable_type: string;
+    notifiable_id: number;
+    data: {
+        title: string;
+        message: string;
+        action_text?: string;
+        action_url?: string;
+        image_url?: string;
+        sender_id?: number;
+        sender_name?: string;
+        sender_avatar?: string;
+    };
+    read_at: string | null;
+    created_at: string;
+    level?: 'info' | 'success' | 'warning' | 'error';
+    channel?: 'database' | 'mail' | 'broadcast';
+}
+
 export interface AdminProfile {
     id: number;
     user_id: number;

@@ -35,8 +35,6 @@ Route::get('/faqs', function () {
 
 // Teacher document routes
 Route::middleware(['auth', 'verified', 'role:teacher'])->prefix('teacher')->group(function () {
-    Route::get('/dashboard', [App\Http\Controllers\Teacher\DashboardController::class, 'index'])->name('teacher.dashboard');
-    
     // Subject routes nested under teacher
     Route::resource('subjects', SubjectController::class);
     
@@ -45,14 +43,42 @@ Route::middleware(['auth', 'verified', 'role:teacher'])->prefix('teacher')->grou
     Route::get('/documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
 });
 
-// Student routes
-Route::middleware(['auth', 'verified', 'role:student'])->prefix('student')->group(function () {
-    Route::get('/dashboard', [App\Http\Controllers\Student\DashboardController::class, 'index'])->name('student.dashboard');
-});
+// Notifications page
+Route::middleware(['auth', 'verified'])->get('/notifications', function () {
+    return inertia('notifications/index');
+})->name('notifications');
 
-// Guardian routes
-Route::middleware(['auth', 'verified', 'role:guardian'])->prefix('guardian')->group(function () {
-    Route::get('/dashboard', [App\Http\Controllers\Guardian\DashboardController::class, 'index'])->name('guardian.dashboard');
+// API notification routes
+Route::prefix('api')->group(function () {
+    // Test endpoint for notification system - no auth required
+    Route::get('/test-notification', function () {
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Notification system is working',
+            'timestamp' => now()->toDateTimeString()
+        ]);
+    });
+
+    // Auth required routes
+    Route::middleware('auth')->group(function () {
+        // User notifications
+        Route::get('/notifications', [App\Http\Controllers\API\NotificationController::class, 'index']);
+        Route::get('/notifications/{notification}', [App\Http\Controllers\API\NotificationController::class, 'show']);
+        Route::post('/notifications/{notification}/read', [App\Http\Controllers\API\NotificationController::class, 'markAsRead']);
+        Route::post('/notifications/read-all', [App\Http\Controllers\API\NotificationController::class, 'markAllAsRead']);
+        Route::delete('/notifications/{notification}', [App\Http\Controllers\API\NotificationController::class, 'destroy']);
+        
+        // User-specific notification endpoints
+        Route::get('/user/notifications', [App\Http\Controllers\API\UserNotificationController::class, 'index']);
+        Route::get('/user/notifications/unread', [App\Http\Controllers\API\UserNotificationController::class, 'unread']);
+        Route::get('/user/notifications/count', [App\Http\Controllers\API\UserNotificationController::class, 'count']);
+        
+        // Message endpoints
+        Route::apiResource('messages', App\Http\Controllers\API\MessageController::class);
+        Route::get('/messages/user/{user}', [App\Http\Controllers\API\MessageController::class, 'withUser']);
+        Route::post('/messages/{message}/read', [App\Http\Controllers\API\MessageController::class, 'markAsRead']);
+        Route::post('/messages/read-all', [App\Http\Controllers\API\MessageController::class, 'markAllAsRead']);
+    });
 });
 
 // Include other route files

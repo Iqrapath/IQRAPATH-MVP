@@ -25,7 +25,7 @@ Route::get('/test-notification', function () {
     ]);
 });
 
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
+Route::middleware('auth')->get('/user', function (Request $request) {
     return $request->user();
 });
 
@@ -38,7 +38,7 @@ Route::middleware('auth')->get('/user-id', function (Request $request) {
 });
 
 // Notification routes
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware('auth')->group(function () {
     // User notifications
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::get('/notifications/{notification}', [NotificationController::class, 'show']);
@@ -59,7 +59,7 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 // Admin API routes
-Route::middleware(['auth:sanctum', 'role:admin,super-admin'])
+Route::middleware(['auth', 'role:admin,super-admin'])
     ->prefix('admin')
     ->group(function () {
         Route::get('/urgent-actions', [UrgentActionsController::class, 'index'])

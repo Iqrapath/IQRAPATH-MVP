@@ -8,6 +8,7 @@ import { type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import { ChevronDown, Menu, PanelRight } from 'lucide-react';
 import MessageIcon from '@/components/icons/message-icon';
+import { NotificationDropdown } from '@/components/notification/notification-dropdown';
 
 interface StudentHeaderProps {
     pageTitle: string;
@@ -62,6 +63,9 @@ export default function StudentHeader({
                         <MessageIcon style={{ width: '40px', height: '40px' }} />
                     </Button>
                 )}
+
+                {/* Notifications dropdown */}
+                <NotificationDropdown iconSize={isMobile ? 24 : 32} />
 
                 {/* User Profile */}
                 <DropdownMenu>
