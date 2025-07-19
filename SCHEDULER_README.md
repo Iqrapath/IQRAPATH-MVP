@@ -2,6 +2,15 @@
 
 This document explains how to use the Laravel scheduler in the IQRAPATH application.
 
+## What This Does
+
+The scheduler is responsible for running scheduled tasks in your application, such as:
+
+1. Processing scheduled notifications
+2. Sending session reminders
+3. Running the WebSocket server for real-time notifications
+4. Other background tasks
+
 ## Scheduled Tasks
 
 The following tasks are currently scheduled in the application:

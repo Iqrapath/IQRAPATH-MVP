@@ -13,17 +13,13 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Call the super admin seeder
         $this->call([
             SuperAdminSeeder::class,
             UserSeeder::class,
             TeachingSessionSeeder::class,
+            NotificationTemplateSeeder::class,
+            NotificationTriggerSeeder::class,
         ]);
-
-        // User::factory(10)->create();
-
-        // User::factory()->create([
-        //     'name' => 'Test User',
-        //     'email' => 'test@example.com',
-        // ]);
     }
 }

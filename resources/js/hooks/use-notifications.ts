@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import { usePage } from '@inertiajs/react';
 import { Notification } from '@/types';
 
 // Configure axios to include CSRF token and credentials
@@ -7,8 +8,9 @@ axios.defaults.withCredentials = true;
 axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 
 interface UseNotificationsOptions {
-  pollingInterval?: number;
+  pollingInterval?: number | null;
   initialFetch?: boolean;
+  useWebSockets?: boolean;
 }
 
 interface UseNotificationsReturn {
@@ -23,13 +25,15 @@ interface UseNotificationsReturn {
 }
 
 export const useNotifications = ({
-  pollingInterval = 30000, // 30 seconds by default
+  pollingInterval = null, // WebSockets by default, fall back to polling if specified
   initialFetch = true,
+  useWebSockets = true,
 }: UseNotificationsOptions = {}): UseNotificationsReturn => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
+  const { auth } = usePage().props as any;
 
   const fetchNotifications = useCallback(async () => {
     setIsLoading(true);
@@ -110,13 +114,33 @@ export const useNotifications = ({
     }
   }, [fetchNotifications, initialFetch]);
 
-  // Polling for new notifications
+  // Set up WebSockets or polling
   useEffect(() => {
-    if (pollingInterval > 0) {
+    if (useWebSockets && window.Echo) {
+      // Get user ID from Inertia shared data
+      const userId = auth?.userId;
+      
+      if (userId) {
+        const channel = window.Echo.private(`user.${userId}`);
+        
+        channel.notification((notification: Notification) => {
+          // Add the new notification to the list
+          setNotifications(prev => [notification, ...prev]);
+          
+          // Update unread count
+          setUnreadCount(prev => prev + 1);
+        });
+        
+        return () => {
+          channel.stopListening('notification');
+        };
+      }
+    } else if (pollingInterval && pollingInterval > 0) {
+      // Fall back to polling if WebSockets are not available or disabled
       const intervalId = setInterval(fetchNotifications, pollingInterval);
       return () => clearInterval(intervalId);
     }
-  }, [fetchNotifications, pollingInterval]);
+  }, [fetchNotifications, pollingInterval, useWebSockets, auth?.userId]);
 
   return {
     notifications,

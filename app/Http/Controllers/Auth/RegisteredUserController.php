@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Events\UserRegistered;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -78,7 +79,11 @@ class RegisteredUserController extends Controller
 
         $user = User::create($userData);
 
+        // Dispatch Laravel's built-in Registered event
         event(new Registered($user));
+        
+        // Dispatch our custom UserRegistered event
+        event(new UserRegistered($user));
 
         Auth::login($user);
 

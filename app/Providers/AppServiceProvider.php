@@ -2,8 +2,9 @@
 
 namespace App\Providers;
 
-use App\Services\SettingsService;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\ServiceProvider;
+use Inertia\Inertia;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -12,9 +13,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->singleton(SettingsService::class, function ($app) {
-            return new SettingsService();
-        });
+        // $this->app->singleton(SettingsService::class, function ($app) {
+        //     return new SettingsService();
+        // });
     }
 
     /**
@@ -22,6 +23,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Share auth user ID with all Inertia requests for WebSocket authentication
+        Inertia::share([
+            'auth.userId' => fn () => Auth::id(),
+        ]);
     }
 }

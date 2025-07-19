@@ -6,8 +6,10 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Notifications\Messages\BroadcastMessage;
 
-class SystemNotification extends Notification implements ShouldQueue
+class SystemNotification extends Notification implements ShouldQueue, ShouldBroadcast
 {
     use Queueable;
 
@@ -36,7 +38,7 @@ class SystemNotification extends Notification implements ShouldQueue
      */
     public function via(object $notifiable): array
     {
-        return ['database', 'mail'];
+        return ['database', 'mail', 'broadcast'];
     }
 
     /**
@@ -63,18 +65,30 @@ class SystemNotification extends Notification implements ShouldQueue
      */
     public function toArray(object $notifiable): array
     {
-        $data = [
+        return [
             'title' => $this->title,
             'message' => $this->message,
+            'action_text' => $this->actionText,
+            'action_url' => $this->actionUrl,
             'level' => $this->level,
-            'created_at' => now(),
         ];
-        
-        if ($this->actionText && $this->actionUrl) {
-            $data['action_text'] = $this->actionText;
-            $data['action_url'] = $this->actionUrl;
-        }
-        
-        return $data;
+    }
+    
+    /**
+     * Get the broadcastable representation of the notification.
+     *
+     * @param  mixed  $notifiable
+     * @return BroadcastMessage
+     */
+    public function toBroadcast($notifiable): BroadcastMessage
+    {
+        return new BroadcastMessage([
+            'title' => $this->title,
+            'message' => $this->message,
+            'action_text' => $this->actionText,
+            'action_url' => $this->actionUrl,
+            'level' => $this->level,
+            'created_at' => now()->toIso8601String(),
+        ]);
     }
 }

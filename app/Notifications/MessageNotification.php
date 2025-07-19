@@ -7,8 +7,10 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Notifications\Messages\BroadcastMessage;
 
-class MessageNotification extends Notification implements ShouldQueue
+class MessageNotification extends Notification implements ShouldQueue, ShouldBroadcast
 {
     use Queueable;
 
@@ -29,7 +31,7 @@ class MessageNotification extends Notification implements ShouldQueue
      */
     public function via(object $notifiable): array
     {
-        return ['database', 'mail'];
+        return ['database', 'mail', 'broadcast'];
     }
 
     /**
@@ -59,28 +61,40 @@ class MessageNotification extends Notification implements ShouldQueue
         
         return [
             'message_id' => $this->message->id,
-            'title' => 'New Message from ' . $sender->name,
-            'message' => $this->truncateContent($this->message->content),
-            'sender' => [
-                'id' => $sender->id,
-                'name' => $sender->name,
-                'avatar' => $sender->avatar,
-            ],
-            'created_at' => $this->message->created_at,
-            'action_text' => 'View Message',
-            'action_url' => '/messages/' . $sender->id,
+            'sender_id' => $sender->id,
+            'sender_name' => $sender->name,
+            'content' => $this->truncateContent($this->message->content),
+            'created_at' => $this->message->created_at->toIso8601String(),
         ];
     }
     
     /**
-     * Truncate the content if it's too long.
+     * Get the broadcastable representation of the notification.
+     *
+     * @param  mixed  $notifiable
+     * @return BroadcastMessage
+     */
+    public function toBroadcast($notifiable): BroadcastMessage
+    {
+        $sender = $this->message->sender;
+        
+        return new BroadcastMessage([
+            'message_id' => $this->message->id,
+            'sender_id' => $sender->id,
+            'sender_name' => $sender->name,
+            'content' => $this->truncateContent($this->message->content),
+            'created_at' => now()->toIso8601String(),
+        ]);
+    }
+    
+    /**
+     * Truncate the message content for preview.
+     *
+     * @param string $content
+     * @return string
      */
     protected function truncateContent(string $content): string
     {
-        if (strlen($content) > 100) {
-            return substr($content, 0, 100) . '...';
-        }
-        
-        return $content;
+        return strlen($content) > 100 ? substr($content, 0, 97) . '...' : $content;
     }
 }
