@@ -81,10 +81,23 @@ export function NotificationDropdown({ className, iconSize = 24 }: NotificationD
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className={cn("relative", className)}>
-          <BellNotificationIcon style={{ width: iconSize, height: iconSize }} />
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className={cn("relative", className)}
+          // Add a subtle pulse animation when there are unread notifications
+          data-has-unread={unreadCount > 0 ? "true" : "false"}
+        >
+          <BellNotificationIcon 
+            style={{ 
+              width: iconSize, 
+              height: iconSize,
+              // Add a subtle color change for unread notifications
+              color: unreadCount > 0 ? 'var(--primary)' : 'currentColor'
+            }} 
+          />
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-medium text-white">
+            <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-medium text-white animate-pulse">
               {unreadCount > 99 ? '99+' : unreadCount}
             </span>
           )}
@@ -133,7 +146,7 @@ export function NotificationDropdown({ className, iconSize = 24 }: NotificationD
                     key={notification.id}
                     className={cn(
                       "flex items-start gap-2 p-3 cursor-pointer",
-                      isUnread && "bg-muted/50"
+                      isUnread ? "bg-muted/50 border-l-2 border-primary" : ""
                     )}
                     onClick={() => {
                       if (isUnread) {
@@ -149,26 +162,31 @@ export function NotificationDropdown({ className, iconSize = 24 }: NotificationD
                     <div className="mt-1">
                       {getNotificationIcon(notification.type, notification.level)}
                     </div>
-                    
-                    <div className="flex-1 space-y-1">
-                      {notification.data.action_url ? (
-                        <Link href={notification.data.action_url} className="block">
-                          <p className="text-sm font-medium leading-none">
-                            {notification.data.title}
-                          </p>
-                          <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
-                            {notification.data.message}
-                          </p>
+                    <div className="flex-1 overflow-hidden">
+                      <div className="flex items-center justify-between">
+                        <p className={cn(
+                          "text-sm font-medium line-clamp-1",
+                          isUnread && "font-semibold text-primary"
+                        )}>
+                          {notification.data.title}
+                        </p>
+                      </div>
+                      <p className="text-xs text-muted-foreground line-clamp-2">
+                        {notification.data.message}
+                      </p>
+                      
+                      {notification.data.action_text && notification.data.action_url && (
+                        <Link
+                          href={notification.data.action_url}
+                          className="mt-1 text-xs text-primary hover:underline inline-block"
+                          onClick={() => {
+                            if (isUnread) {
+                              handleMarkAsRead(notification.id);
+                            }
+                          }}
+                        >
+                          {notification.data.action_text}
                         </Link>
-                      ) : (
-                        <>
-                          <p className="text-sm font-medium leading-none">
-                            {notification.data.title}
-                          </p>
-                          <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
-                            {notification.data.message}
-                          </p>
-                        </>
                       )}
                       
                       <div className="flex items-center justify-between mt-1">

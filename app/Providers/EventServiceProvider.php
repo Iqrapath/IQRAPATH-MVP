@@ -6,6 +6,10 @@ use App\Events\PaymentProcessed;
 use App\Events\SessionScheduled;
 use App\Events\SubscriptionExpiring;
 use App\Events\UserRegistered;
+use App\Events\UserRoleAssigned;
+use App\Events\UserAccountUpdated;
+use App\Listeners\AccountRoleAssignedNotification;
+use App\Listeners\AccountUpdatedNotification;
 use App\Listeners\ProcessNotificationTrigger;
 use App\Listeners\SendPaymentConfirmation;
 use App\Listeners\SendSessionReminder;
@@ -48,6 +52,18 @@ class EventServiceProvider extends ServiceProvider
         // Subscription events
         SubscriptionExpiring::class => [
             SendSubscriptionExpiryReminder::class,
+            ProcessNotificationTrigger::class,
+        ],
+        
+        // User role assignment event
+        UserRoleAssigned::class => [
+            AccountRoleAssignedNotification::class,
+            ProcessNotificationTrigger::class,
+        ],
+        
+        // User account update event
+        UserAccountUpdated::class => [
+            AccountUpdatedNotification::class,
             ProcessNotificationTrigger::class,
         ],
     ];

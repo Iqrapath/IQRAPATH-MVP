@@ -69,6 +69,28 @@ class NotificationTemplateSeeder extends Seeder
                 'action_url' => '/dashboard',
                 'is_active' => true,
             ],
+            [
+                'name' => 'account_role_assigned',
+                'title' => 'Your Account Role Has Been Assigned',
+                'body' => 'Hello {User_Name}, your account has been assigned the role of {Role_Name}. You now have access to all features associated with this role.',
+                'type' => 'system',
+                'placeholders' => ['User_Name', 'Role_Name'],
+                'level' => 'success',
+                'action_text' => 'Go to Dashboard',
+                'action_url' => '/dashboard',
+                'is_active' => true,
+            ],
+            [
+                'name' => 'account_updated',
+                'title' => 'Your Account Has Been Updated',
+                'body' => 'Hello {User_Name}, your account information has been updated. {Update_Details}',
+                'type' => 'system',
+                'placeholders' => ['User_Name', 'Update_Details'],
+                'level' => 'info',
+                'action_text' => 'View Profile',
+                'action_url' => '/settings/profile',
+                'is_active' => true,
+            ],
         ];
 
         foreach ($templates as $template) {

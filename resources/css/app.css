@@ -158,6 +158,27 @@
     }
 }
 
+/* Custom styles for notification bell */
+button[data-has-unread="true"] {
+  position: relative;
+}
+
+button[data-has-unread="true"]::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  background-color: hsl(var(--primary));
+  border-radius: 50%;
+}
+
+/* Subtle glow effect for unread notifications */
+.border-l-primary {
+  box-shadow: 0 0 5px rgba(var(--primary), 0.3);
+}
+
 @layer utilities {
     .transition-width {
         transition-property: width;

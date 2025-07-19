@@ -78,7 +78,7 @@ export default function AdminHeader({
                             {!isMobile && (
                                 <div className="flex flex-col items-start text-sm">
                                     <span className="font-medium">{auth.user.name}</span>
-                                    <span className="text-xs text-muted-foreground">Admin</span>
+                                    <span className="text-xs text-muted-foreground">{auth.user.role ? auth.user.role.charAt(0).toUpperCase() + auth.user.role.slice(1) : 'User'}</span>
                                 </div>
                             )}
                             {!isMobile && <ChevronDown className="h-4 w-4 text-muted-foreground" />}

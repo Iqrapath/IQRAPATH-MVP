@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Illuminate\Support\Facades\Redirect;
 
 class ProfileController extends Controller
 {
@@ -61,7 +62,10 @@ class ProfileController extends Controller
 
         $request->user()->save();
 
-        return to_route('profile.edit');
+        // Dispatch account updated event
+        event(new \App\Events\UserAccountUpdated($request->user(), 'Your profile information has been updated.'));
+
+        return Redirect::route('settings.profile');
     }
 
     /**

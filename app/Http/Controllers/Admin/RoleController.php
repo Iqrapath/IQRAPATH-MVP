@@ -73,9 +73,15 @@ class RoleController extends Controller
 
                 // Create new profile
                 $this->createNewProfile($user, $newRole, $profileData);
+                
+                // Dispatch role assigned event
+                event(new \App\Events\UserRoleAssigned($user, $newRole));
             } else {
                 // Update existing profile
                 $this->updateExistingProfile($user, $newRole, $profileData);
+                
+                // Dispatch account updated event
+                event(new \App\Events\UserAccountUpdated($user, 'Your profile information has been updated.'));
             }
 
             DB::commit();

@@ -78,6 +78,32 @@ class NotificationTriggerSeeder extends Seeder
                 'level' => 'info',
                 'is_enabled' => true,
             ],
+            
+            // Account role assignment notification
+            [
+                'name' => 'Account Role Assigned',
+                'event' => 'UserRoleAssigned',
+                'template_name' => 'account_role_assigned',
+                'audience_type' => 'individual', // Only the user whose role was assigned
+                'audience_filter' => null, // No filter needed, event user is used
+                'channels' => ['in-app', 'mail'],
+                'timing_type' => 'immediate',
+                'level' => 'success',
+                'is_enabled' => true,
+            ],
+            
+            // Account update notification
+            [
+                'name' => 'Account Updated',
+                'event' => 'UserAccountUpdated',
+                'template_name' => 'account_updated',
+                'audience_type' => 'individual', // Only the user whose account was updated
+                'audience_filter' => null, // No filter needed, event user is used
+                'channels' => ['in-app', 'mail'],
+                'timing_type' => 'immediate',
+                'level' => 'info',
+                'is_enabled' => true,
+            ],
         ];
 
         foreach ($triggers as $trigger) {

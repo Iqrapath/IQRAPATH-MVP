@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { usePage } from '@inertiajs/react';
 import { Notification } from '@/types';
+import { toast } from 'sonner';
 
 // Configure axios to include CSRF token and credentials
 axios.defaults.withCredentials = true;
@@ -11,6 +12,7 @@ interface UseNotificationsOptions {
   pollingInterval?: number | null;
   initialFetch?: boolean;
   useWebSockets?: boolean;
+  showToasts?: boolean;
 }
 
 interface UseNotificationsReturn {
@@ -28,6 +30,7 @@ export const useNotifications = ({
   pollingInterval = null, // WebSockets by default, fall back to polling if specified
   initialFetch = true,
   useWebSockets = true,
+  showToasts = true,
 }: UseNotificationsOptions = {}): UseNotificationsReturn => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
@@ -107,6 +110,73 @@ export const useNotifications = ({
     }
   }, [notifications]);
 
+  // Helper function to determine notification icon based on type
+  const getNotificationIcon = (type: string) => {
+    // You can customize this based on notification types in your system
+    switch (type) {
+      case 'App\\Notifications\\MessageNotification':
+        return '💬';
+      case 'App\\Notifications\\PaymentNotification':
+        return '💰';
+      case 'App\\Notifications\\SessionRequestNotification':
+        return '📅';
+      default:
+        return '🔔';
+    }
+  };
+
+  // Helper function to show toast notification
+  const showNotificationToast = (notification: Notification) => {
+    if (!showToasts) return;
+    
+    const icon = getNotificationIcon(notification.type);
+    const title = notification.data.title || 'New notification';
+    const message = notification.data.message || '';
+    const level = notification.level || 'info';
+    const actionText = notification.data.action_text || '';
+    const actionUrl = notification.data.action_url || '';
+    
+    // Show toast based on notification level
+    switch (level) {
+      case 'success':
+        toast.success(`${icon} ${title}`, {
+          description: message,
+          action: actionText ? {
+            label: actionText,
+            onClick: () => window.location.href = actionUrl,
+          } : undefined,
+        });
+        break;
+      case 'error':
+        toast.error(`${icon} ${title}`, {
+          description: message,
+          action: actionText ? {
+            label: actionText,
+            onClick: () => window.location.href = actionUrl,
+          } : undefined,
+        });
+        break;
+      case 'warning':
+        toast.warning(`${icon} ${title}`, {
+          description: message,
+          action: actionText ? {
+            label: actionText,
+            onClick: () => window.location.href = actionUrl,
+          } : undefined,
+        });
+        break;
+      default:
+        toast.info(`${icon} ${title}`, {
+          description: message,
+          action: actionText ? {
+            label: actionText,
+            onClick: () => window.location.href = actionUrl,
+          } : undefined,
+        });
+        break;
+    }
+  };
+
   // Initial fetch
   useEffect(() => {
     if (initialFetch) {
@@ -118,7 +188,7 @@ export const useNotifications = ({
   useEffect(() => {
     if (useWebSockets && window.Echo) {
       // Get user ID from Inertia shared data
-      const userId = auth?.userId;
+      const userId = auth?.user?.id;
       
       if (userId) {
         const channel = window.Echo.private(`user.${userId}`);
@@ -129,6 +199,9 @@ export const useNotifications = ({
           
           // Update unread count
           setUnreadCount(prev => prev + 1);
+          
+          // Show toast notification
+          showNotificationToast(notification);
         });
         
         return () => {
@@ -140,7 +213,7 @@ export const useNotifications = ({
       const intervalId = setInterval(fetchNotifications, pollingInterval);
       return () => clearInterval(intervalId);
     }
-  }, [fetchNotifications, pollingInterval, useWebSockets, auth?.userId]);
+  }, [fetchNotifications, pollingInterval, useWebSockets, auth?.user?.id]);
 
   return {
     notifications,
