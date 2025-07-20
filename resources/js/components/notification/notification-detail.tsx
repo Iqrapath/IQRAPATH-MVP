@@ -67,6 +67,15 @@ export function NotificationDetail({
     }
   };
 
+  // Helper function to handle action URL
+  const handleActionClick = (e: React.MouseEvent) => {
+    // If the URL is not a route (e.g., external URL), open in new tab
+    if (notification.data.action_url && !notification.data.action_url.startsWith('/')) {
+      e.preventDefault();
+      window.open(notification.data.action_url, '_blank');
+    }
+  };
+
   return (
     <Card className={cn("shadow-md", className)}>
       <CardHeader>
@@ -167,11 +176,26 @@ export function NotificationDetail({
       
       {notification.data.action_url && notification.data.action_text && (
         <CardFooter>
-          <Link href={notification.data.action_url}>
-            <Button>
-              {notification.data.action_text}
-            </Button>
-          </Link>
+          {notification.data.action_url.startsWith('/') ? (
+            // Internal URL - use Inertia Link
+            <Link href={notification.data.action_url}>
+              <Button>
+                {notification.data.action_text}
+              </Button>
+            </Link>
+          ) : (
+            // External URL - use regular anchor tag
+            <a 
+              href={notification.data.action_url} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="no-underline"
+            >
+              <Button>
+                {notification.data.action_text}
+              </Button>
+            </a>
+          )}
         </CardFooter>
       )}
     </Card>

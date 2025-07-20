@@ -13,6 +13,7 @@ interface UseNotificationsOptions {
   initialFetch?: boolean;
   useWebSockets?: boolean;
   showToasts?: boolean;
+  showToastsOnInitialFetch?: boolean;
 }
 
 interface UseNotificationsReturn {
@@ -31,11 +32,13 @@ export const useNotifications = ({
   initialFetch = true,
   useWebSockets = true,
   showToasts = true,
+  showToastsOnInitialFetch = true,
 }: UseNotificationsOptions = {}): UseNotificationsReturn => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
+  const [initialFetchDone, setInitialFetchDone] = useState<boolean>(false);
   const { auth } = usePage().props as any;
 
   const fetchNotifications = useCallback(async () => {
@@ -44,7 +47,23 @@ export const useNotifications = ({
     
     try {
       const response = await axios.get('/api/user/notifications');
-      setNotifications(response.data.data);
+      const fetchedNotifications = response.data.data;
+      
+      // Show toast notifications for unread notifications on initial fetch if enabled
+      if (showToasts && showToastsOnInitialFetch && !initialFetchDone) {
+        // Only show toasts for the most recent 3 unread notifications to avoid overwhelming the user
+        const unreadNotifications = fetchedNotifications
+          .filter((notification: Notification) => !notification.read_at)
+          .slice(0, 3);
+          
+        unreadNotifications.forEach((notification: Notification) => {
+          showNotificationToast(notification);
+        });
+        
+        setInitialFetchDone(true);
+      }
+      
+      setNotifications(fetchedNotifications);
       
       // Get unread count
       const countResponse = await axios.get('/api/user/notifications/count');
@@ -54,7 +73,7 @@ export const useNotifications = ({
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [showToasts, showToastsOnInitialFetch, initialFetchDone]);
 
   const markAsRead = useCallback(async (notificationId: string) => {
     try {
@@ -136,6 +155,19 @@ export const useNotifications = ({
     const actionText = notification.data.action_text || '';
     const actionUrl = notification.data.action_url || '';
     
+    // Helper to handle action URL clicks
+    const handleActionClick = () => {
+      if (!actionUrl) return;
+      
+      // If it's an internal URL (starts with /) use window.location
+      // Otherwise open in a new tab for external URLs
+      if (actionUrl.startsWith('/')) {
+        window.location.href = actionUrl;
+      } else {
+        window.open(actionUrl, '_blank');
+      }
+    };
+    
     // Show toast based on notification level
     switch (level) {
       case 'success':
@@ -143,7 +175,7 @@ export const useNotifications = ({
           description: message,
           action: actionText ? {
             label: actionText,
-            onClick: () => window.location.href = actionUrl,
+            onClick: handleActionClick,
           } : undefined,
         });
         break;
@@ -152,7 +184,7 @@ export const useNotifications = ({
           description: message,
           action: actionText ? {
             label: actionText,
-            onClick: () => window.location.href = actionUrl,
+            onClick: handleActionClick,
           } : undefined,
         });
         break;
@@ -161,7 +193,7 @@ export const useNotifications = ({
           description: message,
           action: actionText ? {
             label: actionText,
-            onClick: () => window.location.href = actionUrl,
+            onClick: handleActionClick,
           } : undefined,
         });
         break;
@@ -170,7 +202,7 @@ export const useNotifications = ({
           description: message,
           action: actionText ? {
             label: actionText,
-            onClick: () => window.location.href = actionUrl,
+            onClick: handleActionClick,
           } : undefined,
         });
         break;
@@ -227,10 +259,6 @@ export const useNotifications = ({
             // Add the new notification to the list
             return [notification, ...prev];
           });
-          
-          // Remove these since they're now conditionally called inside the setNotifications callback
-          // setUnreadCount(prev => prev + 1);
-          // showNotificationToast(notification);
         });
         
         // Also listen for UserRegistered event (which might contain a welcome notification)
@@ -238,6 +266,17 @@ export const useNotifications = ({
           console.log('Received UserRegistered event:', data);
           
           // Fetch notifications to get the welcome notification
+          // Use a short delay to ensure the notification is created in the database
+          setTimeout(() => {
+            fetchNotifications();
+          }, 1000);
+        });
+        
+        // Also listen for UserLoggedIn event (which might contain a login notification)
+        channel.listen('.App\\Events\\UserLoggedIn', (data: any) => {
+          console.log('Received UserLoggedIn event:', data);
+          
+          // Fetch notifications to get the login notification
           // Use a short delay to ensure the notification is created in the database
           setTimeout(() => {
             fetchNotifications();
@@ -279,10 +318,6 @@ export const useNotifications = ({
               // Add the new notification to the list
               return [notification, ...prev];
             });
-            
-            // Remove these since they're now conditionally called inside the setNotifications callback
-            // setUnreadCount(prev => prev + 1);
-            // showNotificationToast(notification);
           } else {
             // If we don't have the full notification, fetch all notifications
             // Use a short delay to ensure the notification is created in the database
@@ -295,6 +330,7 @@ export const useNotifications = ({
         return () => {
           channel.stopListening('.notification');
           channel.stopListening('.App\\Events\\UserRegistered');
+          channel.stopListening('.App\\Events\\UserLoggedIn');
           channel.stopListening('.App\\Events\\NotificationCreated');
         };
       }
@@ -303,7 +339,7 @@ export const useNotifications = ({
       const intervalId = setInterval(fetchNotifications, pollingInterval);
       return () => clearInterval(intervalId);
     }
-  }, [fetchNotifications, pollingInterval, useWebSockets, auth?.user?.id]);
+  }, [fetchNotifications, pollingInterval, useWebSockets, auth?.user?.id, showToasts]);
 
   return {
     notifications,

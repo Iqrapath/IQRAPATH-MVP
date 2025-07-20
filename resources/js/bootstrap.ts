@@ -15,9 +15,13 @@ declare global {
   }
 }
 
+// Get the current origin (protocol, hostname, and port)
+const currentOrigin = window.location.origin;
+
 window.axios = axios;
 window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 window.axios.defaults.withCredentials = true;
+window.axios.defaults.baseURL = currentOrigin;
 
 /**
  * Echo exposes an expressive API for subscribing to channels and listening
@@ -31,15 +35,19 @@ import Pusher from 'pusher-js';
 // Make Pusher available globally
 window.Pusher = Pusher;
 
+// Get hostname and port from current URL
+const hostname = window.location.hostname;
+const isSecure = window.location.protocol === 'https:';
+
 window.Echo = new Echo({
     broadcaster: 'pusher',
     key: import.meta.env.VITE_REVERB_APP_KEY,
-    wsHost: import.meta.env.VITE_REVERB_HOST || window.location.hostname,
+    wsHost: import.meta.env.VITE_REVERB_HOST || hostname,
     wsPort: import.meta.env.VITE_REVERB_PORT || 8080,
     wssPort: import.meta.env.VITE_REVERB_PORT || 443,
-    forceTLS: (import.meta.env.VITE_REVERB_SCHEME || 'https') === 'https',
+    forceTLS: (import.meta.env.VITE_REVERB_SCHEME || (isSecure ? 'https' : 'http')) === 'https',
     enabledTransports: ['ws', 'wss'],
     disableStats: true,
     cluster: 'mt1',
-    authEndpoint: '/broadcasting/auth'
+    authEndpoint: `${currentOrigin}/broadcasting/auth`
 }); 
