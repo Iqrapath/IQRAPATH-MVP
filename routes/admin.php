@@ -2,12 +2,14 @@
 
 use App\Http\Controllers\Admin\AdminRolesController;
 use App\Http\Controllers\Admin\ContentPagesController;
+use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\FaqController;
 use App\Http\Controllers\Admin\FeatureControlsController;
 use App\Http\Controllers\Admin\FinancialSettingsController;
 use App\Http\Controllers\Admin\GeneralSettingsController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SecuritySettingsController;
+use App\Http\Controllers\Admin\TeacherVerificationController;
 use App\Http\Controllers\DocumentVerificationController;
 use App\Http\Controllers\SubjectController;
 use Illuminate\Support\Facades\Route;
@@ -24,6 +26,9 @@ use Illuminate\Support\Facades\Route;
 
 // Admin routes
 Route::middleware(['auth', 'verified', 'role:super-admin'])->prefix('admin')->name('admin.')->group(function () {
+    // Dashboard
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    
     // User role management routes
     Route::get('/users', [RoleController::class, 'index'])->name('users.index');
     Route::get('/users/{user}/edit-role', [RoleController::class, 'edit'])->name('users.edit-role');
@@ -39,6 +44,14 @@ Route::middleware(['auth', 'verified', 'role:super-admin'])->prefix('admin')->na
     Route::patch('/documents/{document}/reject', [DocumentVerificationController::class, 'reject'])->name('documents.reject');
     Route::post('/documents/batch-verify', [DocumentVerificationController::class, 'batchVerify'])->name('documents.batch-verify');
     Route::get('/documents/{document}/download', [DocumentVerificationController::class, 'download'])->name('documents.download');
+    
+    // Teacher verification routes
+    Route::get('/teacher-verifications', [TeacherVerificationController::class, 'index'])->name('teacher-verifications.index');
+    Route::get('/teacher-verifications/{verificationRequest}', [TeacherVerificationController::class, 'show'])->name('teacher-verifications.show');
+    Route::patch('/teacher-verifications/{verificationRequest}/approve', [TeacherVerificationController::class, 'approve'])->name('teacher-verifications.approve');
+    Route::patch('/teacher-verifications/{verificationRequest}/reject', [TeacherVerificationController::class, 'reject'])->name('teacher-verifications.reject');
+    Route::post('/teacher-verifications/{verificationRequest}/request-video', [TeacherVerificationController::class, 'requestVideoVerification'])->name('teacher-verifications.request-video');
+    Route::patch('/teacher-verifications/{verificationRequest}/complete-video', [TeacherVerificationController::class, 'completeVideoVerification'])->name('teacher-verifications.complete-video');
     
     // Settings routes
     Route::prefix('settings')->name('settings.')->group(function () {

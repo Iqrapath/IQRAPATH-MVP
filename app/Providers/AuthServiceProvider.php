@@ -11,6 +11,7 @@ use App\Models\Subscription;
 use App\Models\SupportTicket;
 use App\Models\TeachingSession;
 use App\Models\TicketResponse;
+use App\Models\VerificationRequest;
 use App\Policies\DisputePolicy;
 use App\Policies\DocumentPolicy;
 use App\Policies\EvidenceAttachmentPolicy;
@@ -20,6 +21,7 @@ use App\Policies\SubscriptionPolicy;
 use App\Policies\SupportTicketPolicy;
 use App\Policies\TeachingSessionPolicy;
 use App\Policies\TicketResponsePolicy;
+use App\Policies\VerificationRequestPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Gate;
 
@@ -40,6 +42,7 @@ class AuthServiceProvider extends ServiceProvider
         Dispute::class => DisputePolicy::class,
         TicketResponse::class => TicketResponsePolicy::class,
         EvidenceAttachment::class => EvidenceAttachmentPolicy::class,
+        VerificationRequest::class => VerificationRequestPolicy::class,
     ];
 
     /**
@@ -64,6 +67,14 @@ class AuthServiceProvider extends ServiceProvider
 
         Gate::define('view-feedback', function ($user) {
             return $user->role === 'super-admin' || $user->role === 'admin';
+        });
+        
+        Gate::define('manage-teacher-verifications', function ($user) {
+            return $user->role === 'super-admin';
+        });
+        
+        Gate::define('verifyDocuments', function ($user) {
+            return $user->role === 'super-admin';
         });
     }
 }
