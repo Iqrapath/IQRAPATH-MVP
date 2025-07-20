@@ -1,9 +1,10 @@
-import { Head } from '@inertiajs/react';
-import { AlertCircle } from 'lucide-react';
+import { Head, Link } from '@inertiajs/react';
+import { AlertCircle, Bell } from 'lucide-react';
 import { type User } from '@/types';
 import AppLayout from '@/layouts/app-layout';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 interface UnassignedProps {
     user: User;
@@ -52,6 +53,14 @@ export default function Unassigned({ user }: UnassignedProps) {
                             </div>
                         </div>
                     </CardContent>
+                    <CardFooter>
+                        <Link href={route('unassigned.notifications')} className="w-full">
+                            <Button variant="outline" className="w-full">
+                                <Bell className="mr-2 h-4 w-4" />
+                                View Notifications
+                            </Button>
+                        </Link>
+                    </CardFooter>
                 </Card>
             </div>
         </AppLayout>

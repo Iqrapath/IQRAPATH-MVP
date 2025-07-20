@@ -34,8 +34,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         } elseif ($role === 'guardian') {
             return redirect()->route('guardian.notifications');
         } else {
-            // Fallback to a generic notifications page
-            return Inertia::render('unassigned');
+            // Redirect unassigned users to their notifications page
+            return redirect()->route('unassigned.notifications');
         }
     })->name('notifications');
 });

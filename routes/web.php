@@ -43,6 +43,18 @@ Route::middleware(['auth', 'verified', 'role:teacher'])->prefix('teacher')->grou
     Route::get('/documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
 });
 
+// Unassigned user routes
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/unassigned', function () {
+        return Inertia::render('unassigned');
+    })->name('unassigned');
+    
+    // Add notifications route for unassigned users
+    Route::get('/unassigned/notifications', function () {
+        return Inertia::render('unassigned/notifications');
+    })->name('unassigned.notifications');
+});
+
 // Include other route files
 require __DIR__.'/auth.php';
 require __DIR__.'/settings.php';
