@@ -27,6 +27,19 @@ class NotificationTriggerSeeder extends Seeder
                 'is_enabled' => true,
             ],
             
+            // User login trigger
+            [
+                'name' => 'User Login Notification',
+                'event' => 'UserLoggedIn',
+                'template_name' => 'login_notification',
+                'audience_type' => 'individual', // Only the logged in user
+                'audience_filter' => null, // No filter needed, event user is used
+                'channels' => ['in-app'],
+                'timing_type' => 'immediate',
+                'level' => 'info',
+                'is_enabled' => true,
+            ],
+            
             // Payment processed trigger
             [
                 'name' => 'Payment Confirmation',

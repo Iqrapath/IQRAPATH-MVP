@@ -8,6 +8,7 @@ use App\Events\SubscriptionExpiring;
 use App\Events\UserRegistered;
 use App\Events\UserRoleAssigned;
 use App\Events\UserAccountUpdated;
+use App\Events\UserLoggedIn;
 use App\Listeners\AccountRoleAssignedNotification;
 use App\Listeners\AccountUpdatedNotification;
 use App\Listeners\ProcessNotificationTrigger;
@@ -15,6 +16,7 @@ use App\Listeners\SendPaymentConfirmation;
 use App\Listeners\SendSessionReminder;
 use App\Listeners\SendSubscriptionExpiryReminder;
 use App\Listeners\SendWelcomeNotification;
+use App\Listeners\SendLoginNotification;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
@@ -34,6 +36,12 @@ class EventServiceProvider extends ServiceProvider
         // User registration event
         UserRegistered::class => [
             SendWelcomeNotification::class,
+            ProcessNotificationTrigger::class,
+        ],
+        
+        // User login event
+        UserLoggedIn::class => [
+            SendLoginNotification::class,
             ProcessNotificationTrigger::class,
         ],
         

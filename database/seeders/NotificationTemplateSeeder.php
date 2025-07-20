@@ -26,6 +26,17 @@ class NotificationTemplateSeeder extends Seeder
                 'is_active' => true,
             ],
             [
+                'name' => 'login_notification',
+                'title' => 'Welcome back, {User_Name}!',
+                'body' => 'Hello {User_Name}, you have successfully logged in to your account. If this wasn\'t you, please contact support immediately.',
+                'type' => 'system',
+                'placeholders' => ['User_Name'],
+                'level' => 'info',
+                'action_text' => 'Go to Dashboard',
+                'action_url' => '/dashboard',
+                'is_active' => true,
+            ],
+            [
                 'name' => 'payment_confirmation',
                 'title' => 'Payment Confirmation',
                 'body' => 'Hello {User_Name}, we have received your payment of {Amount} {Currency} for {Plan_Name}.',
