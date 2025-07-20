@@ -194,17 +194,43 @@ export const useNotifications = ({
         const channel = window.Echo.private(`user.${userId}`);
         
         // Listen for notification events
-        channel.listen('.notification', (notification: Notification) => {
-          console.log('Received notification event:', notification);
+        channel.listen('.notification', (data: any) => {
+          console.log('Received notification event:', data);
           
-          // Add the new notification to the list
-          setNotifications(prev => [notification, ...prev]);
+          // Format the notification properly
+          const notification: Notification = {
+            id: data.id || '',
+            type: data.type || '',
+            notifiable_type: 'App\\Models\\User',
+            notifiable_id: userId,
+            data: data.data || {},
+            read_at: null,
+            created_at: data.created_at || new Date().toISOString(),
+            level: data.level || 'info'
+          };
           
-          // Update unread count
-          setUnreadCount(prev => prev + 1);
+          // Check if notification already exists in the list to prevent duplicates
+          setNotifications(prev => {
+            // Check if this notification already exists
+            const exists = prev.some(n => n.id === notification.id);
+            if (exists) {
+              console.log('Notification already exists, skipping:', notification.id);
+              return prev;
+            }
+            
+            // Only increment unread count if notification is new
+            setUnreadCount(prev => prev + 1);
+            
+            // Show toast notification only if it's new
+            showNotificationToast(notification);
+            
+            // Add the new notification to the list
+            return [notification, ...prev];
+          });
           
-          // Show toast notification
-          showNotificationToast(notification);
+          // Remove these since they're now conditionally called inside the setNotifications callback
+          // setUnreadCount(prev => prev + 1);
+          // showNotificationToast(notification);
         });
         
         // Also listen for UserRegistered event (which might contain a welcome notification)
@@ -212,26 +238,57 @@ export const useNotifications = ({
           console.log('Received UserRegistered event:', data);
           
           // Fetch notifications to get the welcome notification
-          fetchNotifications();
+          // Use a short delay to ensure the notification is created in the database
+          setTimeout(() => {
+            fetchNotifications();
+          }, 1000);
         });
         
         // Also listen for NotificationCreated event
         channel.listen('.App\\Events\\NotificationCreated', (data: any) => {
           console.log('Received NotificationCreated event:', data);
           
-          const notification = data.notification;
-          if (notification) {
-            // Add the new notification to the list
-            setNotifications(prev => [notification, ...prev]);
+          if (data.notification) {
+            // Format the notification properly
+            const notification: Notification = {
+              id: data.notification.id || '',
+              type: data.notification.type || '',
+              notifiable_type: 'App\\Models\\User',
+              notifiable_id: userId,
+              data: data.notification.data || {},
+              read_at: null,
+              created_at: data.notification.created_at || new Date().toISOString(),
+              level: data.notification.level || 'info'
+            };
             
-            // Update unread count
-            setUnreadCount(prev => prev + 1);
+            // Check if notification already exists in the list to prevent duplicates
+            setNotifications(prev => {
+              // Check if this notification already exists
+              const exists = prev.some(n => n.id === notification.id);
+              if (exists) {
+                console.log('Notification already exists, skipping:', notification.id);
+                return prev;
+              }
+              
+              // Only increment unread count if notification is new
+              setUnreadCount(prev => prev + 1);
+              
+              // Show toast notification only if it's new
+              showNotificationToast(notification);
+              
+              // Add the new notification to the list
+              return [notification, ...prev];
+            });
             
-            // Show toast notification
-            showNotificationToast(notification);
+            // Remove these since they're now conditionally called inside the setNotifications callback
+            // setUnreadCount(prev => prev + 1);
+            // showNotificationToast(notification);
           } else {
             // If we don't have the full notification, fetch all notifications
-            fetchNotifications();
+            // Use a short delay to ensure the notification is created in the database
+            setTimeout(() => {
+              fetchNotifications();
+            }, 1000);
           }
         });
         

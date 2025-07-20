@@ -16,7 +16,7 @@ class NotificationTemplateSeeder extends Seeder
         $templates = [
             [
                 'name' => 'welcome_user',
-                'title' => 'Welcome to IqraPath!',
+                'title' => 'Welcome to IqraPath, {User_Name}!',
                 'body' => 'Hello {User_Name}, thank you for joining our platform. We are excited to have you with us.',
                 'type' => 'system',
                 'placeholders' => ['User_Name'],
