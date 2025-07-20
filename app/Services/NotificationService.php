@@ -77,6 +77,21 @@ class NotificationService
         $notification->data = $data;
         $notification->save();
         
+        // Broadcast the notification
+        try {
+            broadcast(new \App\Events\NotificationCreated($notification))->toOthers();
+            Log::info("NotificationService: Notification broadcast", [
+                'notification_id' => $notification->id,
+                'user_id' => $recipient->id
+            ]);
+        } catch (\Exception $e) {
+            Log::error("NotificationService: Failed to broadcast notification", [
+                'notification_id' => $notification->id,
+                'user_id' => $recipient->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+        
         return $notification;
     }
 

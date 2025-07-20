@@ -2,7 +2,7 @@
 
 namespace App\Events;
 
-use App\Models\User;
+use App\Models\Notification;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
@@ -11,23 +11,23 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class UserRegistered implements ShouldBroadcast
+class NotificationCreated implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     /**
-     * The user instance.
+     * The notification instance.
      *
-     * @var \App\Models\User
+     * @var \App\Models\Notification
      */
-    public $user;
+    public $notification;
 
     /**
      * Create a new event instance.
      */
-    public function __construct(User $user)
+    public function __construct(Notification $notification)
     {
-        $this->user = $user;
+        $this->notification = $notification;
     }
 
     /**
@@ -38,8 +38,16 @@ class UserRegistered implements ShouldBroadcast
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel('user.'.$this->user->id),
+            new PrivateChannel('user.'.$this->notification->notifiable_id),
         ];
+    }
+
+    /**
+     * The event's broadcast name.
+     */
+    public function broadcastAs(): string
+    {
+        return 'notification';
     }
 
     /**
@@ -50,9 +58,11 @@ class UserRegistered implements ShouldBroadcast
     public function broadcastWith(): array
     {
         return [
-            'user_id' => $this->user->id,
-            'name' => $this->user->name,
-            'event' => 'UserRegistered'
+            'id' => $this->notification->id,
+            'type' => $this->notification->type,
+            'data' => $this->notification->data,
+            'created_at' => $this->notification->created_at->toIso8601String(),
+            'level' => $this->notification->level,
         ];
     }
 } 

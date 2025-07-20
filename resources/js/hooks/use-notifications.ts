@@ -193,7 +193,10 @@ export const useNotifications = ({
       if (userId) {
         const channel = window.Echo.private(`user.${userId}`);
         
-        channel.notification((notification: Notification) => {
+        // Listen for notification events
+        channel.listen('.notification', (notification: Notification) => {
+          console.log('Received notification event:', notification);
+          
           // Add the new notification to the list
           setNotifications(prev => [notification, ...prev]);
           
@@ -204,8 +207,38 @@ export const useNotifications = ({
           showNotificationToast(notification);
         });
         
+        // Also listen for UserRegistered event (which might contain a welcome notification)
+        channel.listen('.App\\Events\\UserRegistered', (data: any) => {
+          console.log('Received UserRegistered event:', data);
+          
+          // Fetch notifications to get the welcome notification
+          fetchNotifications();
+        });
+        
+        // Also listen for NotificationCreated event
+        channel.listen('.App\\Events\\NotificationCreated', (data: any) => {
+          console.log('Received NotificationCreated event:', data);
+          
+          const notification = data.notification;
+          if (notification) {
+            // Add the new notification to the list
+            setNotifications(prev => [notification, ...prev]);
+            
+            // Update unread count
+            setUnreadCount(prev => prev + 1);
+            
+            // Show toast notification
+            showNotificationToast(notification);
+          } else {
+            // If we don't have the full notification, fetch all notifications
+            fetchNotifications();
+          }
+        });
+        
         return () => {
-          channel.stopListening('notification');
+          channel.stopListening('.notification');
+          channel.stopListening('.App\\Events\\UserRegistered');
+          channel.stopListening('.App\\Events\\NotificationCreated');
         };
       }
     } else if (pollingInterval && pollingInterval > 0) {

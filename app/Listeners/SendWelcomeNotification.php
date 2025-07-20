@@ -36,22 +36,31 @@ class SendWelcomeNotification implements ShouldQueue
         
         $user = $event->user;
         
-        // Create a welcome notification
-        $notification = $this->notificationService->createNotification(
-            $user,
-            'welcome',
-            [
-                'title' => 'Welcome to IqraPath!',
-                'body' => 'Thank you for joining our platform. We are excited to have you with us.',
-                'action_text' => 'Explore Dashboard',
-                'action_url' => route('dashboard'),
-            ],
-            'info'
-        );
-        
-        Log::info('Welcome notification created', [
-            'notification_id' => $notification->id,
-            'user_id' => $user->id
-        ]);
+        try {
+            // Create a welcome notification
+            $notification = $this->notificationService->createNotification(
+                $user,
+                'welcome',
+                [
+                    'title' => 'Welcome to IqraPath!',
+                    'message' => 'Thank you for joining our platform. We are excited to have you with us.',
+                    'action_text' => 'Explore Dashboard',
+                    'action_url' => route('dashboard'),
+                ],
+                'info'
+            );
+            
+            Log::info('Welcome notification created', [
+                'notification_id' => $notification->id,
+                'user_id' => $user->id
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Error creating welcome notification', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
     }
 } 

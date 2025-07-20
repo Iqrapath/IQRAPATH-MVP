@@ -66,6 +66,9 @@ class EventServiceProvider extends ServiceProvider
             AccountUpdatedNotification::class,
             ProcessNotificationTrigger::class,
         ],
+        
+        // Notification created event (for broadcasting)
+        \App\Events\NotificationCreated::class => [],
     ];
 
     /**
