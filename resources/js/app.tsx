@@ -7,6 +7,7 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { Toaster } from 'sonner';
 import { initializeTheme } from './hooks/use-appearance';
 import { configureEcho } from '@laravel/echo-react';
+import { LoadingProvider } from './contexts/loading-context';
 
 configureEcho({
     broadcaster: 'reverb',
@@ -21,14 +22,16 @@ createInertiaApp({
         const root = createRoot(el);
 
         root.render(
-            <>
+            <LoadingProvider>
                 <App {...props} />
                 <Toaster position="top-right" richColors />
-            </>
+            </LoadingProvider>
         );
     },
     progress: {
+        // We'll use our custom loader instead of Inertia's default progress bar
         color: '#4B5563',
+        showSpinner: false,
     },
 });
 

@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import React from 'react';
 import { Button } from '@/components/ui/button';
+import LogoutButton from '@/components/logout-button';
 
 interface GuardianLeftSidebarProps extends React.HTMLAttributes<HTMLDivElement> {
     isMobile?: boolean;
@@ -70,12 +71,6 @@ export default function GuardianLeftSidebar({ className, isMobile = false, onClo
     const { url } = usePage();
     const currentPath = url;
 
-    // Handle logout with POST method
-    const handleLogout = (e: React.MouseEvent) => {
-        e.preventDefault();
-        router.post(route('logout'));
-    };
-
     const navItems: NavItem[] = [
         {
             title: 'Dashboard',
@@ -121,12 +116,6 @@ export default function GuardianLeftSidebar({ className, isMobile = false, onClo
             title: 'Notification',
             href: '/guardian/notifications',
             icon: Bell,
-        },
-        {
-            title: 'Log out',
-            href: '#',
-            icon: LogOut,
-            onClick: handleLogout,
         },
     ];
 
@@ -200,6 +189,13 @@ export default function GuardianLeftSidebar({ className, isMobile = false, onClo
                             </React.Fragment>
                         ))}
                     </nav>
+                    {/* Logout Button - Added separately for better control */}
+                    <div className="mx-1 mt-2">
+                        <LogoutButton
+                            className="flex items-center w-full px-3 py-1.5 text-sm font-medium rounded-md transition-colors text-white/90 hover:bg-[rgba(255,255,255,0.08)] hover:text-white justify-start"
+                            variant="ghost"
+                        />
+                    </div>
                 </div>
             </div>
         </div>

@@ -9,6 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AuthLayout from '@/layouts/auth-layout';
+import { useAuthLoading } from '@/hooks/use-auth-loading';
 
 type LoginForm = {
     login: string;
@@ -29,12 +30,17 @@ export default function Login({ status, canResetPassword }: LoginProps) {
     });
 
     const [showPassword, setShowPassword] = useState(false);
+    const { handleAuthAction } = useAuthLoading();
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        post(route('login'), {
-            onFinish: () => reset('password'),
-        });
+        
+        // Use our auth loading handler
+        handleAuthAction(() => {
+            post(route('login'), {
+                onFinish: () => reset('password'),
+            });
+        }, 'Logging in...');
     };
 
     return (

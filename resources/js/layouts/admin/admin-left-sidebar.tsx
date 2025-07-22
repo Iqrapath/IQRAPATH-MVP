@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import React from 'react';
 import { Button } from '@/components/ui/button';
+import LogoutButton from '@/components/logout-button';
 
 interface AdminLeftSidebarProps extends React.HTMLAttributes<HTMLDivElement> {
     isMobile?: boolean;
@@ -129,12 +130,6 @@ export default function AdminLeftSidebar({ className, isMobile = false, isOpen =
         return null;
     }
 
-    // Handle logout with POST method
-    const handleLogout = (e: React.MouseEvent) => {
-        e.preventDefault();
-        router.post(route('logout'));
-    };
-
     const navItems: NavItem[] = [
         {
             title: 'Dashboard',
@@ -213,19 +208,11 @@ export default function AdminLeftSidebar({ className, isMobile = false, isOpen =
             icon: FeedbackSupportIcon,
             iconType: 'custom',
         },
-        {
-            title: 'Log out',
-            href: '#',
-            icon: LogOut,
-            onClick: handleLogout,
-        },
+        // Logout item removed from here
     ];
 
     // Check if a navigation item is active
     const isActive = (path: string) => {
-        // Don't consider logout link for active state
-        if (path === '#') return false;
-
         // Exact match
         if (currentPath === path) return true;
 
@@ -287,6 +274,14 @@ export default function AdminLeftSidebar({ className, isMobile = false, isOpen =
                                 )}
                             </React.Fragment>
                         ))}
+                        
+                        {/* Logout Button - Added separately for better control */}
+                        <div className="mx-1 mt-2">
+                            <LogoutButton
+                                className="flex items-center w-full px-3 py-1.5 text-sm font-medium rounded-md transition-colors text-white/90 hover:bg-[rgba(255,255,255,0.08)] hover:text-white justify-start"
+                                variant="ghost"
+                            />
+                        </div>
                     </nav>
                 </div>
             </div>

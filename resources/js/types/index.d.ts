@@ -126,14 +126,27 @@ export interface GuardianProfile {
 }
 
 export type PageProps<T extends Record<string, unknown> = Record<string, unknown>> = T & {
-    auth: {
-        user: User;
-    };
-    appearance: {
-        theme: string;
-        radius: number;
-    };
-    sidebar_state: {
-        open: boolean;
-    };
+  auth: {
+    user: User;
+  };
+  appearance?: {
+    theme: string;
+    radius: number;
+  };
+  sidebar_state?: {
+    open: boolean;
+  };
+  flash?: {
+    message?: string;
+    error?: string;
+    success?: string;
+  };
+  errors?: Record<string, string>;
+  ziggy?: {
+    location: string;
+    url: string;
+    port: number | null;
+    defaults: Record<string, string>;
+    routes: Record<string, any>;
+  };
 };

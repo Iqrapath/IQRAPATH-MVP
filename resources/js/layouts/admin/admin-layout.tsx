@@ -3,6 +3,7 @@ import AdminHeader from './admin-header';
 import AdminLeftSidebar from './admin-left-sidebar';
 import AdminRightSidebar from './admin-right-sidebar';
 import { useState, useEffect } from 'react';
+import { AppLoading } from '@/components/app-loading';
 
 interface AdminLayoutProps {
     children: ReactNode;
@@ -65,52 +66,55 @@ export default function AdminLayout({
     };
 
     return (
-        <div className="flex flex-col h-screen w-full overflow-hidden bg-gray-50">
-            <AdminHeader 
-                pageTitle={pageTitle} 
-                toggleLeftSidebar={toggleLeftSidebar}
-                toggleRightSidebar={toggleRightSidebar}
-                isMobile={isMobile}
-            />
-            <div className="flex flex-1 relative overflow-hidden">
-                {/* Left Sidebar - Hidden on mobile by default, shown when toggled */}
-                <div className={`${isMobile ? 'absolute z-30 h-full' : 'pl-25 pt-2'} ${isMobile && !showLeftSidebar ? 'hidden' : 'block'}`}>
-                    <AdminLeftSidebar 
-                        isMobile={isMobile}
-                        // onClose={closeLeftSidebar}
-                        // className="h-full overflow-y-auto"
-                    />
-                </div>
-
-                {/* Main Content */}
-                <main className="flex-1 p-6 overflow-y-auto">
-                    {children}
-                </main>
-
-                {/* Right Sidebar - Hidden on mobile by default, shown when toggled */}
-                <div className={`${isMobile ? 'absolute right-0 z-30 h-full' : 'pr-25'} ${isMobile && !showRightSidebarMobile ? 'hidden' : 'block'}`}>
-                    {showRightSidebar && (
-                        <AdminRightSidebar
-                            isMobile={isMobile}
-                            onClose={closeRightSidebar}
-                            className="h-full overflow-y-auto"
-                        >
-                            {rightSidebarContent}
-                        </AdminRightSidebar>
-                    )}
-                </div>
-            </div>
-
-            {/* Mobile overlay when sidebar is open */}
-            {isMobile && (showLeftSidebar || showRightSidebarMobile) && (
-                <div 
-                    className="fixed inset-0 bg-white/10 backdrop-blur-sm z-20"
-                    onClick={() => {
-                        setShowLeftSidebar(false);
-                        setShowRightSidebarMobile(false);
-                    }}
+        <>
+            <AppLoading />
+            <div className="flex flex-col h-screen w-full overflow-hidden bg-gray-50">
+                <AdminHeader 
+                    pageTitle={pageTitle} 
+                    toggleLeftSidebar={toggleLeftSidebar}
+                    toggleRightSidebar={toggleRightSidebar}
+                    isMobile={isMobile}
                 />
-            )}
-        </div>
+                <div className="flex flex-1 relative overflow-hidden">
+                    {/* Left Sidebar - Hidden on mobile by default, shown when toggled */}
+                    <div className={`${isMobile ? 'absolute z-30 h-full' : 'pl-25 pt-2'} ${isMobile && !showLeftSidebar ? 'hidden' : 'block'}`}>
+                        <AdminLeftSidebar 
+                            isMobile={isMobile}
+                            // onClose={closeLeftSidebar}
+                            // className="h-full overflow-y-auto"
+                        />
+                    </div>
+
+                    {/* Main Content */}
+                    <main className="flex-1 p-6 overflow-y-auto">
+                        {children}
+                    </main>
+
+                    {/* Right Sidebar - Hidden on mobile by default, shown when toggled */}
+                    <div className={`${isMobile ? 'absolute right-0 z-30 h-full' : 'pr-25'} ${isMobile && !showRightSidebarMobile ? 'hidden' : 'block'}`}>
+                        {showRightSidebar && (
+                            <AdminRightSidebar
+                                isMobile={isMobile}
+                                onClose={closeRightSidebar}
+                                className="h-full overflow-y-auto"
+                            >
+                                {rightSidebarContent}
+                            </AdminRightSidebar>
+                        )}
+                    </div>
+                </div>
+
+                {/* Mobile overlay when sidebar is open */}
+                {isMobile && (showLeftSidebar || showRightSidebarMobile) && (
+                    <div 
+                        className="fixed inset-0 bg-white/10 backdrop-blur-sm z-20"
+                        onClick={() => {
+                            setShowLeftSidebar(false);
+                            setShowRightSidebarMobile(false);
+                        }}
+                    />
+                )}
+            </div>
+        </>
     );
 } 

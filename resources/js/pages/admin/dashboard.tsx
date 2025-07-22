@@ -8,6 +8,7 @@ import { RecentBookings } from '@/pages/admin/dashboard-component/recent-booking
 import { StudentIcon } from '@/components/icons/student-icon';
 import { CalendarIcon } from '@/components/icons/calender-icon';
 import { PendingIcon } from '@/components/icons/pending-icon';
+import { LoadingExample } from '@/components/loading-example';
 
 interface AdminDashboardProps {
     adminProfile: AdminProfile;
@@ -98,6 +99,7 @@ export default function AdminDashboard({
             
             <div className="py-4 px-2 max-w-[1400px] mx-auto">
                 <h1 className="text-3xl font-bold mb-6">Overview</h1>
+                <LoadingExample />
                 
                 {/* Stats Overview */}
                 <div className="mb-6">
