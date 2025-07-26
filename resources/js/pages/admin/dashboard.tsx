@@ -99,7 +99,7 @@ export default function AdminDashboard({
             
             <div className="py-4 px-2 max-w-[1400px] mx-auto">
                 <h1 className="text-3xl font-bold mb-6">Overview</h1>
-                <LoadingExample />
+                {/* <LoadingExample /> */}
                 
                 {/* Stats Overview */}
                 <div className="mb-6">

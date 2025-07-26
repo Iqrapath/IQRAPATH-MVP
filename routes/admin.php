@@ -5,10 +5,12 @@ use App\Http\Controllers\Admin\ContentPagesController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\FaqController;
 use App\Http\Controllers\Admin\FeatureControlsController;
+use App\Http\Controllers\Admin\FinancialManagementController;
 use App\Http\Controllers\Admin\FinancialSettingsController;
 use App\Http\Controllers\Admin\GeneralSettingsController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SecuritySettingsController;
+use App\Http\Controllers\Admin\TeacherManagementController;
 use App\Http\Controllers\Admin\TeacherVerificationController;
 use App\Http\Controllers\DocumentVerificationController;
 use App\Http\Controllers\SubjectController;
@@ -52,6 +54,12 @@ Route::middleware(['auth', 'verified', 'role:super-admin'])->prefix('admin')->na
     Route::patch('/teacher-verifications/{verificationRequest}/reject', [TeacherVerificationController::class, 'reject'])->name('teacher-verifications.reject');
     Route::post('/teacher-verifications/{verificationRequest}/request-video', [TeacherVerificationController::class, 'requestVideoVerification'])->name('teacher-verifications.request-video');
     Route::patch('/teacher-verifications/{verificationRequest}/complete-video', [TeacherVerificationController::class, 'completeVideoVerification'])->name('teacher-verifications.complete-video');
+    
+    // Teacher management routes
+    Route::resource('teachers', TeacherManagementController::class);
+    Route::patch('/teachers/{teacher}/approve', [TeacherManagementController::class, 'approve'])->name('teachers.approve');
+    Route::patch('/teachers/{teacher}/reject', [TeacherManagementController::class, 'reject'])->name('teachers.reject');
+    Route::get('/documents/{document}/download', [TeacherManagementController::class, 'downloadDocument'])->name('teachers.document.download');
     
     // Settings routes
     Route::prefix('settings')->name('settings.')->group(function () {
