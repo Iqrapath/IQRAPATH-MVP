@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('teacher_profile_id')->constrained()->onDelete('cascade');
             $table->string('name');
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
     }

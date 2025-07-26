@@ -21,6 +21,9 @@ class TeacherAvailability extends Model
         'start_time',
         'end_time',
         'is_active',
+        'time_zone',
+        'preferred_teaching_hours',
+        'availability_type',
     ];
 
     /**
@@ -72,5 +75,15 @@ class TeacherAvailability extends Model
     {
         return date('g:i A', strtotime($this->start_time)) . ' - ' . 
                date('g:i A', strtotime($this->end_time));
+    }
+
+    /**
+     * Format timezone for display.
+     *
+     * @return string
+     */
+    public function getFormattedTimezoneAttribute(): string
+    {
+        return $this->time_zone ?? 'GMT+0';
     }
 } 

@@ -18,6 +18,16 @@ class Subject extends Model
     protected $fillable = [
         'teacher_profile_id',
         'name',
+        'is_active',
+    ];
+
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'is_active' => 'boolean',
     ];
 
     /**

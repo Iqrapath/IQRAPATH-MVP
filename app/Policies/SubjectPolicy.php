@@ -4,29 +4,11 @@ namespace App\Policies;
 
 use App\Models\Subject;
 use App\Models\User;
-use Illuminate\Auth\Access\Response;
+use Illuminate\Auth\Access\HandlesAuthorization;
 
 class SubjectPolicy
 {
-    /**
-     * Perform pre-authorization checks.
-     */
-    public function before(User $user, string $ability): bool|null
-    {
-        // Super-admins can do anything
-        if ($user->isSuperAdmin()) {
-            return true;
-        }
-        
-        // Admins with proper permissions can also manage subjects
-        if ($user->role === 'super-admin' && $user->adminProfile && 
-            isset($user->adminProfile->permissions['subjects']) && 
-            in_array($ability, $user->adminProfile->permissions['subjects'])) {
-            return true;
-        }
-        
-        return null; // Fall through to the specific policy methods
-    }
+    use HandlesAuthorization;
 
     /**
      * Determine whether the user can view any models.
@@ -34,7 +16,7 @@ class SubjectPolicy
     public function viewAny(User $user): bool
     {
         // Teachers can view subjects
-        return $user->isTeacher() && $user->teacherProfile !== null;
+        return $user->isTeacher() || $user->isSuperAdmin();
     }
 
     /**
@@ -42,8 +24,13 @@ class SubjectPolicy
      */
     public function view(User $user, Subject $subject): bool
     {
-        // User can view a subject if they are the teacher who owns it
-        return $user->teacherProfile && $subject->teacher_profile_id === $user->teacherProfile->id;
+        // Teachers can view their own subjects
+        if ($user->isTeacher()) {
+            return $user->teacherProfile && $subject->teacher_profile_id === $user->teacherProfile->id;
+        }
+        
+        // Admins can view any subject
+        return $user->isSuperAdmin();
     }
 
     /**
@@ -51,8 +38,13 @@ class SubjectPolicy
      */
     public function create(User $user): bool
     {
-        // Only teachers can create subjects
-        return $user->isTeacher() && $user->teacherProfile !== null;
+        // Teachers can create subjects
+        if ($user->isTeacher()) {
+            return (bool) $user->teacherProfile;
+        }
+        
+        // Admins can create subjects
+        return $user->isSuperAdmin();
     }
 
     /**
@@ -60,8 +52,13 @@ class SubjectPolicy
      */
     public function update(User $user, Subject $subject): bool
     {
-        // User can update a subject if they are the teacher who owns it
-        return $user->teacherProfile && $subject->teacher_profile_id === $user->teacherProfile->id;
+        // Teachers can update their own subjects
+        if ($user->isTeacher()) {
+            return $user->teacherProfile && $subject->teacher_profile_id === $user->teacherProfile->id;
+        }
+        
+        // Admins can update any subject
+        return $user->isSuperAdmin();
     }
 
     /**
@@ -69,25 +66,12 @@ class SubjectPolicy
      */
     public function delete(User $user, Subject $subject): bool
     {
-        // User can delete a subject if they are the teacher who owns it
-        return $user->teacherProfile && $subject->teacher_profile_id === $user->teacherProfile->id;
-    }
-
-    /**
-     * Determine whether the user can restore the model.
-     */
-    public function restore(User $user, Subject $subject): bool
-    {
-        // User can restore a subject if they are the teacher who owns it
-        return $user->teacherProfile && $subject->teacher_profile_id === $user->teacherProfile->id;
-    }
-
-    /**
-     * Determine whether the user can permanently delete the model.
-     */
-    public function forceDelete(User $user, Subject $subject): bool
-    {
-        // User can force delete a subject if they are the teacher who owns it
-        return $user->teacherProfile && $subject->teacher_profile_id === $user->teacherProfile->id;
+        // Teachers can delete their own subjects
+        if ($user->isTeacher()) {
+            return $user->teacherProfile && $subject->teacher_profile_id === $user->teacherProfile->id;
+        }
+        
+        // Admins can delete any subject
+        return $user->isSuperAdmin();
     }
 }

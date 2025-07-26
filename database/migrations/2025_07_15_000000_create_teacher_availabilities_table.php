@@ -18,6 +18,9 @@ return new class extends Migration
             $table->time('start_time');
             $table->time('end_time');
             $table->boolean('is_active')->default(true);
+            $table->string('time_zone')->nullable();
+            $table->string('preferred_teaching_hours')->nullable();
+            $table->enum('availability_type', ['Part-Time', 'Full-Time'])->default('Part-Time');
             $table->timestamps();
         });
     }

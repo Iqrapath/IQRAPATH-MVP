@@ -2,9 +2,6 @@
 
 use App\Http\Controllers\Admin\ContentPagesController;
 use App\Http\Controllers\Admin\FaqController;
-use App\Http\Controllers\DocumentController;
-use App\Http\Controllers\DisputeController;
-use App\Http\Controllers\SubjectController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -33,16 +30,6 @@ Route::get('/faqs', function () {
     return Inertia::render('Faqs');
 })->name('faqs');
 
-// Teacher document routes
-Route::middleware(['auth', 'verified', 'role:teacher'])->prefix('teacher')->group(function () {
-    // Subject routes nested under teacher
-    Route::resource('subjects', SubjectController::class);
-    
-    // Document management routes
-    Route::resource('documents', DocumentController::class);
-    Route::get('/documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
-});
-
 // Unassigned user routes
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/unassigned', function () {
@@ -60,6 +47,7 @@ require __DIR__.'/auth.php';
 require __DIR__.'/settings.php';
 require __DIR__.'/dashboard.php';
 require __DIR__.'/admin.php';
+require __DIR__.'/teacher.php';
 require __DIR__.'/financial.php';
 require __DIR__.'/subscriptions.php';
 require __DIR__.'/sessions.php';

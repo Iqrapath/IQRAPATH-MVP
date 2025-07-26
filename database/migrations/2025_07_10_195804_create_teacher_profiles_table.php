@@ -20,6 +20,11 @@ return new class extends Migration
             $table->json('languages')->nullable();
             $table->string('teaching_type')->nullable(); // Online, In-person, etc.
             $table->string('teaching_mode')->nullable(); // One-to-One, Group, etc.
+            $table->string('intro_video_url')->nullable();
+            $table->string('education')->nullable();
+            $table->string('qualification')->nullable();
+            $table->decimal('rating', 3, 1)->nullable();
+            $table->integer('reviews_count')->default(0);
             $table->timestamps();
         });
     }

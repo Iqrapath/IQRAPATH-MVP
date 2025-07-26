@@ -43,6 +43,7 @@ class AuthServiceProvider extends ServiceProvider
         TicketResponse::class => TicketResponsePolicy::class,
         EvidenceAttachment::class => EvidenceAttachmentPolicy::class,
         VerificationRequest::class => VerificationRequestPolicy::class,
+        'App\Models\TeacherAvailability' => 'App\Policies\TeacherAvailabilityPolicy',
     ];
 
     /**

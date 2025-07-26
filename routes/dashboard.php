@@ -39,12 +39,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 // });
 
 // Teacher routes
-Route::middleware(['auth', 'verified', 'role:teacher'])->prefix('teacher')->name('teacher.')->group(function () {
-    Route::get('/dashboard', [TeacherDashboardController::class, 'index'])->name('dashboard');
-    Route::get('/notifications', function () {
-        return Inertia::render('teacher/notifications/notifications');
-    })->name('notifications');
-});
+// Route::middleware(['auth', 'verified', 'role:teacher'])->prefix('teacher')->name('teacher.')->group(function () {
+//     Route::get('/dashboard', [TeacherDashboardController::class, 'index'])->name('dashboard');
+//     Route::get('/notifications', function () {
+//         return Inertia::render('teacher/notifications/notifications');
+//     })->name('notifications');
+// });
 
 // Student routes
 Route::middleware(['auth', 'verified', 'role:student'])->prefix('student')->name('student.')->group(function () {

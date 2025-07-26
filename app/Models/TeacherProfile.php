@@ -24,6 +24,11 @@ class TeacherProfile extends Model
         'languages',
         'teaching_type',
         'teaching_mode',
+        'intro_video_url',
+        'education',
+        'qualification',
+        'rating',
+        'reviews_count',
     ];
 
     /**
@@ -34,6 +39,8 @@ class TeacherProfile extends Model
     protected $casts = [
         'verified' => 'boolean',
         'languages' => 'array',
+        'rating' => 'decimal:1',
+        'reviews_count' => 'integer',
     ];
 
     /**
@@ -90,5 +97,17 @@ class TeacherProfile extends Model
     public function verificationRequests()
     {
         return $this->hasMany(VerificationRequest::class);
+    }
+
+    /**
+     * Get the formatted rating with total reviews.
+     */
+    public function getFormattedRatingAttribute()
+    {
+        if (!$this->rating) {
+            return 'No ratings yet';
+        }
+        
+        return $this->rating . ' (' . $this->reviews_count . ' Reviews)';
     }
 }
