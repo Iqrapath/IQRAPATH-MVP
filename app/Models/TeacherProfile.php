@@ -29,6 +29,7 @@ class TeacherProfile extends Model
         'qualification',
         'rating',
         'reviews_count',
+        'join_date',
     ];
 
     /**
@@ -41,6 +42,7 @@ class TeacherProfile extends Model
         'languages' => 'array',
         'rating' => 'decimal:1',
         'reviews_count' => 'integer',
+        'join_date' => 'date',
     ];
 
     /**

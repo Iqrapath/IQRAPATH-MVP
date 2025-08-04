@@ -25,6 +25,7 @@ return new class extends Migration
             $table->string('qualification')->nullable();
             $table->decimal('rating', 3, 1)->nullable();
             $table->integer('reviews_count')->default(0);
+            $table->date('join_date')->nullable(); // Track when teacher joined the platform
             $table->timestamps();
         });
     }

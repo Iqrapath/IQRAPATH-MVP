@@ -48,7 +48,7 @@ class ProfileController extends Controller
         $preferredHours = $availabilities->first()?->preferred_teaching_hours ?? '';
         $availabilityType = $availabilities->first()?->availability_type ?? 'Part-Time';
         
-        return Inertia::render('Teacher/Profile/Index', [
+        return Inertia::render('teacher/profile/index', [
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
@@ -56,6 +56,7 @@ class ProfileController extends Controller
                 'phone' => $user->phone,
                 'avatar' => $user->avatar,
                 'location' => $user->location,
+                'created_at' => $user->created_at,
             ],
             'profile' => $teacherProfile ? [
                 'id' => $teacherProfile->id,
@@ -71,6 +72,7 @@ class ProfileController extends Controller
                 'rating' => $teacherProfile->rating,
                 'reviews_count' => $teacherProfile->reviews_count,
                 'formatted_rating' => $teacherProfile->formattedRating,
+                'join_date' => $teacherProfile->join_date,
             ] : null,
             'subjects' => $teacherProfile ? $teacherProfile->subjects : [],
             'availabilities' => [
@@ -136,20 +138,36 @@ class ProfileController extends Controller
     {
         $user = Auth::user();
         
-        $validated = $request->validate([
-            'avatar' => 'required|image|max:2048',
-        ]);
-        
-        // Delete old avatar if exists
-        if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
-            Storage::disk('public')->delete($user->avatar);
+        // Handle avatar upload
+        if ($request->hasFile('avatar')) {
+            $validated = $request->validate([
+                'avatar' => 'required|image|max:2048',
+            ]);
+            
+            // Delete old avatar if exists
+            if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
+                Storage::disk('public')->delete($user->avatar);
+            }
+            
+            // Store new avatar
+            $avatarPath = $request->file('avatar')->store('avatars', 'public');
+            $avatarUrl = Storage::url($avatarPath);
+            
+            User::where('id', $user->id)->update(['avatar' => $avatarUrl]);
+            
+            return back()->with('success', 'Profile picture updated successfully.');
+        } elseif ($request->input('avatar') === null) {
+            // Remove avatar if it was set to null
+            if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
+                Storage::disk('public')->delete($user->avatar);
+            }
+            
+            User::where('id', $user->id)->update(['avatar' => null]);
+            
+            return back()->with('success', 'Profile picture removed successfully.');
         }
         
-        // Store new avatar
-        $path = $request->file('avatar')->store('avatars', 'public');
-        User::where('id', $user->id)->update(['avatar' => $path]);
-        
-        return back()->with('success', 'Profile picture updated successfully.');
+        return back()->withErrors(['avatar' => 'No avatar file provided.']);
     }
     
     /**
