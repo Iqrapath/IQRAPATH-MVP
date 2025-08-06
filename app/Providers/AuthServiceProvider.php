@@ -12,6 +12,7 @@ use App\Models\SupportTicket;
 use App\Models\TeachingSession;
 use App\Models\TicketResponse;
 use App\Models\VerificationRequest;
+use App\Models\TeacherReview;
 use App\Policies\DisputePolicy;
 use App\Policies\DocumentPolicy;
 use App\Policies\EvidenceAttachmentPolicy;
@@ -22,6 +23,7 @@ use App\Policies\SupportTicketPolicy;
 use App\Policies\TeachingSessionPolicy;
 use App\Policies\TicketResponsePolicy;
 use App\Policies\VerificationRequestPolicy;
+use App\Policies\TeacherReviewPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Gate;
 
@@ -43,6 +45,7 @@ class AuthServiceProvider extends ServiceProvider
         TicketResponse::class => TicketResponsePolicy::class,
         EvidenceAttachment::class => EvidenceAttachmentPolicy::class,
         VerificationRequest::class => VerificationRequestPolicy::class,
+        TeacherReview::class => TeacherReviewPolicy::class,
         'App\Models\TeacherAvailability' => 'App\Policies\TeacherAvailabilityPolicy',
     ];
 

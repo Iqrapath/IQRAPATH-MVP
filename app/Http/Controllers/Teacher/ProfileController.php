@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Models\TeacherReview;
 
 class ProfileController extends Controller
 {
@@ -29,6 +30,13 @@ class ProfileController extends Controller
         $teacherProfile = TeacherProfile::where('user_id', $user->id)
             ->with(['subjects', 'documents'])
             ->first();
+        
+        // Fetch latest reviews for this teacher
+        $reviews = TeacherReview::with(['student', 'session'])
+            ->where('teacher_id', $user->id)
+            ->latest()
+            ->take(10)
+            ->get();
             
         // Get availabilities
         $availabilities = TeacherAvailability::where('teacher_id', $user->id)->get();
@@ -82,6 +90,7 @@ class ProfileController extends Controller
                 'availability_type' => $availabilityType,
             ],
             'documents' => $documentCounts,
+            'reviews' => $reviews,
         ]);
     }
     

@@ -9,6 +9,19 @@ import TeacherLayout from '@/layouts/teacher/teacher-layout';
 import { CheckCircle, Edit, MapPin, Star, Upload, VerifiedIcon, Camera, X } from 'lucide-react';
 import { FormEventHandler } from 'react';
 
+interface Review {
+    id: number;
+    rating: number;
+    review: string | null;
+    created_at: string;
+    formatted_date?: string;
+    student: {
+        id: number;
+        name: string;
+        avatar?: string | null;
+    };
+}
+
 interface TeacherProfileProps {
     user: {
         id: number;
@@ -26,9 +39,10 @@ interface TeacherProfileProps {
         formatted_rating: string;
         join_date: string | null;
     } | null;
+    reviews: Review[];
 }
 
-export default function TeacherProfile({ user, profile }: TeacherProfileProps) {
+export default function TeacherProfile({ user, profile, reviews }: TeacherProfileProps) {
     const getInitials = (name: string) => {
         return name.split(' ').map(n => n[0]).join('').toUpperCase();
     };
@@ -141,9 +155,11 @@ export default function TeacherProfile({ user, profile }: TeacherProfileProps) {
                                             )}
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-4 mt-4">
-                                        <Button disabled={processing} className="bg-[#338078] text-white hover:bg-[#338078]/90">Upload</Button>
-                                    </div>
+                                    {data.avatar && (
+                                        <div className="flex items-center gap-4 mt-4">
+                                            <Button disabled={processing} className="bg-[#338078] text-white hover:bg-[#338078]/90">Upload</Button>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Vertical Separator */}
@@ -178,14 +194,49 @@ export default function TeacherProfile({ user, profile }: TeacherProfileProps) {
 
                                         <div className="flex items-center">
                                             <MapPin className="h-4 w-4 mr-2 text-gray-600" />
-                                            <span className="font-medium text-[#338078]">{user.location}</span>
+                                            <span className="font-medium text-[#338078]">{user.location || 'N/A'} </span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-
+                        {/* Reviews Section */}
+                        <div className="bg-white rounded-xl shadow p-6 mt-6">
+                            <h3 className="text-xl font-semibold mb-4">Recent Reviews</h3>
+                            {reviews.length === 0 ? (
+                                <p className="text-gray-500">No reviews yet.</p>
+                            ) : (
+                                <div className="space-y-6">
+                                    {reviews.map((review) => (
+                                        <div key={review.id} className="border-b pb-4 last:border-b-0 last:pb-0">
+                                            <div className="flex items-center gap-3 mb-1">
+                                                <Avatar className="h-10 w-10">
+                                                    {review.student.avatar ? (
+                                                        <AvatarImage src={review.student.avatar} alt={review.student.name} />
+                                                    ) : (
+                                                        <AvatarFallback>{getInitials(review.student.name)}</AvatarFallback>
+                                                    )}
+                                                </Avatar>
+                                                <div>
+                                                    <div className="font-semibold text-gray-900">{review.student.name}</div>
+                                                    <div className="text-xs text-gray-500">{review.formatted_date || formatJoinDate(review.created_at)}</div>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                {[1,2,3,4,5].map((star) => (
+                                                    <Star key={star} className={`h-4 w-4 ${star <= review.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} />
+                                                ))}
+                                                <span className="ml-2 text-sm text-gray-700">{review.rating} / 5</span>
+                                            </div>
+                                            {review.review && (
+                                                <div className="text-gray-800 text-sm mt-1">{review.review}</div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </form>
 
                     {/* Profile Picture & Bio */}

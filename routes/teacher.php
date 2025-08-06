@@ -6,6 +6,7 @@ use App\Http\Controllers\Teacher\AvailabilityController;
 use App\Http\Controllers\Teacher\DashboardController;
 use App\Http\Controllers\Teacher\FinancialController;
 use App\Http\Controllers\Teacher\ProfileController;
+use App\Http\Controllers\Teacher\TeacherReviewController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -75,4 +76,8 @@ Route::middleware(['auth', 'verified', 'role:teacher'])->prefix('teacher')->name
     Route::get('/requests', function () {
         return Inertia::render('teacher/requests/index');
     })->name('requests');
+
+    // Teacher reviews (students and guardians can submit)
+    Route::post('/reviews', [TeacherReviewController::class, 'store'])->middleware('role:student,guardian')->name('reviews.store');
+    Route::get('/{teacher}/reviews', [TeacherReviewController::class, 'index'])->name('reviews.index');
 }); 
