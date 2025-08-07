@@ -33,8 +33,10 @@ Route::middleware(['auth', 'verified', 'role:teacher'])->prefix('teacher')->name
     // Subject routes
     Route::resource('subjects', SubjectController::class);
     
-    // Document management routes
-    Route::resource('documents', DocumentController::class);
+    // Document management routes - API-like endpoints
+    Route::get('/documents', [DocumentController::class, 'index'])->name('documents.index');
+    Route::post('/documents', [DocumentController::class, 'store'])->name('documents.store');
+    Route::delete('/documents/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
     Route::get('/documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
     
     // Financial routes
@@ -47,8 +49,13 @@ Route::middleware(['auth', 'verified', 'role:teacher'])->prefix('teacher')->name
     Route::get('/profile', [ProfileController::class, 'index'])->name('profile.index');
     Route::put('/profile/basic-info', [ProfileController::class, 'updateBasicInfo'])->name('profile.update-basic-info');
     Route::put('/profile/teacher-info', [ProfileController::class, 'updateProfile'])->name('profile.update-teacher-info');
+    Route::put('/profile/subjects', [ProfileController::class, 'updateSubjects'])->name('profile.update-subjects');
+    Route::put('/profile/availability', [ProfileController::class, 'updateAvailability'])->name('profile.update-availability');
     Route::post('/profile/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.update-avatar');
     Route::post('/profile/intro-video', [ProfileController::class, 'uploadIntroVideo'])->name('profile.upload-intro-video');
+    Route::get('/profile/intro-video', function () {
+        return Inertia::render('teacher/profile/intro-video');
+    })->name('profile.intro-video');
     
     // Teacher subjects management
     Route::post('/profile/subjects', [SubjectController::class, 'store'])->name('profile.subjects.store');

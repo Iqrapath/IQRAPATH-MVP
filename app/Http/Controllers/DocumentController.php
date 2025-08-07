@@ -39,13 +39,19 @@ class DocumentController extends Controller
         $certificates = $documents->get(Document::TYPE_CERTIFICATE, collect());
         $resume = $documents->get(Document::TYPE_RESUME, collect())->first();
         
-        return Inertia::render('Teacher/Documents/Index', [
-            'idVerifications' => $idVerifications,
-            'certificates' => $certificates,
-            'resume' => $resume,
-            'hasIdVerification' => $idVerifications->count() > 0,
-            'hasResume' => $resume !== null,
-        ]);
+        // Return JSON response for API-like usage
+        if ($request->expectsJson() || $request->has('api')) {
+            return response()->json([
+                'idVerifications' => self::formatDocumentsForDisplay($idVerifications),
+                'certificates' => self::formatDocumentsForDisplay($certificates),
+                'resume' => $resume ? self::formatDocumentsForDisplay(collect([$resume]))[0] : null,
+                'hasIdVerification' => $idVerifications->count() > 0,
+                'hasResume' => $resume !== null,
+            ]);
+        }
+        
+        // For web requests, redirect to profile page since we don't have a dedicated documents page
+        return redirect()->route('teacher.profile.index')->with('active_tab', 'documents');
     }
 
     /**
@@ -55,11 +61,8 @@ class DocumentController extends Controller
     {
         $type = $request->query('type', Document::TYPE_CERTIFICATE);
         
-        return Inertia::render('Teacher/Documents/Create', [
-            'documentType' => $type,
-            'allowedTypes' => $this->getAllowedFileTypes($type),
-            'maxFileSize' => $this->getMaxFileSize($type),
-        ]);
+        // For web requests, redirect to profile page since we don't have a dedicated documents page
+        return redirect()->route('teacher.profile.index')->with('active_tab', 'documents');
     }
 
     /**
@@ -151,15 +154,15 @@ class DocumentController extends Controller
     /**
      * Display the specified document.
      */
-    public function show(Document $document): Response
-    {
-        Gate::authorize('view', $document);
+    // public function show(Document $document): Response
+    // {
+    //     Gate::authorize('view', $document);
         
-        return Inertia::render('Teacher/Documents/Show', [
-            'document' => $document,
-            'documentUrl' => Storage::url($document->path),
-        ]);
-    }
+    //     return Inertia::render('Teacher/Documents/Show', [
+    //         'document' => $document,
+    //         'documentUrl' => Storage::url($document->path),
+    //     ]);
+    // }
 
     /**
      * Remove the specified document from storage.
@@ -168,6 +171,11 @@ class DocumentController extends Controller
     {
         Gate::authorize('delete', $document);
         
+        // Only allow deletion of pending documents
+        if ($document->status !== Document::STATUS_PENDING) {
+            return back()->withErrors(['error' => 'Only pending documents can be deleted.']);
+        }
+        
         // Delete the file
         if (Storage::disk('public')->exists($document->path)) {
             Storage::disk('public')->delete($document->path);
@@ -175,7 +183,11 @@ class DocumentController extends Controller
         
         $document->delete();
         
-        return redirect()->route('teacher.documents.index')
+        // Determine redirect based on request
+        $redirectRoute = request()->input('redirect_route', 'teacher.profile.index');
+        $redirectParams = request()->input('redirect_params', []);
+        
+        return redirect()->route($redirectRoute, $redirectParams)
             ->with('success', 'Document deleted successfully.');
     }
     
@@ -199,7 +211,7 @@ class DocumentController extends Controller
     /**
      * Get the allowed file types for a document type.
      */
-    private function getAllowedFileTypes(string $type): string
+    private static function getAllowedFileTypes(string $type): string
     {
         return match($type) {
             Document::TYPE_ID_VERIFICATION => 'image/jpeg, image/png, application/pdf',
@@ -212,7 +224,7 @@ class DocumentController extends Controller
     /**
      * Get the maximum file size for a document type in kilobytes.
      */
-    private function getMaxFileSize(string $type): int
+    private static function getMaxFileSize(string $type): int
     {
         return match($type) {
             Document::TYPE_ID_VERIFICATION => 5120, // 5MB
@@ -220,5 +232,124 @@ class DocumentController extends Controller
             Document::TYPE_RESUME => 10240, // 10MB
             default => 5120, // 5MB
         };
+    }
+
+    /**
+     * Get documents by type for a teacher profile.
+     */
+    public static function getDocumentsByType(TeacherProfile $teacherProfile, string $type): \Illuminate\Database\Eloquent\Collection
+    {
+        return $teacherProfile->documents()
+            ->where('type', $type)
+            ->orderBy('created_at', 'desc')
+            ->get();
+    }
+
+    /**
+     * Get document counts by type for a teacher profile.
+     */
+    public static function getDocumentCounts(TeacherProfile $teacherProfile): array
+    {
+        return [
+            'id_verifications' => $teacherProfile->documents()->where('type', Document::TYPE_ID_VERIFICATION)->count(),
+            'certificates' => $teacherProfile->documents()->where('type', Document::TYPE_CERTIFICATE)->count(),
+            'resume' => $teacherProfile->documents()->where('type', Document::TYPE_RESUME)->count(),
+        ];
+    }
+
+    /**
+     * Format documents for frontend display.
+     */
+    public static function formatDocumentsForDisplay(\Illuminate\Database\Eloquent\Collection $documents): array
+    {
+        return $documents->map(function ($doc) {
+            return [
+                'id' => $doc->id,
+                'name' => $doc->name,
+                'status' => $doc->status,
+                'metadata' => $doc->metadata,
+                'created_at' => $doc->created_at,
+                'verified_at' => $doc->verified_at,
+                'rejection_reason' => $doc->rejection_reason,
+            ];
+        })->toArray();
+    }
+
+    /**
+     * Get documents for a specific teacher profile by type.
+     */
+    public static function getTeacherDocumentsByType(int $teacherProfileId, string $type): array
+    {
+        $teacherProfile = TeacherProfile::find($teacherProfileId);
+        if (!$teacherProfile) {
+            return [];
+        }
+
+        $documents = self::getDocumentsByType($teacherProfile, $type);
+        return self::formatDocumentsForDisplay($documents);
+    }
+
+    /**
+     * Get all documents for a specific teacher profile.
+     */
+    public static function getAllTeacherDocuments(int $teacherProfileId): array
+    {
+        $teacherProfile = TeacherProfile::find($teacherProfileId);
+        if (!$teacherProfile) {
+            return [];
+        }
+
+        $documents = $teacherProfile->documents()
+            ->orderBy('type')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->groupBy('type');
+
+        return [
+            'id_verifications' => self::formatDocumentsForDisplay($documents->get(Document::TYPE_ID_VERIFICATION, collect())),
+            'certificates' => self::formatDocumentsForDisplay($documents->get(Document::TYPE_CERTIFICATE, collect())),
+            'resume' => $documents->get(Document::TYPE_RESUME, collect())->first() 
+                ? self::formatDocumentsForDisplay(collect([$documents->get(Document::TYPE_RESUME, collect())->first()]))[0] 
+                : null,
+        ];
+    }
+
+    /**
+     * Check if a teacher can upload a specific document type.
+     */
+    public static function canUploadDocumentType(int $teacherProfileId, string $type): bool
+    {
+        $teacherProfile = TeacherProfile::find($teacherProfileId);
+        if (!$teacherProfile) {
+            return false;
+        }
+
+        switch ($type) {
+            case Document::TYPE_ID_VERIFICATION:
+                // Can upload both sides
+                return true;
+            case Document::TYPE_CERTIFICATE:
+                // Can upload multiple certificates
+                return true;
+            case Document::TYPE_RESUME:
+                // Can only upload one resume
+                return !$teacherProfile->resume();
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * Get document upload limits and restrictions.
+     */
+    public static function getDocumentUploadInfo(string $type): array
+    {
+        return [
+            'type' => $type,
+            'max_file_size' => self::getMaxFileSize($type),
+            'allowed_types' => self::getAllowedFileTypes($type),
+            'can_upload_multiple' => $type !== Document::TYPE_RESUME,
+            'max_uploads' => $type === Document::TYPE_RESUME ? 1 : null,
+        ];
     }
 }
