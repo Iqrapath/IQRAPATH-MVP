@@ -30,6 +30,8 @@ class TeacherProfile extends Model
         'rating',
         'reviews_count',
         'join_date',
+        'hourly_rate_usd',
+        'hourly_rate_ngn',
     ];
 
     /**
@@ -43,6 +45,8 @@ class TeacherProfile extends Model
         'rating' => 'decimal:1',
         'reviews_count' => 'integer',
         'join_date' => 'date',
+        'hourly_rate_usd' => 'decimal:2',
+        'hourly_rate_ngn' => 'decimal:2',
     ];
 
     /**

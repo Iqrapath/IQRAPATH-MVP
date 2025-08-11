@@ -27,7 +27,7 @@ class UserFactory extends Factory
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
             'phone' => fake()->phoneNumber(),
-            'avatar' => null, // Default to null, can be customized
+            'avatar' => null, // Default to null for initials system
             'location' => fake()->city() . ', ' . fake()->country(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('123password'),
@@ -73,6 +73,51 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'location' => null,
+        ]);
+    }
+
+    /**
+     * Indicate that the user is a teacher.
+     */
+    public function teacher(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'teacher',
+            'avatar' => null, // Teachers should use initials system
+            'location' => fake()->city() . ', Nigeria', // Focus on Nigerian locations
+        ]);
+    }
+
+    /**
+     * Indicate that the user is a student.
+     */
+    public function student(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'student',
+            'avatar' => null, // Students can also use initials system
+        ]);
+    }
+
+    /**
+     * Indicate that the user is a guardian.
+     */
+    public function guardian(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'guardian',
+            'avatar' => null, // Guardians can also use initials system
+        ]);
+    }
+
+    /**
+     * Indicate that the user is an admin.
+     */
+    public function admin(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'super-admin',
+            'avatar' => null, // Admins can also use initials system
         ]);
     }
 }

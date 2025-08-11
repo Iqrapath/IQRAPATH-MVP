@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\ContentPagesController;
 use App\Http\Controllers\Admin\FaqController;
+use App\Http\Controllers\FindTeacherController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -21,6 +22,27 @@ use Inertia\Inertia;
 Route::get('/', function () {
     return Inertia::render('welcome');
 })->name('home');
+
+Route::get('/find-teacher', [FindTeacherController::class, 'index'])->name('find-teacher');
+Route::get('/api/teachers', [FindTeacherController::class, 'getTeachers'])->name('api.teachers');
+
+Route::get('/how-it-works', function () {
+    return Inertia::render('how-it-works');
+})->name('how-it-works');
+
+Route::get('/blog', function () {
+    return Inertia::render('blog');
+})->name('blog');
+
+Route::get('/blog-post', function () {
+    return Inertia::render('blog-post');
+})->name('blog-post');
+
+Route::get('/about', function () {
+    return Inertia::render('about');
+})->name('about');
+
+
 
 // Public content pages
 Route::get('/page/{slug}', [ContentPagesController::class, 'show'])->name('pages.show');

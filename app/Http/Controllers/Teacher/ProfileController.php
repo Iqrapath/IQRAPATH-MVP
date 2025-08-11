@@ -111,7 +111,7 @@ class ProfileController extends Controller
                 'qualification' => $teacherProfile->qualification,
                 'certifications' => $teacherProfile->certifications,
 
-                'intro_video_url' => $teacherProfile->intro_video_url,
+                'intro_video_url' => $teacherProfile->intro_video_url ? Storage::url($teacherProfile->intro_video_url) : null,
                 'rating' => $teacherProfile->rating,
                 'reviews_count' => $teacherProfile->reviews_count,
                 'formatted_rating' => $teacherProfile->formattedRating,

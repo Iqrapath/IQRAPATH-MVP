@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Models\User;
 use App\Models\AdminProfile;
-use App\Models\TeacherProfile;
 use App\Models\StudentProfile;
 use App\Models\GuardianProfile;
 use Illuminate\Database\Seeder;
@@ -18,9 +17,6 @@ class UserSeeder extends Seeder
     {
         // Create admin users
         $this->createAdminUsers();
-        
-        // Create teacher users
-        $this->createTeacherUsers();
         
         // Create student users
         $this->createStudentUsers();
@@ -75,52 +71,6 @@ class UserSeeder extends Seeder
                     'settings' => ['read'],
                 ]),
                 'bio' => fake()->paragraph(),
-            ]);
-        });
-    }
-    
-    /**
-     * Create teacher users.
-     */
-    private function createTeacherUsers(): void
-    {
-        // Create main teacher if it doesn't exist
-        $teacher = User::firstOrCreate(
-            ['email' => 'teacher@sch.com'],
-            [
-                'name' => 'Teacher',
-                'email' => 'teacher@sch.com',
-                'role' => 'teacher',
-                'password' => bcrypt('123password'),
-                'email_verified_at' => now(),
-            ]
-        );
-        
-        // Create teacher profile if it doesn't exist
-        if (!$teacher->teacherProfile) {
-            TeacherProfile::create([
-                'user_id' => $teacher->id,
-                'bio' => 'Experienced Quran teacher with focus on Tajweed.',
-                'experience_years' => '5',
-                'verified' => true,
-                'languages' => json_encode(['English', 'Arabic']),
-                'teaching_type' => 'Online',
-                'teaching_mode' => 'One-to-One',
-            ]);
-        }
-        
-        // Create additional teacher users
-        User::factory(3)->create([
-            'role' => 'teacher',
-        ])->each(function ($user) {
-            TeacherProfile::create([
-                'user_id' => $user->id,
-                'bio' => fake()->paragraph(),
-                'experience_years' => (string)fake()->numberBetween(1, 15),
-                'verified' => fake()->boolean(70),
-                'languages' => json_encode(fake()->randomElements(['English', 'Arabic', 'Urdu', 'French', 'Spanish'], fake()->numberBetween(1, 3))),
-                'teaching_type' => fake()->randomElement(['Online', 'In-person', 'Both']),
-                'teaching_mode' => fake()->randomElement(['One-to-One', 'Group', 'Both']),
             ]);
         });
     }

@@ -65,7 +65,7 @@ export default function Navigation({ auth }: NavigationProps) {
               <Link
                 href="/blog"
                 className={
-                  isActive('/blog')
+                  isActive('/blog') || isActive('/blog-post')
                     ? 'text-[#2F8D8C] border-b-2 border-[#2F8D8C] px-2 lg:px-3 py-2 text-sm font-medium whitespace-nowrap'
                     : 'text-[#2F8D8C] hover:text-[#2F8D8C] hover:border-b-2 hover:border-[#2F8D8C] px-2 lg:px-3 py-2 text-sm font-medium whitespace-nowrap border-b-2 border-transparent'
                 }
@@ -174,7 +174,7 @@ export default function Navigation({ auth }: NavigationProps) {
             <Link
               href="/blog"
               className={
-                isActive('/blog')
+                isActive('/blog') || isActive('/blog-post')
                   ? 'text-[#2F8D8C] block px-3 py-2 text-base font-medium border-l-4 border-[#2F8D8C]'
                   : 'text-[#2F8D8C] hover:text-[#2F8D8C] block px-3 py-2 text-base font-medium border-l-4 border-transparent hover:border-[#2F8D8C]'
               }
