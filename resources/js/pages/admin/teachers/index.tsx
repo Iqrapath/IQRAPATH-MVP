@@ -24,6 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MoreVertical, Check, X, Edit, Eye, BarChart, Search } from "lucide-react";
+import { VerifiedIcon } from "@/components/icons/verified-icon";
 import { Badge } from "@/components/ui/badge";
 import { useState, FormEvent } from "react";
 import { Pagination } from "@/components/ui/pagination";
@@ -31,6 +32,7 @@ import { debounce } from "lodash";
 import AdminLayout from "@/layouts/admin/admin-layout";
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink } from "@/components/ui/breadcrumb";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { CancelIcon } from "@/components/icons/cancel-icon";
 
 interface Teacher {
   id: number;
@@ -355,60 +357,50 @@ export default function TeachersIndex({
                         <DropdownMenuContent align="end" className="w-56 p-0 border rounded-lg shadow-lg">
                           {teacher.status !== "Approved" && (
                             <DropdownMenuItem 
-                              className="flex items-center px-4 py-3 hover:bg-gray-50 cursor-pointer"
+                              className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 cursor-pointer w-full"
                               onClick={() =>
                                 router.patch(
                                   route("admin.teachers.approve", teacher.id)
                                 )
                               }
                             >
-                              <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center mr-3">
-                                <Check className="h-5 w-5 text-green-600" />
-                              </div>
                               <span>Approve Teacher</span>
+                              <VerifiedIcon className="h-5 w-5 text-green-600" />
                             </DropdownMenuItem>
                           )}
-                          <DropdownMenuItem asChild className="px-0 py-0 focus:bg-transparent">
+                          <DropdownMenuItem asChild className="px-0 py-0">
                             <Link 
                               href={route("admin.teachers.edit", teacher.id)}
-                              className="flex items-center px-4 py-3 hover:bg-gray-50 w-full"
+                              className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 cursor-pointer w-full"
                             >
-                              <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mr-3">
-                                <Edit className="h-5 w-5 text-gray-600" />
-                              </div>
                               <span>Edit Profile</span>
+                              <Edit className="h-5 w-5 text-gray-600" />
                             </Link>
                           </DropdownMenuItem>
-                          <DropdownMenuItem asChild className="px-0 py-0 focus:bg-transparent">
+                          <DropdownMenuItem asChild className="px-0 py-0">
                             <Link 
                               href={route("admin.teachers.show", teacher.id)}
-                              className="flex items-center px-4 py-3 hover:bg-gray-50 w-full"
+                              className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 cursor-pointer w-full"
                             >
-                              <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mr-3">
-                                <Eye className="h-5 w-5 text-gray-600" />
-                              </div>
                               <span>View Profile</span>
+                              <Eye className="h-5 w-5 text-gray-600" />
                             </Link>
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="flex items-center px-4 py-3 hover:bg-gray-50 cursor-pointer">
-                            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mr-3">
-                              <BarChart className="h-5 w-5 text-gray-600" />
-                            </div>
+                          <DropdownMenuItem className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 cursor-pointer">
                             <span>View Performance</span>
+                            <BarChart className="h-5 w-5 text-gray-600" />
                           </DropdownMenuItem>
                           {teacher.status !== "Inactive" && (
                             <DropdownMenuItem 
-                              className="flex items-center px-4 py-3 hover:bg-gray-50 cursor-pointer"
+                              className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 cursor-pointer"
                               onClick={() => {
                                 // Show a modal for rejection reason
                                 // This would need to be implemented
                                 alert("Implement rejection modal");
                               }}
                             >
-                              <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center mr-3">
-                                <X className="h-5 w-5 text-red-600" />
-                              </div>
                               <span>Reject</span>
+                              <CancelIcon className="h-5 w-5 text-red-600" />
                             </DropdownMenuItem>
                           )}
                         </DropdownMenuContent>
