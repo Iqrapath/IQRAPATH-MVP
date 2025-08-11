@@ -30,9 +30,11 @@ class User extends Authenticatable
         'avatar',
         'location',
         'role',
+        'account_status',
         'status_type',
         'status_message',
         'last_active_at',
+        'registration_date',
         'password',
     ];
 
@@ -56,6 +58,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'last_active_at' => 'datetime',
+            'registration_date' => 'datetime',
             'password' => 'hashed',
         ];
     }
@@ -185,6 +188,30 @@ class User extends Authenticatable
     }
 
     /**
+     * Check if the user's account is active.
+     */
+    public function isAccountActive(): bool
+    {
+        return $this->account_status === 'active';
+    }
+
+    /**
+     * Check if the user's account is suspended.
+     */
+    public function isAccountSuspended(): bool
+    {
+        return $this->account_status === 'suspended';
+    }
+
+    /**
+     * Check if the user's account is inactive.
+     */
+    public function isAccountInactive(): bool
+    {
+        return $this->account_status === 'inactive';
+    }
+
+    /**
      * Get the admin profile associated with the user.
      */
     public function adminProfile(): HasOne
@@ -214,6 +241,14 @@ class User extends Authenticatable
     public function guardianProfile(): HasOne
     {
         return $this->hasOne(GuardianProfile::class);
+    }
+
+    /**
+     * Get the student learning schedules associated with the user.
+     */
+    public function studentLearningSchedules(): HasMany
+    {
+        return $this->hasMany(StudentLearningSchedule::class, 'student_id');
     }
 
     /**

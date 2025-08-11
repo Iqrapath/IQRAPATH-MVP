@@ -44,7 +44,7 @@ class TeacherProfile extends Model
         'languages' => 'array',
         'rating' => 'decimal:1',
         'reviews_count' => 'integer',
-        'join_date' => 'date',
+        'join_date' => 'datetime',
         'hourly_rate_usd' => 'decimal:2',
         'hourly_rate_ngn' => 'decimal:2',
     ];
@@ -115,5 +115,52 @@ class TeacherProfile extends Model
         }
         
         return $this->rating . ' (' . $this->reviews_count . ' Reviews)';
+    }
+
+    /**
+     * Check if the teacher is verified.
+     */
+    public function isVerified(): bool
+    {
+        return $this->verified;
+    }
+
+    /**
+     * Check if the teacher has experience.
+     */
+    public function hasExperience(): bool
+    {
+        return !empty($this->experience_years);
+    }
+
+    /**
+     * Get the formatted join date.
+     */
+    public function getFormattedJoinDateAttribute(): string
+    {
+        return $this->join_date ? $this->join_date->format('F j, Y') : 'N/A';
+    }
+
+    /**
+     * Get the primary hourly rate in the user's preferred currency.
+     */
+    public function getPrimaryHourlyRateAttribute(): ?float
+    {
+        // Default to NGN if available, otherwise USD
+        return $this->hourly_rate_ngn ?? $this->hourly_rate_usd;
+    }
+
+    /**
+     * Get the formatted hourly rate.
+     */
+    public function getFormattedHourlyRateAttribute(): string
+    {
+        $rate = $this->getPrimaryHourlyRateAttribute();
+        if (!$rate) {
+            return 'Not set';
+        }
+
+        $currency = $this->hourly_rate_ngn ? '₦' : '$';
+        return $currency . number_format($rate, 2);
     }
 }

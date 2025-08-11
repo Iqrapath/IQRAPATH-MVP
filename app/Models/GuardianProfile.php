@@ -60,4 +60,36 @@ class GuardianProfile extends Model
         $this->children_count = $this->students()->count();
         return $this->save();
     }
+
+    /**
+     * Check if the guardian has any children.
+     */
+    public function hasChildren(): bool
+    {
+        return $this->children_count > 0;
+    }
+
+    /**
+     * Check if the guardian is active.
+     */
+    public function isActive(): bool
+    {
+        return $this->status === 'active';
+    }
+
+    /**
+     * Get the formatted registration date.
+     */
+    public function getFormattedRegistrationDateAttribute(): string
+    {
+        return $this->registration_date ? $this->registration_date->format('F j, Y') : 'N/A';
+    }
+
+    /**
+     * Get the relationship display name.
+     */
+    public function getRelationshipDisplayAttribute(): string
+    {
+        return ucfirst($this->relationship ?? '');
+    }
 }

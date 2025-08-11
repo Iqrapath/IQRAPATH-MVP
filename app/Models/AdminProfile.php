@@ -39,4 +39,40 @@ class AdminProfile extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    /**
+     * Check if the admin has a specific permission.
+     */
+    public function hasPermission(string $permission): bool
+    {
+        if (!$this->permissions || !is_array($this->permissions)) {
+            return false;
+        }
+
+        return in_array($permission, $this->permissions);
+    }
+
+    /**
+     * Check if the admin is a super admin.
+     */
+    public function isSuperAdmin(): bool
+    {
+        return $this->admin_level === 'super-admin';
+    }
+
+    /**
+     * Get the department display name.
+     */
+    public function getDepartmentDisplayAttribute(): string
+    {
+        return ucfirst($this->department ?? '');
+    }
+
+    /**
+     * Get the admin level display name.
+     */
+    public function getAdminLevelDisplayAttribute(): string
+    {
+        return ucfirst(str_replace('-', ' ', $this->admin_level ?? ''));
+    }
 }

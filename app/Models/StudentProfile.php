@@ -30,6 +30,9 @@ class StudentProfile extends Model
         'payment_id',
         'status',
         'registration_date',
+        'teaching_mode',
+        'additional_notes',
+        'timezone',
     ];
 
     /**
@@ -67,6 +70,14 @@ class StudentProfile extends Model
     {
         return $this->hasMany(StudentLearningProgress::class, 'user_id', 'user_id');
     }
+
+    /**
+     * Get the learning schedules for the student.
+     */
+    public function learningSchedules(): HasMany
+    {
+        return $this->hasMany(StudentLearningSchedule::class, 'student_id', 'user_id');
+    }
     
     /**
      * Update the guardian's children count when this student is associated.
@@ -79,5 +90,49 @@ class StudentProfile extends Model
                 $guardianProfile->updateChildrenCount();
             }
         }
+    }
+
+    /**
+     * Check if the student is in full-time mode.
+     */
+    public function isFullTime(): bool
+    {
+        return $this->teaching_mode === 'full-time';
+    }
+
+    /**
+     * Check if the student is in part-time mode.
+     */
+    public function isPartTime(): bool
+    {
+        return $this->teaching_mode === 'part-time';
+    }
+
+    /**
+     * Get the teaching mode display name.
+     */
+    public function getTeachingModeDisplayAttribute(): string
+    {
+        return ucfirst(str_replace('-', ' ', $this->teaching_mode ?? ''));
+    }
+
+    /**
+     * Get the age in years.
+     */
+    public function getAgeAttribute(): ?int
+    {
+        if (!$this->date_of_birth) {
+            return null;
+        }
+
+        return $this->date_of_birth->age;
+    }
+
+    /**
+     * Get the formatted registration date.
+     */
+    public function getFormattedRegistrationDateAttribute(): string
+    {
+        return $this->registration_date ? $this->registration_date->format('F j, Y') : 'N/A';
     }
 }
