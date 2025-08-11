@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SecuritySettingsController;
 use App\Http\Controllers\Admin\TeacherManagementController;
 use App\Http\Controllers\Admin\TeacherVerificationController;
+use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\DocumentVerificationController;
 use App\Http\Controllers\SubjectController;
 use Illuminate\Support\Facades\Route;
@@ -35,6 +36,15 @@ Route::middleware(['auth', 'verified', 'role:super-admin'])->prefix('admin')->na
     Route::get('/users', [RoleController::class, 'index'])->name('users.index');
     Route::get('/users/{user}/edit-role', [RoleController::class, 'edit'])->name('users.edit-role');
     Route::patch('/users/{user}/role', [RoleController::class, 'update'])->name('users.update-role');
+    
+    // User management routes
+    Route::get('/user-management', [UserManagementController::class, 'index'])->name('user-management.index');
+    Route::get('/user-management/create', [UserManagementController::class, 'create'])->name('user-management.create');
+    Route::post('/user-management', [UserManagementController::class, 'store'])->name('user-management.store');
+    Route::get('/user-management/{user}', [UserManagementController::class, 'show'])->name('user-management.show');
+    Route::get('/user-management/{user}/edit', [UserManagementController::class, 'edit'])->name('user-management.edit');
+    Route::put('/user-management/{user}', [UserManagementController::class, 'update'])->name('user-management.update');
+    Route::delete('/user-management/{user}', [UserManagementController::class, 'destroy'])->name('user-management.destroy');
     
     // Admin access to subjects
     Route::resource('subjects', SubjectController::class);

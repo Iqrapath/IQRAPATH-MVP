@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { StatCard } from '@/pages/admin/dashboard-component/stat-card';
 import { ReactNode } from 'react';
 import { Calendar } from 'lucide-react';
+import { Link } from '@inertiajs/react';
 
 interface StatsOverviewProps {
   stats: Array<{
@@ -45,8 +46,11 @@ export function StatsOverview({ stats }: StatsOverviewProps) {
           <Button
             variant="ghost"
             className="text-[#2c7870] hover:text-[#2c7870] hover:bg-transparent p-0 h-auto text-sm font-normal"
+            asChild
           >
-            View Profiles
+            <Link href={route("admin.user-management.index")}>
+              View Profiles
+            </Link>
           </Button>
         </div>
       </CardContent>
