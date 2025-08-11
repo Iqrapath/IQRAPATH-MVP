@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\User;
 use App\Models\StudentProfile;
 use App\Models\GuardianProfile;
+use App\Services\GuardianService;
 use Illuminate\Database\Seeder;
 
 class UserSeeder extends Seeder
@@ -26,6 +27,8 @@ class UserSeeder extends Seeder
      */
     private function assignGuardiansToStudents(): void
     {
+        $guardianService = new GuardianService();
+        
         $guardians = User::where('role', 'guardian')->get();
         $students = User::where('role', 'student')->get();
         
@@ -42,13 +45,8 @@ class UserSeeder extends Seeder
                 }
             }
             
-            // Update guardian children count
-            foreach ($guardians as $guardian) {
-                $childrenCount = StudentProfile::where('guardian_id', $guardian->id)->count();
-                if ($guardian->guardianProfile) {
-                    $guardian->guardianProfile->update(['children_count' => $childrenCount]);
-                }
-            }
+            // Update all guardian children counts using the service
+            $guardianService->updateAllGuardiansChildrenCount();
         }
     }
 } 

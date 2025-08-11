@@ -25,7 +25,7 @@ return new class extends Migration
             $table->string('qualification')->nullable();
             $table->decimal('rating', 3, 1)->nullable();
             $table->integer('reviews_count')->default(0);
-            $table->date('join_date')->nullable(); // Track when teacher joined the platform
+            $table->timestamp('join_date')->useCurrent(); // Track when teacher joined the platform
             $table->decimal('hourly_rate_usd', 8, 2)->nullable(); // Hourly rate in USD
             $table->decimal('hourly_rate_ngn', 10, 2)->nullable(); // Hourly rate in Nigerian Naira
             $table->timestamps();

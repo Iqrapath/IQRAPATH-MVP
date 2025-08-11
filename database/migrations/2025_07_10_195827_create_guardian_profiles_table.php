@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->enum('status', ['active', 'suspended', 'inactive'])->default('active');
-            $table->timestamp('registration_date')->nullable();
+            $table->timestamp('registration_date')->useCurrent();
             $table->integer('children_count')->default(0);
             $table->string('relationship')->nullable(); // Parent, Guardian, etc.
             $table->timestamps();

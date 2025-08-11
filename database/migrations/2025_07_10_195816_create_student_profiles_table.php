@@ -17,7 +17,7 @@ return new class extends Migration
             $table->date('date_of_birth')->nullable();
             $table->enum('gender', ['male', 'female', 'other'])->nullable();
             $table->enum('status', ['active', 'inactive', 'suspended'])->default('active');
-            $table->timestamp('registration_date')->nullable();
+            $table->timestamp('registration_date')->useCurrent();
             $table->string('grade_level')->nullable();
             $table->string('school_name')->nullable();
             $table->foreignId('guardian_id')->nullable()->constrained('users');
@@ -26,6 +26,9 @@ return new class extends Migration
             $table->json('preferred_learning_times')->nullable();
             $table->string('age_group')->nullable();
             $table->string('payment_id')->nullable();
+            $table->enum('teaching_mode', ['full-time', 'part-time'])->nullable();
+            $table->text('additional_notes')->nullable();
+            $table->string('timezone')->nullable();
             $table->timestamps();
         });
     }

@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\User;
 use App\Models\GuardianProfile;
+use App\Services\GuardianService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -31,25 +32,28 @@ class GuardianSeeder extends Seeder
         
         // Create guardian profile if it doesn't exist
         if (!$guardian->guardianProfile) {
-            GuardianProfile::create([
+            $guardianService = new GuardianService();
+            $guardianService->createGuardianProfile([
                 'user_id' => $guardian->id,
                 'status' => 'active',
                 'registration_date' => now(),
-                'children_count' => 0, // Will be updated later
+                'children_count' => 0, // Will be updated by service
                 'relationship' => 'Parent',
             ]);
         }
         
         // Create additional guardian users using factory
-        User::factory(20)->guardian()->create()->each(function ($user) {
+        $guardianService = new GuardianService();
+        
+        User::factory(20)->guardian()->create()->each(function ($user) use ($guardianService) {
             $relationships = ['Parent', 'Grandparent', 'Uncle', 'Aunt', 'Guardian', 'Sibling'];
             $statuses = ['active', 'active', 'active', 'inactive']; // 75% active, 25% inactive
             
-            GuardianProfile::create([
+            $guardianService->createGuardianProfile([
                 'user_id' => $user->id,
                 'status' => fake()->randomElement($statuses),
                 'registration_date' => fake()->dateTimeBetween('-2 years', 'now'),
-                'children_count' => 0, // Will be updated later
+                'children_count' => 0, // Will be updated by service
                 'relationship' => fake()->randomElement($relationships),
             ]);
         });
