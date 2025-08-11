@@ -65,6 +65,7 @@ class RegisteredUserController extends Controller
         $userData = [
             'name' => $request->name,
             'password' => Hash::make($request->password),
+            'role' => null, // New users start as unassigned
         ];
         
         // Add email if provided

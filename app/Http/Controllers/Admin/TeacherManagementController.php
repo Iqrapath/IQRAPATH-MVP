@@ -60,9 +60,10 @@ class TeacherManagementController extends Controller
         
         // Filter by rating if provided
         if ($request->has('rating') && $request->rating && $request->rating !== 'all') {
-            // Assuming we have a rating system in place
             $rating = $request->rating;
-            // This would need to be implemented based on your rating system
+            $query->whereHas('teacherProfile', function ($q) use ($rating) {
+                $q->where('rating', '>=', $rating);
+            });
         }
         
         // Search by name or email
@@ -102,8 +103,11 @@ class TeacherManagementController extends Controller
                     }
                 }
                 
-                // Get average rating (placeholder - implement based on your rating system)
-                $rating = 4.8; // Placeholder
+                // Get average rating from teacher profile
+                $rating = null;
+                if ($teacher->teacherProfile && $teacher->teacherProfile->rating !== null) {
+                    $rating = is_numeric($teacher->teacherProfile->rating) ? (float) $teacher->teacherProfile->rating : null;
+                }
                 
                 return [
                     'id' => $teacher->id,
@@ -120,6 +124,16 @@ class TeacherManagementController extends Controller
         // Get all subjects for filter dropdown
         $allSubjects = Subject::select('name')->distinct()->get()->pluck('name');
         
+        // Get rating statistics
+        $averageRating = TeacherProfile::avg('rating');
+        
+        $ratingStats = [
+            'average' => $averageRating !== null ? (float) $averageRating : null,
+            'total_teachers' => TeacherProfile::count(),
+            'verified_teachers' => TeacherProfile::where('verified', true)->count(),
+            'unverified_teachers' => TeacherProfile::where('verified', false)->count(),
+        ];
+        
         return Inertia::render('admin/teachers/index', [
             'teachers' => $teachers,
             'filters' => [
@@ -129,6 +143,7 @@ class TeacherManagementController extends Controller
                 'rating' => $request->rating ?? '',
             ],
             'subjects' => $allSubjects,
+            'ratingStats' => $ratingStats,
         ]);
     }
 

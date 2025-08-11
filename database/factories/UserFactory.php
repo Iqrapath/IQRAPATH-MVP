@@ -120,4 +120,15 @@ class UserFactory extends Factory
             'avatar' => null, // Admins can also use initials system
         ]);
     }
+
+    /**
+     * Indicate that the user is unassigned (no role).
+     */
+    public function unassigned(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => null,
+            'avatar' => null, // Unassigned users use initials system
+        ]);
+    }
 }

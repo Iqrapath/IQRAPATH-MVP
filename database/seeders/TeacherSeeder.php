@@ -71,7 +71,7 @@ class TeacherSeeder extends Seeder
                 'role' => 'teacher',
                 'password' => Hash::make('password123'),
                 'email_verified_at' => now(),
-                'avatar' => 'avatars/teacher1.jpg',
+                'avatar' => 'https://plus.unsplash.com/premium_photo-1664301632032-6c690ba2d240?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
                 'profile' => [
                     'bio' => 'Experienced Quran teacher with over 10 years of teaching experience. Specialized in Tajweed and Hifz.',
                     'experience_years' => '10',
@@ -96,7 +96,7 @@ class TeacherSeeder extends Seeder
                 'role' => 'teacher',
                 'password' => Hash::make('password123'),
                 'email_verified_at' => now(),
-                'avatar' => 'avatars/teacher2.jpg',
+                'avatar' => 'https://plus.unsplash.com/premium_photo-1661499767763-351b5b894985?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
                 'profile' => [
                     'bio' => 'Dedicated female Quran teacher with expertise in teaching children and beginners.',
                     'experience_years' => '7',
@@ -121,7 +121,7 @@ class TeacherSeeder extends Seeder
                 'role' => 'teacher',
                 'password' => Hash::make('password123'),
                 'email_verified_at' => now(),
-                'avatar' => 'avatars/teacher3.jpg',
+                'avatar' => 'https://plus.unsplash.com/premium_photo-1663039980809-1eed880ca36e?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
                 'profile' => [
                     'bio' => 'Professional Quran teacher with international experience. Expert in advanced Tajweed rules.',
                     'experience_years' => '12',
@@ -146,7 +146,7 @@ class TeacherSeeder extends Seeder
                 'role' => 'teacher',
                 'password' => Hash::make('password123'),
                 'email_verified_at' => now(),
-                'avatar' => 'avatars/teacher4.jpg',
+                'avatar' => 'https://plus.unsplash.com/premium_photo-1682144174635-6505d6212267?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
                 'profile' => [
                     'bio' => 'Passionate teacher specializing in teaching Quran to children and adults with learning difficulties.',
                     'experience_years' => '8',
@@ -171,7 +171,7 @@ class TeacherSeeder extends Seeder
                 'role' => 'teacher',
                 'password' => Hash::make('password123'),
                 'email_verified_at' => now(),
-                'avatar' => 'avatars/teacher5.jpg',
+                'avatar' => 'https://plus.unsplash.com/premium_photo-1661458052153-81af30f312d3?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
                 'profile' => [
                     'bio' => 'Experienced female teacher with expertise in teaching Quran memorization and Islamic etiquette.',
                     'experience_years' => '9',
@@ -217,7 +217,7 @@ class TeacherSeeder extends Seeder
         }
 
         // Create additional random teachers using factory
-        User::factory(15)->teacher()->create()->each(function ($user) {
+        User::factory(25)->teacher()->create()->each(function ($user) {
             $teacherProfile = TeacherProfile::factory()->create([
                 'user_id' => $user->id,
             ]);

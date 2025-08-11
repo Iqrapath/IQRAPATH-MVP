@@ -13,11 +13,15 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Call the super admin seeder
+        // Call the seeders in order
         $this->call([
             SuperAdminSeeder::class,
-            UserSeeder::class,
+            AdminSeeder::class,
             TeacherSeeder::class,
+            StudentSeeder::class,
+            GuardianSeeder::class,
+            UnassignedUserSeeder::class, // Create unassigned users for testing
+            UserSeeder::class, // This should run last to handle relationships
             TeachingSessionSeeder::class,
             NotificationTemplateSeeder::class,
             NotificationTriggerSeeder::class,

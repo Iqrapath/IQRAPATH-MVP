@@ -38,7 +38,7 @@ interface Teacher {
   email: string;
   avatar: string | null;
   subjects: string;
-  rating: number;
+  rating: any; // Allow any type since we handle it safely
   classes_held: number;
   status: string;
 }
@@ -134,6 +134,26 @@ export default function TeachersIndex({
       .toUpperCase();
   };
 
+  const formatRating = (rating: number | null) => {
+    if (!rating || rating === 0 || typeof rating !== 'number') return 'N/A';
+    return rating.toFixed(1);
+  };
+
+  const getRatingStars = (rating: number | null) => {
+    if (!rating || rating === 0 || typeof rating !== 'number') return 0;
+    return Math.round(rating);
+  };
+
+  const safeRating = (rating: any): number | null => {
+    if (rating === null || rating === undefined) return null;
+    if (typeof rating === 'number') return rating;
+    if (typeof rating === 'string') {
+      const parsed = parseFloat(rating);
+      return isNaN(parsed) ? null : parsed;
+    }
+    return null;
+  };
+
   const formatSubjects = (subjects: string): string => {
     if (!subjects) return '';
     
@@ -160,7 +180,6 @@ export default function TeachersIndex({
             <Link href={route("admin.teachers.create")}>Add New Teachers</Link>
           </Button>
         </div>
-
         <div className="mb-6">
           <div className="flex flex-col md:flex-row gap-4 mb-4">
             <div className="flex-1">
@@ -194,7 +213,7 @@ export default function TeachersIndex({
                   <SelectItem value="inactive">Inactive</SelectItem>
                 </SelectContent>
               </Select>
-
+              
               <Select
                 value={subject}
                 onValueChange={(value) => handleFilter("subject", value)}
@@ -221,9 +240,11 @@ export default function TeachersIndex({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Ratings</SelectItem>
-                  <SelectItem value="5">5 Stars</SelectItem>
-                  <SelectItem value="4">4+ Stars</SelectItem>
-                  <SelectItem value="3">3+ Stars</SelectItem>
+                  <SelectItem value="5">5.0 Stars</SelectItem>
+                  <SelectItem value="4.5">4.5+ Stars</SelectItem>
+                  <SelectItem value="4">4.0+ Stars</SelectItem>
+                  <SelectItem value="3.5">3.5+ Stars</SelectItem>
+                  <SelectItem value="3">3.0+ Stars</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -289,12 +310,36 @@ export default function TeachersIndex({
                     <TableCell>{teacher.email}</TableCell>
                     <TableCell>{formatSubjects(teacher.subjects)}</TableCell>
                     <TableCell>
-                      <div className="flex items-center">
-                        <span className="text-yellow-500 mr-1">★</span>
-                        {teacher.rating.toFixed(1)}
-                      </div>
+                      {(() => {
+                        try {
+                          return (
+                            <div className="flex items-center">
+                              <div className="flex text-yellow-500 mr-2">
+                                {[1, 2, 3, 4, 5].map((star) => {
+                                  const safeRatingValue = safeRating(teacher.rating);
+                                  return (
+                                    <span key={star} className={star <= getRatingStars(safeRatingValue) ? 'text-yellow-500' : 'text-gray-300'}>
+                                      ★
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                              <span className="text-sm text-gray-600">
+                                {formatRating(safeRating(teacher.rating))}
+                              </span>
+                            </div>
+                          );
+                        } catch (error) {
+                          console.error('Error rendering teacher rating:', error, 'Teacher:', teacher);
+                          return (
+                            <div className="flex items-center">
+                              <span className="text-sm text-gray-400">N/A</span>
+                            </div>
+                          );
+                        }
+                      })()}
                     </TableCell>
-                    <TableCell>{teacher.classes_held}</TableCell>
+                    <TableCell className="text-center">{teacher.classes_held}</TableCell>
                     <TableCell>{getStatusBadge(teacher.status)}</TableCell>
                     <TableCell>
                       <DropdownMenu>

@@ -53,7 +53,7 @@ Route::get('/faqs', function () {
 })->name('faqs');
 
 // Unassigned user routes
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth'])->group(function () {
     Route::get('/unassigned', function () {
         return Inertia::render('unassigned');
     })->name('unassigned');
