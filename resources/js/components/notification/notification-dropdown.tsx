@@ -57,6 +57,8 @@ export function NotificationDropdown({ className, iconSize = 24 }: NotificationD
         return <Bell className="h-4 w-4 text-green-500" />;
       case 'App\\Notifications\\SessionRequestNotification':
         return <Bell className="h-4 w-4 text-amber-500" />;
+      case 'new_user_registration':
+        return <Bell className="h-4 w-4 text-teal-500" />;
       default:
         return <Bell className="h-4 w-4 text-gray-500" />;
     }
@@ -174,6 +176,24 @@ export function NotificationDropdown({ className, iconSize = 24 }: NotificationD
                       <p className="text-xs text-muted-foreground line-clamp-2">
                         {notification.data.message}
                       </p>
+                      
+                      {/* Special handling for new user registrations */}
+                      {notification.type === 'new_user_registration' && (
+                        <div className="mt-2 p-2 bg-teal-50 rounded border border-teal-200">
+                          <div className="text-xs text-teal-800">
+                            <p><strong>New User:</strong> {notification.data.new_user_name}</p>
+                            {notification.data.new_user_email && notification.data.new_user_email !== 'No email provided' && (
+                              <p><strong>Email:</strong> {notification.data.new_user_email}</p>
+                            )}
+                            {notification.data.new_user_phone && notification.data.new_user_phone !== 'No phone provided' && (
+                              <p><strong>Phone:</strong> {notification.data.new_user_phone}</p>
+                            )}
+                            {notification.data.registration_time && (
+                              <p><strong>Registered:</strong> {notification.data.registration_time}</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
                       
                       {notification.data.action_text && notification.data.action_url && (
                         <Link

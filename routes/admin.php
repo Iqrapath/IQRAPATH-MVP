@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\DocumentVerificationController;
 use App\Http\Controllers\SubjectController;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
 /*
 |--------------------------------------------------------------------------
@@ -45,6 +46,15 @@ Route::middleware(['auth', 'verified', 'role:super-admin'])->prefix('admin')->na
     Route::get('/user-management/{user}/edit', [UserManagementController::class, 'edit'])->name('user-management.edit');
     Route::put('/user-management/{user}', [UserManagementController::class, 'update'])->name('user-management.update');
     Route::delete('/user-management/{user}', [UserManagementController::class, 'destroy'])->name('user-management.destroy');
+    
+    // Admin notifications
+    Route::get('/notifications', [App\Http\Controllers\Admin\NotificationsController::class, 'index'])->name('notifications');
+    Route::get('/notifications/search', [App\Http\Controllers\Admin\NotificationsController::class, 'search'])->name('notifications.search');
+    
+    // Auto-notification triggers
+    Route::get('/notifications/auto-triggers', [App\Http\Controllers\Admin\AutoNotificationController::class, 'index'])->name('notifications.auto-triggers');
+    Route::put('/notifications/{notificationTrigger}', [App\Http\Controllers\Admin\AutoNotificationController::class, 'update'])->name('notifications.update');
+    Route::delete('/notifications/{notificationTrigger}', [App\Http\Controllers\Admin\AutoNotificationController::class, 'destroy'])->name('notifications.destroy');
     
     // Admin access to subjects
     Route::resource('subjects', SubjectController::class);
@@ -122,8 +132,5 @@ Route::middleware(['auth', 'verified', 'role:super-admin'])->prefix('admin')->na
         Route::patch('/faqs/{faq}/toggle-published', [FaqController::class, 'togglePublished'])->name('faqs.toggle-published');
     });
     
-    // Notifications
-    Route::get('/notifications', function () {
-        return inertia('admin/notifications/notifications');
-    })->name('notifications');
+
 }); 

@@ -29,6 +29,9 @@ import { Pagination } from "@/components/ui/pagination";
 import { debounce } from "lodash";
 import AdminLayout from "@/layouts/admin/admin-layout";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { toast } from "sonner";
+import { Toaster } from "sonner";
+import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 
 interface User {
   id: number;
@@ -46,12 +49,12 @@ interface UsersIndexProps {
     current_page: number;
     last_page: number;
   };
-  filters: {
-    search: string;
-    status: string;
-    role: string;
+  filters?: {
+    search?: string;
+    status?: string;
+    role?: string;
   };
-  roles: string[];
+  roles?: string[];
 }
 
 export default function UsersIndex({
@@ -59,9 +62,28 @@ export default function UsersIndex({
   filters,
   roles,
 }: UsersIndexProps) {
-  const [search, setSearch] = useState(filters.search);
-  const [status, setStatus] = useState(filters.status);
-  const [role, setRole] = useState(filters.role);
+  // Provide default values for filters and roles to prevent undefined errors
+  const safeFilters = filters || {};
+  const safeRoles = roles || ['super-admin', 'admin', 'teacher', 'student', 'guardian', 'unassigned'];
+  
+  const [search, setSearch] = useState(safeFilters.search || '');
+  const [status, setStatus] = useState(safeFilters.status || 'all');
+  const [role, setRole] = useState(safeFilters.role || 'all');
+  const [editingRole, setEditingRole] = useState<number | null>(null);
+  const [updatingRole, setUpdatingRole] = useState<number | null>(null);
+  const [confirmationModal, setConfirmationModal] = useState<{
+    isOpen: boolean;
+    userId: number;
+    newRole: string;
+    currentRole: string;
+    userName: string;
+  }>({
+    isOpen: false,
+    userId: 0,
+    newRole: '',
+    currentRole: '',
+    userName: '',
+  });
 
   const handleSearch = debounce((value: string) => {
     router.get(
@@ -94,6 +116,66 @@ export default function UsersIndex({
       { search, status, role },
       { preserveState: true }
     );
+  };
+
+  const handleRoleChange = async (userId: number, newRole: string) => {
+    if (updatingRole === userId) return;
+    
+    // Get the user object to show current role
+    const user = users.data.find(u => u.id === userId);
+    const currentRole = user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Unassigned';
+    const newRoleDisplay = newRole === 'unassigned' ? 'Unassigned' : newRole.charAt(0).toUpperCase() + newRole.slice(1);
+    
+    // Show confirmation modal
+    setConfirmationModal({
+      isOpen: true,
+      userId,
+      newRole,
+      currentRole,
+      userName: user?.name || '',
+    });
+  };
+
+  const confirmRoleChange = async () => {
+    const { userId, newRole } = confirmationModal;
+    
+    setUpdatingRole(userId);
+    setEditingRole(null);
+    setConfirmationModal({ ...confirmationModal, isOpen: false });
+    
+    try {
+      const response = await fetch(`/admin/user-management/${userId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+        },
+        body: JSON.stringify({ role: newRole }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success(data.message);
+        // Refresh the page to show updated data
+        router.reload();
+      } else {
+        toast.error(data.message || 'Failed to update role');
+      }
+    } catch (error) {
+      console.error('Error updating role:', error);
+      toast.error('Failed to update role. Please try again.');
+    } finally {
+      setUpdatingRole(null);
+    }
+  };
+
+  const startRoleEdit = (userId: number) => {
+    setEditingRole(userId);
+  };
+
+  const cancelRoleEdit = () => {
+    setEditingRole(null);
   };
 
   const getStatusBadge = (status: string) => {
@@ -168,20 +250,24 @@ export default function UsersIndex({
                   <SelectItem value="inactive">Inactive</SelectItem>
                 </SelectContent>
               </Select>
-              <Select
-                value={role}
-                onValueChange={(value) => handleFilter("role", value)}
-              >
-                <SelectTrigger className="w-[140px] border rounded-full">
-                  <SelectValue placeholder="Select Role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Roles</SelectItem>
-                  {roles.map((r) => (
-                    <SelectItem key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                             <Select
+                 value={role}
+                 onValueChange={(value) => handleFilter("role", value)}
+               >
+                 <SelectTrigger className="w-[140px] border rounded-full">
+                   <SelectValue placeholder="Select Role" />
+                 </SelectTrigger>
+                 <SelectContent>
+                   <SelectItem value="all">All Roles</SelectItem>
+                   {safeRoles
+                     .filter(r => r !== 'unassigned')
+                     .sort()
+                     .map((r) => (
+                       <SelectItem key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</SelectItem>
+                     ))}
+                   <SelectItem value="unassigned">Unassigned</SelectItem>
+                 </SelectContent>
+               </Select>
                              <Button
                  type="button"
                  onClick={() => {
@@ -224,7 +310,10 @@ export default function UsersIndex({
                 </TableRow>
               ) : (
                 users.data.map((user) => (
-                  <TableRow key={user.id}>
+                  <TableRow 
+                    key={user.id}
+                    className={updatingRole === user.id ? 'bg-blue-50' : ''}
+                  >
                     <TableCell>
                       <input type="checkbox" className="checkbox" />
                     </TableCell>
@@ -238,7 +327,54 @@ export default function UsersIndex({
                     </TableCell>
                     <TableCell className="font-medium">{user.name}</TableCell>
                     <TableCell>{user.email}</TableCell>
-                    <TableCell className="capitalize">{user.role || 'Unassigned'}</TableCell>
+                    <TableCell>
+                      {editingRole === user.id ? (
+                        <div className="flex items-center space-x-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                                                     <Select
+                             value={user.role || 'unassigned'}
+                             onValueChange={(value) => handleRoleChange(user.id, value)}
+                           >
+                             <SelectTrigger className="w-32 h-8 text-xs">
+                               <SelectValue placeholder="Select Role" />
+                             </SelectTrigger>
+                             <SelectContent>
+                               {safeRoles
+                                 .filter(r => r !== 'unassigned')
+                                 .sort()
+                                 .map((r) => (
+                                   <SelectItem key={r} value={r}>
+                                     {r.charAt(0).toUpperCase() + r.slice(1)}
+                                   </SelectItem>
+                                 ))}
+                               <SelectItem value="unassigned">Unassigned</SelectItem>
+                             </SelectContent>
+                           </Select>
+                          <button
+                            onClick={cancelRoleEdit}
+                            className="text-gray-400 hover:text-gray-600 text-xs px-2 py-1 hover:bg-gray-100 rounded"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                                                 <div className="flex items-center space-x-2">
+                           <span className="capitalize font-medium">
+                             {user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Unassigned'}
+                           </span>
+                          <button
+                            onClick={() => startRoleEdit(user.id)}
+                            className="text-blue-600 hover:text-blue-800 text-xs underline hover:no-underline"
+                            disabled={updatingRole === user.id}
+                          >
+                            {updatingRole === user.id ? (
+                              <span className="text-gray-500">Updating...</span>
+                            ) : (
+                              'Change'
+                            )}
+                          </button>
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell>{getStatusBadge(user.status)}</TableCell>
                     <TableCell>
                       <DropdownMenu>
@@ -304,6 +440,20 @@ export default function UsersIndex({
           />
         )}
       </div>
-    </AdminLayout>
-  );
-}
+             <Toaster position="top-right" />
+       
+       {/* Confirmation Modal */}
+       <ConfirmationModal
+         isOpen={confirmationModal.isOpen}
+         onClose={() => setConfirmationModal({ ...confirmationModal, isOpen: false })}
+         onConfirm={confirmRoleChange}
+         title="Confirm Role Change"
+         description={`Are you sure you want to change ${confirmationModal.userName}'s role from "${confirmationModal.currentRole}" to "${confirmationModal.newRole === 'unassigned' ? 'Unassigned' : confirmationModal.newRole.charAt(0).toUpperCase() + confirmationModal.newRole.slice(1)}"? This action will create a new profile and delete the old one.`}
+         confirmText="Change Role"
+         cancelText="Cancel"
+         variant="warning"
+         isLoading={updatingRole === confirmationModal.userId}
+       />
+     </AdminLayout>
+   );
+ }

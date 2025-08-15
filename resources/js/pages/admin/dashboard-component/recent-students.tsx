@@ -3,6 +3,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MessageCircleIcon } from "@/components/icons/message-circle-icon";
 import { StudentIcon } from "@/components/icons/student-icon";
 import { PlusIcon } from "@/components/icons/plus-icon";
+import { MessageCircleStudentIcon } from "@/components/icons/message-circle-student-icon";
+import { Link } from "@inertiajs/react";
 
 
 interface Student {
@@ -29,7 +31,7 @@ export function RecentStudents({ students, totalCount }: RecentStudentsProps) {
           <StudentIcon className="text-black w-8 h-8" />
           <h2 className="text-lg font-medium">Recent Students</h2>
         </div>
-        <Button size="sm" className="bg-teal-600 hover:bg-teal-700 h-10 w-10 p-0 rounded-full">
+        <Button size="sm" className="bg-teal-600 hover:bg-teal-700 h-10 w-10 p-0 cursor-pointer rounded-full">
           <PlusIcon className="text-white" />
         </Button>
       </div>
@@ -46,10 +48,12 @@ export function RecentStudents({ students, totalCount }: RecentStudentsProps) {
                 <AvatarImage src={student.avatar || undefined} />
                 <AvatarFallback>{student.name.substring(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
-              <div className="font-medium">{student.name}</div>
+              <Link href={`/admin/students/${student.id}`}>
+                <div className="font-medium">{student.name}</div>
+              </Link>
             </div>
-            <Button variant="ghost" size="lg" className="h-8 w-8 p-0 rounded-full bg-white border-2 border-gray-200">
-              <MessageCircleIcon className="text-gray-400" />
+            <Button variant="ghost" size="lg" className="h-8 w-8 p-0 rounded-full bg-white border-2 border-gray-200 cursor-pointer">
+              <MessageCircleStudentIcon className="text-[#338078]" />
             </Button>
           </div>
         ))}

@@ -86,10 +86,47 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', 'role:admin,super-admin'])
     ->prefix('admin')
     ->group(function () {
-        // Route::get('/urgent-actions', [UrgentActionsController::class, 'index'])
-        //     ->name('api.admin.urgent-actions');
+        // Urgent Actions endpoints
+        Route::get('/urgent-actions', [App\Http\Controllers\Api\UrgentActionController::class, 'index'])
+            ->name('api.admin.urgent-actions');
+        Route::post('/urgent-actions/refresh', [App\Http\Controllers\Api\UrgentActionController::class, 'refresh'])
+            ->name('api.admin.urgent-actions.refresh');
+        Route::get('/urgent-actions/stats', [App\Http\Controllers\Api\UrgentActionController::class, 'stats'])
+            ->name('api.admin.urgent-actions.stats');
+        
+        // Scheduled Notifications endpoints
+        Route::get('/scheduled-notifications', [App\Http\Controllers\Api\ScheduledNotificationController::class, 'index'])
+            ->name('api.admin.scheduled-notifications.index');
+        Route::get('/scheduled-notifications/search', [App\Http\Controllers\Api\ScheduledNotificationController::class, 'search'])
+            ->name('api.admin.scheduled-notifications.search');
+        Route::post('/scheduled-notifications', [App\Http\Controllers\Api\ScheduledNotificationController::class, 'store'])
+            ->name('api.admin.scheduled-notifications.store');
+        Route::get('/scheduled-notifications/{id}', [App\Http\Controllers\Api\ScheduledNotificationController::class, 'show'])
+            ->name('api.admin.scheduled-notifications.show');
+        Route::put('/scheduled-notifications/{id}', [App\Http\Controllers\Api\ScheduledNotificationController::class, 'update'])
+            ->name('api.admin.scheduled-notifications.update');
+        Route::put('/scheduled-notifications/{id}/cancel', [App\Http\Controllers\Api\ScheduledNotificationController::class, 'cancel'])
+            ->name('api.admin.scheduled-notifications.cancel');
+        Route::delete('/scheduled-notifications/{id}', [App\Http\Controllers\Api\ScheduledNotificationController::class, 'destroy'])
+            ->name('api.admin.scheduled-notifications.destroy');
         
         // Add users endpoint for notifications
         Route::get('/users', [UserController::class, 'index'])
             ->name('api.admin.users');
+        
+        // Admin notifications endpoint
+        Route::get('/notifications', function (Request $request) {
+            $user = $request->user();
+            $notifications = \App\Models\Notification::where('notifiable_id', $user->id)
+                ->where('notifiable_type', \App\Models\User::class)
+                ->orderBy('created_at', 'desc')
+                ->get();
+            
+            $unreadCount = $notifications->whereNull('read_at')->count();
+            
+            return response()->json([
+                'notifications' => $notifications,
+                'unreadCount' => $unreadCount
+            ]);
+        });
     }); 

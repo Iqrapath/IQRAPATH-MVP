@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class UserManagementController extends Controller
@@ -61,10 +62,8 @@ class UserManagementController extends Controller
             ->pluck('role')
             ->toArray();
 
-        // Add 'unassigned' role if there are users without roles
-        if (User::whereNull('role')->exists()) {
-            $roles[] = 'unassigned';
-        }
+        // Always add 'unassigned' role for consistency
+        $roles[] = 'unassigned';
 
         return Inertia::render('admin/users/index', [
             'users' => $users,
@@ -120,8 +119,138 @@ class UserManagementController extends Controller
 
     public function update(Request $request, User $user)
     {
-        // TODO: Implement user update
-        return redirect()->route('admin.user-management.index');
+        $validated = $request->validate([
+            'role' => ['required', 'string', 'in:super-admin,admin,teacher,student,guardian,unassigned'],
+        ]);
+
+        // Prevent changing own role
+        if ($user->id === $request->user()->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You cannot change your own role'
+            ], 400);
+        }
+
+        $oldRole = $user->role;
+        $newRole = $validated['role'] === 'unassigned' ? null : $validated['role'];
+
+        // Start a database transaction
+        DB::beginTransaction();
+
+        try {
+            // Update the user's role
+            $user->role = $newRole;
+            $user->save();
+
+            // If the role has changed, handle profile creation/deletion
+            if ($oldRole !== $newRole) {
+                // Delete old profile if exists
+                if ($oldRole) {
+                    $this->deleteOldProfile($user, $oldRole);
+                }
+
+                // Create new profile only if role is not unassigned
+                if ($newRole) {
+                    $this->createNewProfile($user, $newRole);
+                    
+                    // Dispatch role assigned event
+                    event(new \App\Events\UserRoleAssigned($user, $newRole));
+                }
+            }
+
+            DB::commit();
+
+            $roleDisplay = $newRole ? ucfirst($newRole) : 'Unassigned';
+            
+            return response()->json([
+                'success' => true,
+                'message' => "User role updated to {$roleDisplay}",
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'avatar' => $user->avatar,
+                    'role' => $user->role,
+                    'status' => $user->email_verified_at ? 'active' : 'inactive',
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update user role: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete the old profile based on the previous role.
+     */
+    private function deleteOldProfile(User $user, string $oldRole): void
+    {
+        switch ($oldRole) {
+            case 'teacher':
+                $user->teacherProfile()->delete();
+                break;
+            case 'student':
+                $user->studentProfile()->delete();
+                break;
+            case 'guardian':
+                $user->guardianProfile()->delete();
+                break;
+            case 'admin':
+            case 'super-admin':
+                $user->adminProfile()->delete();
+                break;
+        }
+    }
+
+    /**
+     * Create new profile based on the new role.
+     */
+    private function createNewProfile(User $user, string $newRole): void
+    {
+        switch ($newRole) {
+            case 'teacher':
+                $user->teacherProfile()->create([
+                    'user_id' => $user->id,
+                    'bio' => 'New teacher profile',
+                    'subjects' => [],
+                    'hourly_rate' => 0,
+                    'experience_years' => 0,
+                ]);
+                break;
+            case 'student':
+                $user->studentProfile()->create([
+                    'user_id' => $user->id,
+                    'age' => 0,
+                    'grade_level' => 'Beginner',
+                    'learning_goals' => 'To be defined',
+                ]);
+                break;
+            case 'guardian':
+                $user->guardianProfile()->create([
+                    'user_id' => $user->id,
+                    'relationship' => 'Parent',
+                    'emergency_contact' => $user->phone,
+                ]);
+                break;
+            case 'admin':
+            case 'super-admin':
+                $user->adminProfile()->create([
+                    'user_id' => $user->id,
+                    'department' => 'Administration',
+                    'admin_level' => $newRole === 'super-admin' ? 'Super Admin' : 'Admin',
+                    'permissions' => json_encode([
+                        'users' => ['create', 'read', 'update', 'delete'],
+                        'roles' => ['create', 'read', 'update', 'delete'],
+                        'settings' => ['read', 'update'],
+                    ]),
+                    'bio' => 'System administrator',
+                ]);
+                break;
+        }
     }
 
     public function destroy(User $user)

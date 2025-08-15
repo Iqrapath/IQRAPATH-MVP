@@ -74,6 +74,8 @@ export function NotificationList({
         return <Bell className="h-5 w-5 text-green-500" />;
       case 'App\\Notifications\\SessionRequestNotification':
         return <Bell className="h-5 w-5 text-amber-500" />;
+      case 'new_user_registration':
+        return <Bell className="h-5 w-5 text-teal-500" />;
       default:
         return <Bell className="h-5 w-5 text-gray-500" />;
     }
@@ -195,6 +197,24 @@ export function NotificationList({
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm">{notification.data.message}</p>
+                  
+                  {/* Special handling for new user registrations */}
+                  {notification.type === 'new_user_registration' && (
+                    <div className="mt-3 p-3 bg-teal-50 rounded-md border border-teal-200">
+                      <div className="text-xs text-teal-800">
+                        <p><strong>New User:</strong> {notification.data.new_user_name}</p>
+                        {notification.data.new_user_email && notification.data.new_user_email !== 'No email provided' && (
+                          <p><strong>Email:</strong> {notification.data.new_user_email}</p>
+                        )}
+                        {notification.data.new_user_phone && notification.data.new_user_phone !== 'No phone provided' && (
+                          <p><strong>Phone:</strong> {notification.data.new_user_phone}</p>
+                        )}
+                        {notification.data.registration_time && (
+                          <p><strong>Registered:</strong> {notification.data.registration_time}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
                 {notification.data.action_url && notification.data.action_text && (
                   <CardFooter className="pt-0">

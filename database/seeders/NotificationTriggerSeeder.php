@@ -117,6 +117,19 @@ class NotificationTriggerSeeder extends Seeder
                 'level' => 'info',
                 'is_enabled' => true,
             ],
+            
+            // New user registration notification for admins
+            [
+                'name' => 'New User Registration Alert',
+                'event' => 'UserRegistered',
+                'template_name' => 'new_user_registration',
+                'audience_type' => 'role', // Only admin users
+                'audience_filter' => ['roles' => ['super-admin', 'admin']], // Filter to admin roles
+                'channels' => ['in-app', 'mail'],
+                'timing_type' => 'immediate',
+                'level' => 'info',
+                'is_enabled' => true,
+            ],
         ];
 
         foreach ($triggers as $trigger) {

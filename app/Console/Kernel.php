@@ -77,5 +77,10 @@ class Kernel extends ConsoleKernel
         $schedule->command('app:start-reverb --background')
                 ->everyFiveMinutes()
                 ->withoutOverlapping();
+        
+        // Update urgent action counts
+        $schedule->job(new \App\Jobs\UpdateUrgentActionCounts())
+                ->everyFiveMinutes()
+                ->withoutOverlapping();
     }
 } 

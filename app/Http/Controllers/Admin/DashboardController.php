@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
+use App\Models\Notification;
 use App\Models\Subscription;
 use App\Models\SubscriptionTransaction;
 use App\Models\User;
@@ -84,6 +85,15 @@ class DashboardController extends Controller
                 ];
             });
 
+        // Get admin notifications
+        $adminNotifications = Notification::where('notifiable_id', $request->user()->id)
+            ->where('notifiable_type', User::class)
+            ->orderBy('created_at', 'desc')
+            ->take(20)
+            ->get();
+
+        $unreadCount = $adminNotifications->whereNull('read_at')->count();
+
         return Inertia::render('admin/dashboard', [
             'adminProfile' => $request->user()->adminProfile,
             'stats' => [
@@ -96,6 +106,8 @@ class DashboardController extends Controller
             'recentStudents' => $recentStudents,
             'recentBookings' => $recentBookings,
             'pendingVerifications' => $pendingVerifications,
+            'adminNotifications' => $adminNotifications,
+            'unreadCount' => $unreadCount,
         ]);
     }
 

@@ -104,7 +104,7 @@ export function RevenueSummary({
             value={timeRange} 
             onValueChange={(value) => setTimeRange(value as TimeRange)}
           >
-            <SelectTrigger className="bg-gray-100 border-0 px-4 py-2 h-8 text-sm w-[120px] rounded-md">
+            <SelectTrigger className="bg-gray-100 border-0 px-4 py-2 h-8 text-sm w-[130px] rounded-md cursor-pointer">
               <div className="flex items-center justify-between w-full">
                 <span>{getTimeRangeDisplayName()}</span>
               </div>
@@ -134,7 +134,7 @@ export function RevenueSummary({
           value={timeRange} 
           onValueChange={(value) => setTimeRange(value as TimeRange)}
         >
-          <SelectTrigger className="bg-gray-100 border-0 px-4 py-2 h-8 text-sm w-[120px] rounded-md">
+          <SelectTrigger className="bg-gray-100 border-0 px-4 py-2 h-8 text-sm w-[130px] rounded-md cursor-pointer">
             <div className="flex items-center justify-between w-full">
               <span>{getTimeRangeDisplayName()}</span>
             </div>

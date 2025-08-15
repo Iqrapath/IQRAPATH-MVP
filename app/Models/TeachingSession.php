@@ -47,6 +47,12 @@ class TeachingSession extends Model
         'recording_url',
         'teacher_notes',
         'student_notes',
+        'completion_date',
+        'attendance_count',
+        'teacher_rating',
+        'student_rating',
+        'notifications_sent_count',
+        'notification_history',
     ];
 
     /**
@@ -66,6 +72,11 @@ class TeachingSession extends Model
         'student_joined_at' => 'datetime',
         'teacher_left_at' => 'datetime',
         'student_left_at' => 'datetime',
+        'completion_date' => 'datetime',
+        'attendance_count' => 'integer',
+        'teacher_rating' => 'decimal:2',
+        'student_rating' => 'decimal:2',
+        'notification_history' => 'array',
     ];
     
 
@@ -197,5 +208,87 @@ class TeachingSession extends Model
         }
         
         return 0;
+    }
+
+    /**
+     * Scope a query to only include completed sessions.
+     */
+    public function scopeCompleted($query)
+    {
+        return $query->where('status', 'completed');
+    }
+
+    /**
+     * Scope a query to only include completed sessions within a date range.
+     */
+    public function scopeCompletedBetween($query, $startDate, $endDate)
+    {
+        return $query->completed()
+            ->whereBetween('completion_date', [$startDate, $endDate]);
+    }
+
+    /**
+     * Get the attendance percentage for the session.
+     */
+    public function getAttendancePercentage(): float
+    {
+        $totalExpected = 2; // teacher + student
+        if ($totalExpected > 0) {
+            return round(($this->attendance_count / $totalExpected) * 100, 2);
+        }
+        return 0;
+    }
+
+    /**
+     * Get the average rating for the session.
+     */
+    public function getAverageRating(): float
+    {
+        $ratings = array_filter([$this->teacher_rating, $this->student_rating]);
+        if (!empty($ratings)) {
+            return round(array_sum($ratings) / count($ratings), 2);
+        }
+        return 0;
+    }
+
+    /**
+     * Mark the session as completed.
+     */
+    public function markAsCompleted(): void
+    {
+        $this->update([
+            'status' => 'completed',
+            'completion_date' => now(),
+            'attendance_count' => $this->calculateAttendanceCount(),
+        ]);
+    }
+
+    /**
+     * Calculate attendance count based on present markers.
+     */
+    private function calculateAttendanceCount(): int
+    {
+        $count = 0;
+        if ($this->teacher_marked_present) $count++;
+        if ($this->student_marked_present) $count++;
+        return $count;
+    }
+
+    /**
+     * Add notification to history.
+     */
+    public function addNotificationToHistory(string $type, string $status = 'sent'): void
+    {
+        $history = $this->notification_history ?? [];
+        $history[] = [
+            'type' => $type,
+            'status' => $status,
+            'sent_at' => now()->toISOString(),
+        ];
+        
+        $this->update([
+            'notification_history' => $history,
+            'notifications_sent_count' => count($history),
+        ]);
     }
 } 

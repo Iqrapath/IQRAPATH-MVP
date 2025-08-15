@@ -43,6 +43,15 @@ return new class extends Migration
             $table->string('recording_url')->nullable();
             $table->text('teacher_notes')->nullable();
             $table->text('student_notes')->nullable();
+            
+            // Completion tracking
+            $table->timestamp('completion_date')->nullable();
+            $table->integer('attendance_count')->default(0);
+            $table->decimal('teacher_rating', 3, 2)->nullable();
+            $table->decimal('student_rating', 3, 2)->nullable();
+            $table->integer('notifications_sent_count')->default(0);
+            $table->json('notification_history')->nullable();
+            
             $table->timestamps();
         });
     }

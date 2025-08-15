@@ -25,6 +25,9 @@ class DatabaseSeeder extends Seeder
             TeachingSessionSeeder::class,
             NotificationTemplateSeeder::class,
             NotificationTriggerSeeder::class,
+            UrgentActionSeeder::class,
+            ScheduledNotificationSeeder::class,
+            CompletedClassesSeeder::class,
         ]);
     }
 }

@@ -102,6 +102,17 @@ class NotificationTemplateSeeder extends Seeder
                 'action_url' => '/settings/profile',
                 'is_active' => true,
             ],
+            [
+                'name' => 'new_user_registration',
+                'title' => 'New User Registration: {User_Name}',
+                'body' => 'A new user has registered on the platform. User: {User_Name}, Email: {User_Email}, Phone: {User_Phone}, Registration Time: {Registration_Time}',
+                'type' => 'admin',
+                'placeholders' => ['User_Name', 'User_Email', 'User_Phone', 'Registration_Time'],
+                'level' => 'info',
+                'action_text' => 'View User Details',
+                'action_url' => '/admin/user-management/{user_id}',
+                'is_active' => true,
+            ],
         ];
 
         foreach ($templates as $template) {

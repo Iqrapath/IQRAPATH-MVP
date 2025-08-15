@@ -44,6 +44,8 @@ export function NotificationDetail({
         return <Bell className="h-5 w-5 text-green-500" />;
       case 'App\\Notifications\\SessionRequestNotification':
         return <Bell className="h-5 w-5 text-amber-500" />;
+      case 'new_user_registration':
+        return <Bell className="h-5 w-5 text-teal-500" />;
       default:
         return <Bell className="h-5 w-5 text-gray-500" />;
     }
@@ -54,6 +56,7 @@ export function NotificationDetail({
     if (type.includes('PaymentNotification')) return 'Payment';
     if (type.includes('SessionRequestNotification')) return 'Session Request';
     if (type.includes('SystemNotification')) return 'System';
+    if (type === 'new_user_registration') return 'New User Registration';
     return 'Notification';
   };
   
@@ -162,6 +165,39 @@ export function NotificationDetail({
         <div className="p-4 bg-muted/20 rounded-md">
           <p className="text-base whitespace-pre-wrap">{notification.data.message}</p>
         </div>
+        
+        {/* Special handling for new user registrations */}
+        {notification.type === 'new_user_registration' && (
+          <div className="p-4 bg-teal-50 rounded-md border border-teal-200">
+            <h4 className="text-sm font-medium text-teal-800 mb-3">New User Details</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+              {notification.data.new_user_name && (
+                <div>
+                  <span className="font-medium text-teal-700">Name:</span>
+                  <span className="ml-2 text-teal-800">{notification.data.new_user_name}</span>
+                </div>
+              )}
+              {notification.data.new_user_email && notification.data.new_user_email !== 'No email provided' && (
+                <div>
+                  <span className="font-medium text-teal-700">Email:</span>
+                  <span className="ml-2 text-teal-800">{notification.data.new_user_email}</span>
+                </div>
+              )}
+              {notification.data.new_user_phone && notification.data.new_user_phone !== 'No phone provided' && (
+                <div>
+                  <span className="font-medium text-teal-700">Phone:</span>
+                  <span className="ml-2 text-teal-800">{notification.data.new_user_phone}</span>
+                </div>
+              )}
+              {notification.data.registration_time && (
+                <div>
+                  <span className="font-medium text-teal-700">Registration Time:</span>
+                  <span className="ml-2 text-teal-800">{notification.data.registration_time}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
         
         {notification.data.image_url && (
           <div className="mt-4">

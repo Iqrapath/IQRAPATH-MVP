@@ -61,6 +61,12 @@ export interface Notification {
         sender_id?: number;
         sender_name?: string;
         sender_avatar?: string;
+        // New user registration specific fields
+        new_user_id?: number;
+        new_user_name?: string;
+        new_user_email?: string;
+        new_user_phone?: string;
+        registration_time?: string;
     };
     read_at: string | null;
     created_at: string;

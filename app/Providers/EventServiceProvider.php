@@ -11,6 +11,7 @@ use App\Events\UserAccountUpdated;
 use App\Events\UserLoggedIn;
 use App\Listeners\AccountRoleAssignedNotification;
 use App\Listeners\AccountUpdatedNotification;
+use App\Listeners\NotifyAdminsOfNewUser;
 use App\Listeners\ProcessNotificationTrigger;
 use App\Listeners\SendPaymentConfirmation;
 use App\Listeners\SendSessionReminder;
@@ -37,6 +38,7 @@ class EventServiceProvider extends ServiceProvider
         UserRegistered::class => [
             SendWelcomeNotification::class,
             ProcessNotificationTrigger::class,
+            \App\Listeners\NotifyAdminsOfNewUser::class,
         ],
         
         // User login event

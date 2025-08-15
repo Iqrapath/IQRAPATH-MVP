@@ -94,22 +94,33 @@ class NotificationController extends Controller
     }
 
     /**
-     * Mark the specified notification as read.
+     * Mark a notification as read
      */
-    public function markAsRead(Notification $notification): JsonResponse
+    public function markAsRead(Request $request, string $notificationId): JsonResponse
     {
-        // Check if the user owns this notification
-        if ($notification->notifiable_type !== get_class(request()->user()) || 
-            $notification->notifiable_id !== request()->user()->id) {
-            return response()->json(['error' => 'Unauthorized access to notification'], 403);
+        try {
+            $notification = \App\Models\Notification::findOrFail($notificationId);
+            
+            // Check if the authenticated user owns this notification
+            if ($notification->notifiable_id !== $request->user()->id) {
+                return response()->json(['error' => 'Unauthorized'], 403);
+            }
+            
+            $notification->markAsRead();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Notification marked as read',
+                'notification' => $notification
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to mark notification as read',
+                'error' => $e->getMessage()
+            ], 500);
         }
-        
-        $this->notificationService->markAsRead($notification);
-        
-        return response()->json([
-            'message' => 'Notification marked as read',
-            'notification' => new NotificationResource($notification)
-        ]);
     }
 
     /**
