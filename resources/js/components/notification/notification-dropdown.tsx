@@ -67,7 +67,7 @@ export function NotificationDropdown({ className, iconSize = 24 }: NotificationD
   // Get the correct notification route based on user role
   const getNotificationsRoute = () => {
     if (userRole === 'super-admin') {
-      return route('admin.notifications');
+      return route('admin.notifications.index');
     } else if (userRole === 'teacher') {
       return route('teacher.notifications');
     } else if (userRole === 'student') {

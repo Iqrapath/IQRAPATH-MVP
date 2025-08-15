@@ -48,9 +48,11 @@ interface Props {
   urgentActions: UrgentAction[];
   scheduledNotifications?: any[];
   completedClasses?: any[];
+  templates?: any[];
+  users?: any[];
 }
 
-export default function AdminNotificationsPage({ notifications, urgentActions, scheduledNotifications, completedClasses }: Props) {
+export default function AdminNotificationsPage({ notifications, urgentActions, scheduledNotifications, completedClasses, templates, users }: Props) {
   // Ensure we have valid data
   const safeNotifications = notifications || { data: [], current_page: 1, last_page: 1, per_page: 20, total: 0 };
   const safeUrgentActions = urgentActions || [];
@@ -166,7 +168,7 @@ export default function AdminNotificationsPage({ notifications, urgentActions, s
               Auto-Notification Table
             </Button>
             <Button
-              onClick={() => router.get('/admin/notifications/create')}
+              onClick={() => router.visit('/admin/notifications/create')}
               className="bg-teal-600 hover:bg-teal-700 text-white"
             >
               Create New Notification
@@ -193,7 +195,7 @@ export default function AdminNotificationsPage({ notifications, urgentActions, s
           />
         )}
 
-        {activeTab === 'scheduled' && <ScheduledNotifications scheduledNotifications={scheduledNotifications} />}
+        {activeTab === 'scheduled' && <ScheduledNotifications scheduledNotifications={scheduledNotifications} templates={templates} users={users} />}
 
         {activeTab === 'completed' && <CompletedClasses completedClasses={completedClasses} />}
 

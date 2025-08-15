@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { router } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -22,8 +23,22 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, MoreVertical, Plus, Loader2 } from 'lucide-react';
+import { Search, MoreVertical, Plus, Loader2, Eye } from 'lucide-react';
 import { toast } from 'sonner';
+import { NotificationForm, NotificationPreview } from './index';
+
+interface Notification {
+  id: string;
+  type: string;
+  data: any;
+  read_at: string | null;
+  channel: string;
+  level: string;
+  action_text: string | null;
+  action_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 interface ScheduledNotification {
   id: number;
@@ -38,9 +53,14 @@ interface ScheduledNotification {
 
 interface Props {
   scheduledNotifications?: ScheduledNotification[];
+  templates?: any[];
+  users?: any[];
 }
 
-export default function ScheduledNotifications({ scheduledNotifications }: Props) {
+export default function ScheduledNotifications({ scheduledNotifications, templates = [], users = [] }: Props) {
+  // Ensure we have valid data
+  const safeTemplates = templates || [];
+  const safeUsers = users || [];
   const [notifications, setNotifications] = useState<ScheduledNotification[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -48,6 +68,11 @@ export default function ScheduledNotifications({ scheduledNotifications }: Props
   const [subjectFilter, setSubjectFilter] = useState('all');
   const [ratingFilter, setRatingFilter] = useState('all');
   const [selectedNotifications, setSelectedNotifications] = useState<number[]>([]);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [editingNotification, setEditingNotification] = useState<ScheduledNotification | null>(null);
+  const [previewNotification, setPreviewNotification] = useState<ScheduledNotification | null>(null);
 
   // Refresh notifications from props (for after delete/cancel operations)
   const refreshNotifications = () => {
@@ -188,6 +213,39 @@ export default function ScheduledNotifications({ scheduledNotifications }: Props
     }
   };
 
+  // Handle create new notification
+  const handleCreateNotification = () => {
+    setShowCreateForm(true);
+  };
+
+  // Handle edit notification
+  const handleEditNotification = (notification: ScheduledNotification) => {
+    setEditingNotification(notification);
+    setShowEditForm(true);
+  };
+
+  // Handle preview notification
+  const handlePreviewNotification = (notification: ScheduledNotification) => {
+    setPreviewNotification(notification);
+    setShowPreview(true);
+  };
+
+  // Handle form submission
+  const handleFormSubmit = () => {
+    setShowCreateForm(false);
+    setShowEditForm(false);
+    refreshNotifications();
+  };
+
+  // Handle form cancellation
+  const handleFormCancel = () => {
+    setShowCreateForm(false);
+    setShowEditForm(false);
+    setShowPreview(false);
+    setEditingNotification(null);
+    setPreviewNotification(null);
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
@@ -217,8 +275,11 @@ export default function ScheduledNotifications({ scheduledNotifications }: Props
     <div>
       {/* Header with Create Button */}
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-semibold text-gray-900">Notification History</h2>
-        <Button className="bg-teal-600 hover:bg-teal-700 text-white">
+        <h2 className="text-xl font-semibold text-gray-900">Scheduled Notifications</h2>
+        <Button 
+          className="bg-teal-600 hover:bg-teal-700 text-white"
+          onClick={handleCreateNotification}
+        >
           <Plus className="h-4 w-4 mr-2" />
           Create New Notification
         </Button>
@@ -377,10 +438,17 @@ export default function ScheduledNotifications({ scheduledNotifications }: Props
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem className="cursor-pointer">
+                        <DropdownMenuItem 
+                          className="cursor-pointer"
+                          onClick={() => handleEditNotification(notification)}
+                        >
                           Edit Notification
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="cursor-pointer">
+                        <DropdownMenuItem 
+                          className="cursor-pointer"
+                          onClick={() => handlePreviewNotification(notification)}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
                           View Details
                         </DropdownMenuItem>
                         {notification.status === 'scheduled' && (
@@ -434,6 +502,72 @@ export default function ScheduledNotifications({ scheduledNotifications }: Props
                 Cancel Selected
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Form Modal */}
+      {showCreateForm && (
+        <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-xl">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Create New Scheduled Notification</h3>
+              <Button variant="ghost" onClick={handleFormCancel}>×</Button>
+            </div>
+            <NotificationForm 
+              templates={safeTemplates}
+              users={safeUsers}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Edit Form Modal */}
+      {showEditForm && editingNotification && (
+        <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-xl">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Edit Scheduled Notification</h3>
+              <Button variant="ghost" onClick={handleFormCancel}>×</Button>
+            </div>
+            <NotificationForm 
+              templates={safeTemplates}
+              users={safeUsers}
+              notification={{
+                id: editingNotification.id.toString(),
+                type: 'scheduled',
+                data: {
+                  title: editingNotification.message,
+                  body: editingNotification.message
+                },
+                read_at: null,
+                channel: 'in-app',
+                level: 'info',
+                action_text: null,
+                action_url: null,
+                created_at: editingNotification.created_at,
+                updated_at: editingNotification.updated_at
+              }}
+              isEditing={true}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Preview Modal */}
+      {showPreview && previewNotification && (
+        <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl shadow-xl">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Notification Preview</h3>
+              <Button variant="ghost" onClick={handleFormCancel}>×</Button>
+            </div>
+            <NotificationPreview
+              title={previewNotification.message}
+              body={previewNotification.message}
+              level="info"
+              channels={['in-app']}
+            />
           </div>
         </div>
       )}

@@ -7,6 +7,8 @@ use App\Models\Notification;
 use App\Models\UrgentAction;
 use App\Models\ScheduledNotification;
 use App\Models\TeachingSession;
+use App\Models\NotificationTemplate;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -51,11 +53,17 @@ class NotificationsController extends Controller
             ->limit(50) // Limit to recent 50 for performance
             ->get();
 
+        // Get notification templates and users for forms
+        $templates = NotificationTemplate::active()->orderBy('name')->get();
+        $users = User::select('id', 'name', 'email', 'role')->orderBy('name')->get();
+
         return Inertia::render('admin/notifications/notifications', [
             'notifications' => $notifications,
             'urgentActions' => $urgentActions,
             'scheduledNotifications' => $scheduledNotifications,
             'completedClasses' => $completedClasses,
+            'templates' => $templates,
+            'users' => $users,
         ]);
     }
 

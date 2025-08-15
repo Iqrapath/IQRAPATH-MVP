@@ -48,8 +48,12 @@ Route::middleware(['auth', 'verified', 'role:super-admin'])->prefix('admin')->na
     Route::delete('/user-management/{user}', [UserManagementController::class, 'destroy'])->name('user-management.destroy');
     
     // Admin notifications
-    Route::get('/notifications', [App\Http\Controllers\Admin\NotificationsController::class, 'index'])->name('notifications');
+    Route::get('/notifications', [App\Http\Controllers\Admin\NotificationsController::class, 'index'])->name('notifications.index');
     Route::get('/notifications/search', [App\Http\Controllers\Admin\NotificationsController::class, 'search'])->name('notifications.search');
+    
+    // Notification creation
+    Route::get('/notifications/create', [App\Http\Controllers\Admin\NotificationCreateController::class, 'create'])->name('notifications.create');
+    Route::post('/notifications', [App\Http\Controllers\Admin\NotificationCreateController::class, 'store'])->name('notifications.store');
     
     // Auto-notification triggers
     Route::get('/notifications/auto-triggers', [App\Http\Controllers\Admin\AutoNotificationController::class, 'index'])->name('notifications.auto-triggers');

@@ -26,7 +26,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         $role = $user->role;
         
         if ($role === 'super-admin') {
-            return redirect()->route('admin.notifications');
+            return redirect()->route('admin.notifications.index');
         } elseif ($role === 'teacher') {
             return redirect()->route('teacher.notifications');
         } elseif ($role === 'student') {
