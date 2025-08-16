@@ -121,4 +121,19 @@ class Notification extends Model
     {
         return $query->where('level', $level);
     }
+
+    /**
+     * Boot the model and add event listeners.
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        // Generate UUID before creating
+        static::creating(function ($notification) {
+            if (empty($notification->id)) {
+                $notification->id = \Illuminate\Support\Str::uuid();
+            }
+        });
+    }
 }

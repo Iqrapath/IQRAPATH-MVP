@@ -22,6 +22,10 @@ return new class extends Migration
             $table->foreignId('verified_by')->nullable()->constrained('users');
             $table->text('rejection_reason')->nullable();
             $table->json('metadata')->nullable();
+            $table->unsignedTinyInteger('resubmission_count')->default(0);
+            $table->unsignedTinyInteger('max_resubmissions')->default(3);
+            $table->foreignId('uploaded_by')->nullable()->constrained('users');
+            $table->timestamp('uploaded_at')->nullable();
             $table->timestamps();
         });
     }

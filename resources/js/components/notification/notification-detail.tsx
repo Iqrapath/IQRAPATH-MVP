@@ -166,6 +166,37 @@ export function NotificationDetail({
           <p className="text-base whitespace-pre-wrap">{notification.data.message}</p>
         </div>
         
+        {/* Special handling for rejection notifications */}
+        {(notification.type === 'teacher_rejected' || notification.type === 'document_rejected') && notification.data.rejection_reason && (
+          <div className="p-4 bg-red-50 rounded-md border border-red-200">
+            <h4 className="text-lg font-semibold text-red-800 mb-3">Rejection Details</h4>
+            <div className="space-y-3">
+              <div>
+                <span className="font-medium text-red-700">Reason:</span>
+                <p className="mt-1 text-red-800">{notification.data.rejection_reason}</p>
+              </div>
+              {notification.data.resubmission_instructions && (
+                <div>
+                  <span className="font-medium text-red-700">Resubmission Instructions:</span>
+                  <p className="mt-1 text-red-800">{notification.data.resubmission_instructions}</p>
+                </div>
+              )}
+              {notification.data.remaining_attempts !== undefined && (
+                <div>
+                  <span className="font-medium text-red-700">Remaining Attempts:</span>
+                  <p className="mt-1 text-red-800">{notification.data.remaining_attempts}</p>
+                </div>
+              )}
+              {notification.data.support_contact && (
+                <div>
+                  <span className="font-medium text-red-700">Support Contact:</span>
+                  <p className="mt-1 text-red-800">{notification.data.support_contact}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        
         {/* Special handling for new user registrations */}
         {notification.type === 'new_user_registration' && (
           <div className="p-4 bg-teal-50 rounded-md border border-teal-200">

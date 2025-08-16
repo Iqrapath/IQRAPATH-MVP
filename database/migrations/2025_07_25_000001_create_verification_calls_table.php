@@ -19,6 +19,10 @@ return new class extends Migration
             $table->string('meeting_link');
             $table->text('notes')->nullable();
             $table->enum('status', ['scheduled', 'completed', 'cancelled'])->default('scheduled');
+            $table->enum('verification_result', ['passed', 'failed'])->nullable();
+            $table->text('verification_notes')->nullable();
+            $table->foreignId('verified_by')->nullable()->constrained('users');
+            $table->timestamp('verified_at')->nullable();
             $table->foreignId('created_by')->nullable()->constrained('users');
             $table->timestamps();
         });

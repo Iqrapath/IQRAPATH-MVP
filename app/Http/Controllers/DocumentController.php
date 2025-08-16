@@ -44,7 +44,16 @@ class DocumentController extends Controller
             return response()->json([
                 'idVerifications' => self::formatDocumentsForDisplay($idVerifications),
                 'certificates' => self::formatDocumentsForDisplay($certificates),
-                'resume' => $resume ? self::formatDocumentsForDisplay(collect([$resume]))[0] : null,
+                'resume' => $resume ? [
+                    'id' => $resume->id,
+                    'name' => $resume->name,
+                    'status' => $resume->status,
+                    'metadata' => $resume->metadata,
+                    'created_at' => $resume->created_at,
+                    'verified_at' => $resume->verified_at,
+                    'rejection_reason' => $resume->rejection_reason,
+                    'documentUrl' => $resume->document_path ? Storage::url($resume->document_path) : null,
+                ] : null,
                 'hasIdVerification' => $idVerifications->count() > 0,
                 'hasResume' => $resume !== null,
             ]);
@@ -271,6 +280,7 @@ class DocumentController extends Controller
                 'created_at' => $doc->created_at,
                 'verified_at' => $doc->verified_at,
                 'rejection_reason' => $doc->rejection_reason,
+                'documentUrl' => $doc->document_path ? Storage::url($doc->document_path) : null,
             ];
         })->toArray();
     }
@@ -299,18 +309,35 @@ class DocumentController extends Controller
             return [];
         }
 
-        $documents = $teacherProfile->documents()
-            ->orderBy('type')
+        // Get documents by type separately to maintain Eloquent Collection types
+        $idVerifications = $teacherProfile->documents()
+            ->where('type', Document::TYPE_ID_VERIFICATION)
             ->orderBy('created_at', 'desc')
-            ->get()
-            ->groupBy('type');
+            ->get();
+
+        $certificates = $teacherProfile->documents()
+            ->where('type', Document::TYPE_CERTIFICATE)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $resume = $teacherProfile->documents()
+            ->where('type', Document::TYPE_RESUME)
+            ->orderBy('created_at', 'desc')
+            ->first();
 
         return [
-            'id_verifications' => self::formatDocumentsForDisplay($documents->get(Document::TYPE_ID_VERIFICATION, collect())),
-            'certificates' => self::formatDocumentsForDisplay($documents->get(Document::TYPE_CERTIFICATE, collect())),
-            'resume' => $documents->get(Document::TYPE_RESUME, collect())->first() 
-                ? self::formatDocumentsForDisplay(collect([$documents->get(Document::TYPE_RESUME, collect())->first()]))[0] 
-                : null,
+            'id_verifications' => self::formatDocumentsForDisplay($idVerifications),
+            'certificates' => self::formatDocumentsForDisplay($certificates),
+            'resume' => $resume ? [
+                'id' => $resume->id,
+                'name' => $resume->name,
+                'status' => $resume->status,
+                'metadata' => $resume->metadata,
+                'created_at' => $resume->created_at,
+                'verified_at' => $resume->verified_at,
+                'rejection_reason' => $resume->rejection_reason,
+                'documentUrl' => $resume->document_path ? Storage::url($resume->document_path) : null,
+            ] : null,
         ];
     }
 

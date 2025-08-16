@@ -83,7 +83,7 @@ Route::middleware('auth')->group(function () {
 });
 
 // Admin API routes
-Route::middleware(['auth', 'role:admin,super-admin'])
+Route::middleware(['auth'])
     ->prefix('admin')
     ->group(function () {
         // Urgent Actions endpoints
@@ -129,4 +129,6 @@ Route::middleware(['auth', 'role:admin,super-admin'])
                 'unreadCount' => $unreadCount
             ]);
         });
+        
+        
     }); 

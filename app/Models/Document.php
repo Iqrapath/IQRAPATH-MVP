@@ -25,6 +25,10 @@ class Document extends Model
         'verified_by',
         'rejection_reason',
         'metadata',
+        'resubmission_count',
+        'max_resubmissions',
+        'uploaded_by',
+        'uploaded_at',
     ];
 
     /**
@@ -35,6 +39,9 @@ class Document extends Model
     protected $casts = [
         'metadata' => 'array',
         'verified_at' => 'datetime',
+        'uploaded_at' => 'datetime',
+        'resubmission_count' => 'integer',
+        'max_resubmissions' => 'integer',
     ];
 
     /**
@@ -52,6 +59,11 @@ class Document extends Model
     const STATUS_REJECTED = 'rejected';
 
     /**
+     * Maximum resubmission attempts (industry standard)
+     */
+    const MAX_RESUBMISSION_ATTEMPTS = 3;
+
+    /**
      * Get the teacher profile that owns the document.
      */
     public function teacherProfile(): BelongsTo
@@ -65,6 +77,14 @@ class Document extends Model
     public function verifier(): BelongsTo
     {
         return $this->belongsTo(User::class, 'verified_by');
+    }
+
+    /**
+     * Get the admin who uploaded the document.
+     */
+    public function uploader(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'uploaded_by');
     }
 
     /**
@@ -124,6 +144,30 @@ class Document extends Model
     }
 
     /**
+     * Check if document can be resubmitted.
+     */
+    public function canBeResubmitted(): bool
+    {
+        return $this->resubmission_count < $this->max_resubmissions;
+    }
+
+    /**
+     * Check if document has reached maximum resubmission attempts.
+     */
+    public function hasReachedMaxResubmissions(): bool
+    {
+        return $this->resubmission_count >= $this->max_resubmissions;
+    }
+
+    /**
+     * Get remaining resubmission attempts.
+     */
+    public function getRemainingResubmissions(): int
+    {
+        return max(0, $this->max_resubmissions - $this->resubmission_count);
+    }
+
+    /**
      * Mark document as verified.
      */
     public function markAsVerified(User $admin): bool
@@ -146,6 +190,32 @@ class Document extends Model
             'verified_at' => now(),
             'verified_by' => $admin->id,
             'rejection_reason' => $reason,
+        ]);
+    }
+
+    /**
+     * Increment resubmission count when document is resubmitted.
+     */
+    public function incrementResubmissionCount(): bool
+    {
+        if ($this->hasReachedMaxResubmissions()) {
+            return false;
+        }
+
+        return $this->update([
+            'resubmission_count' => $this->resubmission_count + 1,
+            'status' => self::STATUS_PENDING,
+            'rejection_reason' => null,
+        ]);
+    }
+
+    /**
+     * Reset resubmission count (when document is verified).
+     */
+    public function resetResubmissionCount(): bool
+    {
+        return $this->update([
+            'resubmission_count' => 0,
         ]);
     }
 }

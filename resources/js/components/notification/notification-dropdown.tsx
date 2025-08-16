@@ -177,6 +177,22 @@ export function NotificationDropdown({ className, iconSize = 24 }: NotificationD
                         {notification.data.message}
                       </p>
                       
+                      {/* Special handling for rejection notifications */}
+                      {(notification.type === 'teacher_rejected' || notification.type === 'document_rejected') && notification.data.rejection_reason && (
+                        <div className="mt-2 p-2 bg-red-50 rounded border border-red-200">
+                          <div className="text-xs text-red-800">
+                            <p><strong>Rejection Reason:</strong></p>
+                            <p className="mt-1">{notification.data.rejection_reason}</p>
+                            {notification.data.resubmission_instructions && (
+                              <p className="mt-1"><strong>Instructions:</strong> {notification.data.resubmission_instructions}</p>
+                            )}
+                            {notification.data.remaining_attempts !== undefined && (
+                              <p className="mt-1"><strong>Remaining Attempts:</strong> {notification.data.remaining_attempts}</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      
                       {/* Special handling for new user registrations */}
                       {notification.type === 'new_user_registration' && (
                         <div className="mt-2 p-2 bg-teal-50 rounded border border-teal-200">

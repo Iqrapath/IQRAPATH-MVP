@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Document;
+use App\Models\TeacherProfile;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -64,17 +65,38 @@ class DocumentVerificationController extends Controller
             'document' => $document,
             'documentUrl' => Storage::url($document->path),
             'teacher' => $document->teacherProfile->user,
+            'canBeResubmitted' => $document->canBeResubmitted(),
+            'remainingResubmissions' => $document->getRemainingResubmissions(),
         ]);
     }
 
     /**
      * Verify a document.
      */
-    public function verify(Request $request, Document $document): RedirectResponse
+    public function verify(Request $request, Document $document)
     {
         Gate::authorize('verifyDocuments', Document::class);
         
         $document->markAsVerified($request->user());
+        
+        // Reset resubmission count when verified
+        $document->resetResubmissionCount();
+        
+        // Check if all documents for this teacher are now verified
+        $this->checkAllDocumentsVerified($document->teacherProfile);
+        
+        // Return JSON response for API calls
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Document verified successfully.',
+                'document' => [
+                    'id' => $document->id,
+                    'status' => $document->status,
+                    'verified_at' => $document->verified_at,
+                ]
+            ]);
+        }
         
         return redirect()->route('admin.documents.index')
             ->with('success', 'Document verified successfully.');
@@ -83,15 +105,36 @@ class DocumentVerificationController extends Controller
     /**
      * Reject a document.
      */
-    public function reject(Request $request, Document $document): RedirectResponse
+    public function reject(Request $request, Document $document)
     {
         Gate::authorize('verifyDocuments', Document::class);
         
         $validated = $request->validate([
             'rejection_reason' => 'required|string|max:1000',
+            'resubmission_instructions' => 'nullable|string|max:1000',
         ]);
         
         $document->markAsRejected($request->user(), $validated['rejection_reason']);
+        
+        // Check verification status after rejection
+        $this->checkAllDocumentsVerified($document->teacherProfile);
+        
+        // Send notification to teacher about rejection
+        $this->notifyTeacherDocumentRejected($document, $validated);
+        
+        // Return JSON response for API calls
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Document rejected successfully.',
+                'document' => [
+                    'id' => $document->id,
+                    'status' => $document->status,
+                    'rejection_reason' => $document->rejection_reason,
+                    'rejected_at' => $document->rejected_at,
+                ]
+            ]);
+        }
         
         return redirect()->route('admin.documents.index')
             ->with('success', 'Document rejected successfully.');
@@ -113,6 +156,13 @@ class DocumentVerificationController extends Controller
         
         foreach ($documents as $document) {
             $document->markAsVerified($request->user());
+            $document->resetResubmissionCount();
+        }
+        
+        // Check verification status for each teacher profile
+        $teacherProfiles = $documents->pluck('teacherProfile')->unique();
+        foreach ($teacherProfiles as $profile) {
+            $this->checkAllDocumentsVerified($profile);
         }
         
         return redirect()->route('admin.documents.index')
@@ -134,5 +184,73 @@ class DocumentVerificationController extends Controller
         $filename = Str::slug($document->name) . '.' . $extension;
         
         return response()->download(Storage::disk('public')->path($document->path), $filename);
+    }
+
+    /**
+     * Check if all documents for a teacher profile are verified.
+     */
+    private function checkAllDocumentsVerified(TeacherProfile $profile): void
+    {
+        $pendingDocuments = $profile->documents()
+            ->where('status', Document::STATUS_PENDING)
+            ->count();
+            
+        $rejectedDocuments = $profile->documents()
+            ->where('status', Document::STATUS_REJECTED)
+            ->count();
+            
+        $verifiedDocuments = $profile->documents()
+            ->where('status', Document::STATUS_VERIFIED)
+            ->count();
+            
+        $totalDocuments = $profile->documents()->count();
+        
+        // Get the verification request
+        $verificationRequest = $profile->verificationRequests()
+            ->where('status', 'pending')
+            ->first();
+            
+        if (!$verificationRequest) {
+            return;
+        }
+        
+        // Update docs_status based on document statuses
+        if ($rejectedDocuments > 0) {
+            // If any document is rejected, set docs_status to rejected
+            $verificationRequest->update(['docs_status' => 'rejected']);
+        } elseif ($pendingDocuments === 0 && $verifiedDocuments > 0) {
+            // If no pending documents and at least one verified, set to verified
+            $verificationRequest->update(['docs_status' => 'verified']);
+        } elseif ($pendingDocuments > 0) {
+            // If there are pending documents, set to pending
+            $verificationRequest->update(['docs_status' => 'pending']);
+        }
+    }
+
+    /**
+     * Send notification to teacher about document rejection.
+     */
+    private function notifyTeacherDocumentRejected(Document $document, array $data): void
+    {
+        $teacher = $document->teacherProfile->user;
+        
+        // Send in-app notification
+        $teacher->receivedNotifications()->create([
+            'id' => \Illuminate\Support\Str::uuid()->toString(),
+            'type' => 'document_rejected',
+            'notifiable_type' => User::class,
+            'notifiable_id' => $teacher->id,
+            'data' => [
+                'document_id' => $document->id,
+                'document_type' => $document->type,
+                'rejection_reason' => $data['rejection_reason'],
+                'resubmission_instructions' => $data['resubmission_instructions'] ?? 'Please resubmit the document with corrections.',
+                'remaining_attempts' => $document->getRemainingResubmissions(),
+                'message' => "Your {$document->type} document was rejected. Reason: {$data['rejection_reason']}"
+            ]
+        ]);
+
+        // TODO: Send email notification when email system is implemented
+        // $teacher->notify(new DocumentRejectedNotification($data));
     }
 }

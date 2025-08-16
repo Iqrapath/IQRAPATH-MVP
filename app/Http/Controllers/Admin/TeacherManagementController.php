@@ -11,6 +11,8 @@ use App\Models\TeacherProfile;
 use App\Models\TeachingSession;
 use App\Models\User;
 use App\Models\VerificationRequest;
+use App\Models\VerificationAuditLog;
+use App\Services\FinancialService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,6 +23,13 @@ use Inertia\Response;
 
 class TeacherManagementController extends Controller
 {
+    protected $financialService;
+
+    public function __construct(FinancialService $financialService)
+    {
+        $this->financialService = $financialService;
+    }
+
     /**
      * Display a listing of teachers.
      */
@@ -232,10 +241,12 @@ class TeacherManagementController extends Controller
             'teacherProfile.subjects',
             'teacherProfile.documents',
             'availabilities',
-            'earnings',
         ]);
         
-        // Get teaching sessions stats
+        // Get real-time earnings data from FinancialService
+        $earningsData = $this->financialService->getTeacherEarningsRealTime($teacher);
+        
+        // Get teaching sessions stats from teaching_sessions table
         $sessionsStats = [
             'total' => TeachingSession::where('teacher_id', $teacher->id)->count(),
             'completed' => TeachingSession::where('teacher_id', $teacher->id)
@@ -250,6 +261,9 @@ class TeacherManagementController extends Controller
                 ->count(),
         ];
         
+        // Get total sessions count for contact details
+        $totalSessions = TeachingSession::where('teacher_id', $teacher->id)->count();
+        
         // Get upcoming sessions
         $upcomingSessions = TeachingSession::where('teacher_id', $teacher->id)
             ->with(['student', 'subject'])
@@ -260,15 +274,45 @@ class TeacherManagementController extends Controller
             ->take(5)
             ->get();
             
-        // Format document data
-        $documents = [
-            'id_verifications' => $teacher->teacherProfile ? 
-                $teacher->teacherProfile->idVerifications()->get() : [],
-            'certificates' => $teacher->teacherProfile ? 
-                $teacher->teacherProfile->certificates()->get() : [],
-            'resume' => $teacher->teacherProfile ? 
-                $teacher->teacherProfile->resume() : null,
-        ];
+        // Get teacher rating and reviews from teacher_reviews table
+        $teacherReviews = DB::table('teacher_reviews')
+            ->where('teacher_id', $teacher->id)
+            ->get();
+            
+        $averageRating = $teacherReviews->avg('rating');
+        $reviewsCount = $teacherReviews->count();
+        
+        // Format document data using DocumentController methods
+        $documents = $teacher->teacherProfile ? 
+            \App\Http\Controllers\DocumentController::getAllTeacherDocuments($teacher->teacherProfile->id) : 
+            ['id_verifications' => [], 'certificates' => [], 'resume' => null];
+        
+        // Add document URLs for frontend display
+        if (!empty($documents['id_verifications'])) {
+            $documents['id_verifications'] = array_map(function($doc) {
+                $doc['documentUrl'] = \Illuminate\Support\Facades\Storage::url($doc['path'] ?? '');
+                return $doc;
+            }, $documents['id_verifications']);
+        }
+        
+        if (!empty($documents['certificates'])) {
+            $documents['certificates'] = array_map(function($doc) {
+                $doc['documentUrl'] = \Illuminate\Support\Facades\Storage::url($doc['path'] ?? '');
+                return $doc;
+            }, $documents['certificates']);
+        }
+        
+        if ($documents['resume'] && isset($documents['resume']['path'])) {
+            $documents['resume']['documentUrl'] = \Illuminate\Support\Facades\Storage::url($documents['resume']['path']);
+        }
+
+        // Get verification request status
+        $verificationRequest = $teacher->teacherProfile ? 
+            $teacher->teacherProfile->verificationRequests()->where('status', 'pending')->first() : 
+            null;
+
+        // Determine verification status based on actual documents and verification request
+        $verificationStatus = $this->determineVerificationStatus($teacher->teacherProfile, $verificationRequest);
 
         return Inertia::render('admin/teachers/show', [
             'teacher' => [
@@ -291,25 +335,92 @@ class TeacherManagementController extends Controller
                 'teaching_type' => $teacher->teacherProfile->teaching_type,
                 'teaching_mode' => $teacher->teacherProfile->teaching_mode,
                 'subjects' => $teacher->teacherProfile->subjects,
+                'rating' => $averageRating,
+                'reviews_count' => $reviewsCount,
             ] : null,
-            'earnings' => $teacher->earnings ? [
-                'wallet_balance' => $teacher->earnings->wallet_balance,
-                'total_earned' => $teacher->earnings->total_earned,
-                'total_withdrawn' => $teacher->earnings->total_withdrawn,
-                'pending_payouts' => $teacher->earnings->pending_payouts,
-            ] : null,
+            'earnings' => [
+                'wallet_balance' => $earningsData['wallet_balance'],
+                'total_earned' => $earningsData['total_earned'],
+                'total_withdrawn' => $earningsData['total_withdrawn'],
+                'pending_payouts' => $earningsData['pending_payouts'],
+                'recent_transactions' => $earningsData['recent_transactions'],
+                'pending_payout_requests' => $earningsData['pending_payout_requests'],
+                'calculated_at' => $earningsData['calculated_at'],
+            ],
             'availabilities' => $teacher->availabilities->map(function($availability) {
+                // Convert day_of_week to day name
+                $dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                $dayName = $dayNames[$availability->day_of_week] ?? 'Unknown';
+                
+                // Format time range
+                $timeRange = $availability->start_time . ' - ' . $availability->end_time;
+                
                 return [
                     'id' => $availability->id,
-                    'day_name' => $availability->day_name,
-                    'time_range' => $availability->time_range,
+                    'day_name' => $dayName,
+                    'time_range' => $timeRange,
                     'is_active' => $availability->is_active,
                 ];
             }),
             'documents' => $documents,
             'sessions_stats' => $sessionsStats,
             'upcoming_sessions' => $upcomingSessions,
+            'verification_status' => $verificationStatus,
         ]);
+    }
+
+    /**
+     * Determine verification status based on documents and verification request.
+     */
+    private function determineVerificationStatus($teacherProfile, $verificationRequest): array
+    {
+        if (!$teacherProfile) {
+            return [
+                'docs_status' => 'pending',
+                'video_status' => 'not_scheduled',
+            ];
+        }
+
+        // If verification request is rejected, override document status
+        if ($verificationRequest && $verificationRequest->status === 'rejected') {
+            return [
+                'docs_status' => 'rejected',
+                'video_status' => $verificationRequest->video_status ?? 'not_scheduled',
+            ];
+        }
+
+        // Get document counts
+        $pendingDocuments = $teacherProfile->documents()
+            ->where('status', 'pending')
+            ->count();
+            
+        $rejectedDocuments = $teacherProfile->documents()
+            ->where('status', 'rejected')
+            ->count();
+            
+        $verifiedDocuments = $teacherProfile->documents()
+            ->where('status', 'verified')
+            ->count();
+            
+        $totalDocuments = $teacherProfile->documents()->count();
+
+        // Determine docs_status based on actual document statuses
+        $docsStatus = 'pending';
+        if ($rejectedDocuments > 0) {
+            $docsStatus = 'rejected';
+        } elseif ($pendingDocuments === 0 && $verifiedDocuments > 0) {
+            $docsStatus = 'verified';
+        } elseif ($totalDocuments === 0) {
+            $docsStatus = 'pending';
+        }
+
+        // Get video status from verification request
+        $videoStatus = $verificationRequest ? $verificationRequest->video_status : 'not_scheduled';
+
+        return [
+            'docs_status' => $docsStatus,
+            'video_status' => $videoStatus,
+        ];
     }
 
     /**
@@ -408,24 +519,44 @@ class TeacherManagementController extends Controller
             return back()->withErrors(['error' => 'Teacher profile not found.']);
         }
 
+        // Get current verification request
+        $verificationRequest = $teacher->teacherProfile->verificationRequests()
+            ->where('status', 'pending')
+            ->first();
+            
+        if (!$verificationRequest) {
+            return back()->withErrors(['error' => 'No verification request found.']);
+        }
+
+        // Check verification workflow completion
+        if (!$this->canApproveTeacher($verificationRequest)) {
+            return back()->withErrors(['error' => $this->getApprovalBlockReason($verificationRequest)]);
+        }
+
         // Get current admin user ID
         $adminId = request()->user()->id;
 
-        // Update the teacher profile
-        $teacher->teacherProfile->update([
-            'verified' => true,
+        // Update verification request
+        $verificationRequest->update([
+            'status' => 'verified',
+            'docs_status' => 'verified',
+            'video_status' => 'passed',
+            'reviewed_by' => $adminId,
+            'reviewed_at' => now(),
+        ]);
+        
+        // Update teacher profile
+        $teacher->teacherProfile->update(['verified' => true]);
+        
+        // Log in audit trail
+        $verificationRequest->auditLogs()->create([
+            'status' => 'verified',
+            'changed_by' => $adminId,
+            'changed_at' => now(),
+            'notes' => 'Teacher approved after complete verification workflow',
         ]);
 
-        // Update any pending verification requests
-        VerificationRequest::where('teacher_profile_id', $teacher->teacherProfile->id)
-            ->where('status', 'pending')
-            ->update([
-                'status' => 'verified',
-                'reviewed_by' => $adminId,
-                'reviewed_at' => now(),
-            ]);
-
-        return back()->with('success', 'Teacher approved successfully.');
+        return back()->with('success', 'Teacher approved successfully after complete verification.');
     }
 
     /**
@@ -439,7 +570,7 @@ class TeacherManagementController extends Controller
         }
 
         $validated = $request->validate([
-            'rejection_reason' => 'required|string|max:255',
+            'rejection_reason' => 'required|string|max:500',
         ]);
 
         if (!$teacher->teacherProfile) {
@@ -449,17 +580,116 @@ class TeacherManagementController extends Controller
         // Get current admin user ID
         $adminId = $request->user()->id;
 
-        // Update any pending verification requests
-        VerificationRequest::where('teacher_profile_id', $teacher->teacherProfile->id)
+        // Get or create verification request
+        $verificationRequest = $teacher->teacherProfile->verificationRequests()
             ->where('status', 'pending')
-            ->update([
+            ->first();
+        
+        if (!$verificationRequest) {
+            $verificationRequest = $teacher->teacherProfile->verificationRequests()->create([
                 'status' => 'rejected',
+                'docs_status' => 'rejected',
+                'video_status' => 'not_scheduled',
+                'submitted_at' => now(),
                 'reviewed_by' => $adminId,
                 'reviewed_at' => now(),
                 'rejection_reason' => $validated['rejection_reason'],
             ]);
+        } else {
+            $verificationRequest->update([
+                'status' => 'rejected',
+                'docs_status' => 'rejected',
+                'video_status' => 'not_scheduled',
+                'reviewed_by' => $adminId,
+                'reviewed_at' => now(),
+                'rejection_reason' => $validated['rejection_reason'],
+            ]);
+        }
+        
+        // Keep teacher profile as unverified
+        $teacher->teacherProfile->update(['verified' => false]);
+        
+        // Log in audit trail
+        $verificationRequest->auditLogs()->create([
+            'status' => 'rejected',
+            'changed_by' => $adminId,
+            'changed_at' => now(),
+            'notes' => 'Teacher rejected: ' . $validated['rejection_reason'],
+        ]);
+
+        // Send notification to teacher about rejection
+        $this->notifyTeacherRejected($teacher, $validated['rejection_reason']);
 
         return back()->with('success', 'Teacher rejected successfully.');
+    }
+
+    /**
+     * Check if teacher can be approved.
+     */
+    private function canApproveTeacher($verificationRequest): bool
+    {
+        // Check document verification
+        if ($verificationRequest->docs_status !== 'verified') {
+            return false;
+        }
+        
+        // Check video verification
+        if ($verificationRequest->video_status !== 'passed') {
+            return false;
+        }
+        
+        return true;
+    }
+
+    /**
+     * Get reason why teacher cannot be approved.
+     */
+    private function getApprovalBlockReason($verificationRequest): string
+    {
+        // Check if verification request is rejected
+        if ($verificationRequest->status === 'rejected') {
+            return 'Teacher application has been rejected.';
+        }
+        
+        if ($verificationRequest->docs_status === 'rejected') {
+            return 'Documents have been rejected.';
+        }
+        
+        if ($verificationRequest->docs_status !== 'verified') {
+            return 'All documents must be verified first.';
+        }
+        
+        if ($verificationRequest->video_status === 'failed') {
+            return 'Video verification failed.';
+        }
+        
+        if ($verificationRequest->video_status !== 'passed') {
+            return 'Video verification must be completed and passed.';
+        }
+        
+        return 'Unknown approval block reason.';
+    }
+
+    /**
+     * Send notification to teacher about rejection.
+     */
+    private function notifyTeacherRejected(User $teacher, string $rejectionReason): void
+    {
+        // Send in-app notification
+        $teacher->receivedNotifications()->create([
+            'id' => \Illuminate\Support\Str::uuid()->toString(),
+            'type' => 'teacher_rejected',
+            'notifiable_type' => User::class,
+            'notifiable_id' => $teacher->id,
+            'data' => [
+                'rejection_reason' => $rejectionReason,
+                'message' => "Your teacher application was rejected. Reason: {$rejectionReason}",
+                'support_contact' => 'support@iqrapath.com'
+            ]
+        ]);
+
+        // TODO: Send email notification when email system is implemented
+        // $teacher->notify(new TeacherRejectedNotification($rejectionReason));
     }
 
     /**
@@ -473,5 +703,119 @@ class TeacherManagementController extends Controller
         }
 
         return Storage::download($document->path, $document->name);
+    }
+
+    /**
+     * Upload a document for a teacher.
+     */
+    public function uploadDocument(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'document' => 'required|file|mimes:jpeg,jpg,png,pdf|max:5120', // 5MB max
+                'type' => 'required|string|in:id_verification,certificate,resume',
+                'teacher_id' => 'required|integer|exists:users,id',
+                'side' => 'nullable|string|in:front,back',
+                'certificate_type' => 'nullable|string',
+            ]);
+
+            $teacher = User::findOrFail($validated['teacher_id']);
+            
+            if ($teacher->role !== 'teacher') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User is not a teacher'
+                ], 400);
+            }
+
+            $file = $request->file('document');
+            $fileName = time() . '_' . $file->getClientOriginalName();
+            $path = $file->storeAs('documents/teachers/' . $teacher->id, $fileName, 'public');
+
+            // Create document record
+            $document = Document::create([
+                'name' => $file->getClientOriginalName(),
+                'path' => $path,
+                'type' => $validated['type'],
+                'teacher_profile_id' => $teacher->teacherProfile->id,
+                'status' => 'pending',
+                'metadata' => [
+                    'side' => $validated['side'] ?? null,
+                    'certificate_type' => $validated['certificate_type'] ?? null,
+                ],
+                'uploaded_by' => auth()->id(),
+                'uploaded_at' => now(),
+            ]);
+
+            \Log::info('Document uploaded successfully', [
+                'document_id' => $document->id,
+                'teacher_id' => $teacher->id,
+                'type' => $validated['type'],
+                'uploaded_by' => auth()->id()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Document uploaded successfully',
+                'document' => $document
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Document upload failed', [
+                'error' => $e->getMessage(),
+                'teacher_id' => $request->teacher_id ?? null,
+                'type' => $request->type ?? null
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to upload document: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete a document.
+     */
+    public function deleteDocument(Document $document)
+    {
+        try {
+            // Check if user has permission to delete this document
+            if (!auth()->user()->hasRole(['admin', 'super-admin'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized'
+                ], 403);
+            }
+
+            // Delete the file from storage
+            if (Storage::exists($document->path)) {
+                Storage::delete($document->path);
+            }
+
+            // Delete the document record
+            $document->delete();
+
+            \Log::info('Document deleted successfully', [
+                'document_id' => $document->id,
+                'deleted_by' => auth()->id()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Document deleted successfully'
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Document deletion failed', [
+                'error' => $e->getMessage(),
+                'document_id' => $document->id
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete document: ' . $e->getMessage()
+            ], 500);
+        }
     }
 } 

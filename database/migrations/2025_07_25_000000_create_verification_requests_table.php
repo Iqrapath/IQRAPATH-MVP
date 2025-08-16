@@ -16,7 +16,7 @@ return new class extends Migration
             $table->foreignId('teacher_profile_id')->constrained()->onDelete('cascade');
             $table->enum('status', ['pending', 'verified', 'rejected', 'live_video'])->default('pending');
             $table->enum('docs_status', ['pending', 'verified', 'rejected'])->default('pending');
-            $table->enum('video_status', ['not_scheduled', 'scheduled', 'completed'])->default('not_scheduled');
+            $table->enum('video_status', ['not_scheduled', 'scheduled', 'completed', 'passed', 'failed'])->default('not_scheduled');
             $table->timestamp('scheduled_call_at')->nullable();
             $table->enum('video_platform', ['zoom', 'google_meet', 'other'])->nullable();
             $table->string('meeting_link')->nullable();

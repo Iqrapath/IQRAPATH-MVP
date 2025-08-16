@@ -261,6 +261,17 @@ export default function NotificationHistory({
                       <div className="truncate" title={notification.data?.message || notification.type}>
                         {notification.data?.message || notification.type}
                       </div>
+                      {/* Show rejection reason prominently for rejection notifications */}
+                      {(notification.type === 'teacher_rejected' || notification.type === 'document_rejected') && notification.data?.rejection_reason && (
+                        <div className="mt-2 p-2 bg-red-50 rounded border border-red-200">
+                          <div className="text-xs text-red-800">
+                            <p><strong>Rejection Reason:</strong></p>
+                            <p className="truncate" title={notification.data.rejection_reason}>
+                              {notification.data.rejection_reason}
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell className="px-6 py-4">

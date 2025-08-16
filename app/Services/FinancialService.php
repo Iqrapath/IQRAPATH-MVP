@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\TeacherEarning;
 use App\Models\TeachingSession;
 use App\Models\Transaction;
+use App\Models\PayoutRequest;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -129,6 +130,129 @@ class FinancialService
             'pending_payouts' => $earnings->pending_payouts,
             'recent_transactions' => $recentTransactions,
             'pending_payout_requests' => $pendingPayouts,
+        ];
+    }
+
+    /**
+     * Get real-time teacher earnings data from database tables.
+     * This calculates earnings based on actual transactions and payout requests.
+     */
+    public function getTeacherEarningsRealTime(User $teacher): array
+    {
+        // Calculate total earned from completed transactions
+        $totalEarned = Transaction::where('teacher_id', $teacher->id)
+            ->whereIn('transaction_type', ['session_payment', 'referral_bonus'])
+            ->where('status', 'completed')
+            ->sum('amount');
+
+        // Calculate total withdrawn from withdrawal transactions
+        $totalWithdrawn = Transaction::where('teacher_id', $teacher->id)
+            ->where('transaction_type', 'withdrawal')
+            ->where('status', 'completed')
+            ->sum('amount');
+
+        // Calculate pending payouts from pending payout requests
+        $pendingPayouts = PayoutRequest::where('teacher_id', $teacher->id)
+            ->whereIn('status', ['pending', 'processing', 'approved'])
+            ->sum('amount');
+
+        // Calculate wallet balance (total earned - total withdrawn - pending payouts)
+        $walletBalance = $totalEarned - $totalWithdrawn - $pendingPayouts;
+
+        // Get recent transactions for display
+        $recentTransactions = Transaction::where('teacher_id', $teacher->id)
+            ->with(['session', 'createdBy'])
+            ->orderBy('created_at', 'desc')
+            ->take(5)
+            ->get()
+            ->map(function ($transaction) {
+                return [
+                    'id' => $transaction->id,
+                    'uuid' => $transaction->transaction_uuid,
+                    'type' => $transaction->transaction_type,
+                    'type_display' => $transaction->type_display,
+                    'amount' => $transaction->amount,
+                    'formatted_amount' => $transaction->formatted_amount,
+                    'status' => $transaction->status,
+                    'description' => $transaction->description,
+                    'date' => $transaction->transaction_date,
+                    'session_info' => $transaction->session ? [
+                        'uuid' => $transaction->session->session_uuid,
+                        'subject' => $transaction->session->subject->name ?? 'Unknown',
+                    ] : null,
+                ];
+            });
+
+        // Get pending payout requests
+        $pendingPayoutRequests = PayoutRequest::where('teacher_id', $teacher->id)
+            ->whereIn('status', ['pending', 'processing'])
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($payout) {
+                return [
+                    'id' => $payout->id,
+                    'uuid' => $payout->request_uuid,
+                    'amount' => $payout->amount,
+                    'formatted_amount' => $payout->formatted_amount,
+                    'payment_method' => $payout->payment_method,
+                    'payment_method_display' => $payout->payment_method_display,
+                    'status' => $payout->status,
+                    'status_display' => $payout->status_display,
+                    'request_date' => $payout->request_date,
+                    'notes' => $payout->notes,
+                ];
+            });
+
+        return [
+            'wallet_balance' => $walletBalance,
+            'total_earned' => $totalEarned,
+            'total_withdrawn' => $totalWithdrawn,
+            'pending_payouts' => $pendingPayouts,
+            'recent_transactions' => $recentTransactions,
+            'pending_payout_requests' => $pendingPayoutRequests,
+            'calculated_at' => now()->toDateTimeString(),
+        ];
+    }
+
+    /**
+     * Get teacher earnings statistics for dashboard.
+     */
+    public function getTeacherEarningsStats(User $teacher, int $days = 30): array
+    {
+        $startDate = now()->subDays($days);
+
+        // Earnings in the last N days
+        $recentEarnings = Transaction::where('teacher_id', $teacher->id)
+            ->whereIn('transaction_type', ['session_payment', 'referral_bonus'])
+            ->where('status', 'completed')
+            ->where('created_at', '>=', $startDate)
+            ->sum('amount');
+
+        // Withdrawals in the last N days
+        $recentWithdrawals = Transaction::where('teacher_id', $teacher->id)
+            ->where('transaction_type', 'withdrawal')
+            ->where('status', 'completed')
+            ->where('created_at', '>=', $startDate)
+            ->sum('amount');
+
+        // Pending payouts count
+        $pendingPayoutsCount = PayoutRequest::where('teacher_id', $teacher->id)
+            ->whereIn('status', ['pending', 'processing'])
+            ->count();
+
+        // Total sessions completed (for earnings calculation)
+        $completedSessions = Transaction::where('teacher_id', $teacher->id)
+            ->where('transaction_type', 'session_payment')
+            ->where('status', 'completed')
+            ->count();
+
+        return [
+            'recent_earnings' => $recentEarnings,
+            'recent_withdrawals' => $recentWithdrawals,
+            'pending_payouts_count' => $pendingPayoutsCount,
+            'completed_sessions' => $completedSessions,
+            'period_days' => $days,
+            'period_start' => $startDate->toDateString(),
         ];
     }
 

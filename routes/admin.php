@@ -85,6 +85,10 @@ Route::middleware(['auth', 'verified', 'role:super-admin'])->prefix('admin')->na
     Route::patch('/teachers/{teacher}/reject', [TeacherManagementController::class, 'reject'])->name('teachers.reject');
     Route::get('/documents/{document}/download', [TeacherManagementController::class, 'downloadDocument'])->name('teachers.document.download');
     
+    // Document upload routes
+    Route::post('/documents/upload', [TeacherManagementController::class, 'uploadDocument'])->name('documents.upload');
+    Route::delete('/documents/{document}', [TeacherManagementController::class, 'deleteDocument'])->name('documents.delete');
+    
     // Settings routes
     Route::prefix('settings')->name('settings.')->group(function () {
         // General settings
