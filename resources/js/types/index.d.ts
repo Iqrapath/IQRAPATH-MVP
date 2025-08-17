@@ -67,6 +67,10 @@ export interface Notification {
         new_user_email?: string;
         new_user_phone?: string;
         registration_time?: string;
+        // Rejection notification specific fields
+        rejection_reason?: string;
+        resubmission_instructions?: string;
+        remaining_attempts?: number;
     };
     read_at: string | null;
     created_at: string;
