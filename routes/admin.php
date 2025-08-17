@@ -72,12 +72,12 @@ Route::middleware(['auth', 'verified', 'role:super-admin'])->prefix('admin')->na
     Route::get('/documents/{document}/download', [DocumentVerificationController::class, 'download'])->name('documents.download');
     
     // Teacher verification routes
-    Route::get('/teacher-verifications', [TeacherVerificationController::class, 'index'])->name('teacher-verifications.index');
-    Route::get('/teacher-verifications/{verificationRequest}', [TeacherVerificationController::class, 'show'])->name('teacher-verifications.show');
-    Route::patch('/teacher-verifications/{verificationRequest}/approve', [TeacherVerificationController::class, 'approve'])->name('teacher-verifications.approve');
-    Route::patch('/teacher-verifications/{verificationRequest}/reject', [TeacherVerificationController::class, 'reject'])->name('teacher-verifications.reject');
-    Route::post('/teacher-verifications/{verificationRequest}/request-video', [TeacherVerificationController::class, 'requestVideoVerification'])->name('teacher-verifications.request-video');
-    Route::patch('/teacher-verifications/{verificationRequest}/complete-video', [TeacherVerificationController::class, 'completeVideoVerification'])->name('teacher-verifications.complete-video');
+    Route::get('/verification', [TeacherVerificationController::class, 'index'])->name('verification.index');
+    Route::get('/verification/{verificationRequest}', [TeacherVerificationController::class, 'show'])->name('verification.show');
+    Route::patch('/verification/{verificationRequest}/approve', [TeacherVerificationController::class, 'approve'])->name('verification.approve');
+    Route::patch('/verification/{verificationRequest}/reject', [TeacherVerificationController::class, 'reject'])->name('verification.reject');
+    Route::post('/verification/{verificationRequest}/request-video', [TeacherVerificationController::class, 'requestVideoVerification'])->name('verification.request-video');
+    Route::patch('/verification/{verificationRequest}/complete-video', [TeacherVerificationController::class, 'completeVideoVerification'])->name('verification.complete-video');
     
     // Teacher management routes
     Route::resource('teachers', TeacherManagementController::class);
