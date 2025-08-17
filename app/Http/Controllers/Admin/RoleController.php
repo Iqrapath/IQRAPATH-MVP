@@ -56,41 +56,38 @@ class RoleController extends Controller
         $newRole = $validated['role'];
         $profileData = $validated['profile_data'] ?? [];
 
-        // Start a database transaction
-        DB::beginTransaction();
-
         try {
-            // Update the user's role
-            $user->role = $newRole;
-            $user->save();
+            DB::transaction(function() use ($user, $newRole, $oldRole, $profileData) {
+                // Update the user's role
+                $user->role = $newRole;
+                $user->save();
 
-            // If the role has changed, handle profile creation/deletion
-            if ($oldRole !== $newRole) {
-                // Delete old profile if exists
-                if ($oldRole) {
-                    $this->deleteOldProfile($user, $oldRole);
+                // If the role has changed, handle profile creation/deletion
+                if ($oldRole !== $newRole) {
+                    // Delete old profile if exists
+                    if ($oldRole) {
+                        $this->deleteOldProfile($user, $oldRole);
+                    }
+
+                    // Create new profile
+                    $this->createNewProfile($user, $newRole, $profileData);
+                } else {
+                    // Update existing profile
+                    $this->updateExistingProfile($user, $newRole, $profileData);
                 }
+            });
 
-                // Create new profile
-                $this->createNewProfile($user, $newRole, $profileData);
-                
-                // Dispatch role assigned event
+            // Only dispatch events if everything succeeded
+            if ($oldRole !== $newRole) {
                 event(new \App\Events\UserRoleAssigned($user, $newRole));
             } else {
-                // Update existing profile
-                $this->updateExistingProfile($user, $newRole, $profileData);
-                
-                // Dispatch account updated event
                 event(new \App\Events\UserAccountUpdated($user, 'Your profile information has been updated.'));
             }
-
-            DB::commit();
 
             return redirect()->route('admin.users.index')
                 ->with('success', "User role updated to {$newRole}");
         } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->with('error', 'Failed to update user role: ' . $e->getMessage());
+            return back()->with('error', 'Role change failed: ' . $e->getMessage());
         }
     }
 

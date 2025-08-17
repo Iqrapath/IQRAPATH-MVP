@@ -134,31 +134,30 @@ class UserManagementController extends Controller
         $oldRole = $user->role;
         $newRole = $validated['role'] === 'unassigned' ? null : $validated['role'];
 
-        // Start a database transaction
-        DB::beginTransaction();
-
         try {
-            // Update the user's role
-            $user->role = $newRole;
-            $user->save();
+            DB::transaction(function() use ($user, $newRole, $oldRole) {
+                // Update the user's role
+                $user->role = $newRole;
+                $user->save();
 
-            // If the role has changed, handle profile creation/deletion
-            if ($oldRole !== $newRole) {
-                // Delete old profile if exists
-                if ($oldRole) {
-                    $this->deleteOldProfile($user, $oldRole);
-                }
+                // If the role has changed, handle profile creation/deletion
+                if ($oldRole !== $newRole) {
+                    // Delete old profile if exists
+                    if ($oldRole) {
+                        $this->deleteOldProfile($user, $oldRole);
+                    }
 
-                // Create new profile only if role is not unassigned
-                if ($newRole) {
-                    $this->createNewProfile($user, $newRole);
-                    
-                    // Dispatch role assigned event
-                    event(new \App\Events\UserRoleAssigned($user, $newRole));
+                    // Create new profile only if role is not unassigned
+                    if ($newRole) {
+                        $this->createNewProfile($user, $newRole);
+                    }
                 }
+            });
+
+            // Only dispatch event if everything succeeded and role is not unassigned
+            if ($newRole) {
+                event(new \App\Events\UserRoleAssigned($user, $newRole));
             }
-
-            DB::commit();
 
             $roleDisplay = $newRole ? ucfirst($newRole) : 'Unassigned';
             
@@ -176,10 +175,9 @@ class UserManagementController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            DB::rollBack();
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update user role: ' . $e->getMessage()
+                'message' => 'Role change failed: ' . $e->getMessage()
             ], 500);
         }
     }

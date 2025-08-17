@@ -3,6 +3,7 @@
 namespace App\Listeners;
 
 use App\Events\UserRoleAssigned;
+use App\Models\VerificationRequest;
 use App\Services\NotificationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
@@ -42,6 +43,33 @@ class AccountRoleAssignedNotification implements ShouldQueue
         
         // Format the role name for display
         $roleName = ucfirst(str_replace('-', ' ', $role));
+        
+        // Create verification request if role is teacher
+        if ($role === 'teacher') {
+            try {
+                $verificationRequest = VerificationRequest::create([
+                    'teacher_profile_id' => $user->teacherProfile->id,
+                    'status' => 'pending',
+                    'docs_status' => 'pending',
+                    'video_status' => 'not_scheduled',
+                    'submitted_at' => now(),
+                ]);
+                
+                Log::info('Verification request created for teacher role assignment', [
+                    'verification_request_id' => $verificationRequest->id,
+                    'user_id' => $user->id,
+                    'teacher_profile_id' => $user->teacherProfile->id
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Failed to create verification request for teacher role assignment', [
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage()
+                ]);
+                
+                // Don't throw the exception - let the notification continue
+                // The verification request creation failure will be logged for admin review
+            }
+        }
         
         // Create a notification for the user
         $notification = $this->notificationService->createNotification(
