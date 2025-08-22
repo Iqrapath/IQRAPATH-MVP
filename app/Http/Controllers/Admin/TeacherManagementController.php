@@ -12,6 +12,8 @@ use App\Models\TeachingSession;
 use App\Models\User;
 use App\Models\VerificationRequest;
 use App\Models\VerificationAuditLog;
+use App\Models\Transaction;
+use App\Models\PayoutRequest;
 use App\Services\FinancialService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -364,6 +366,7 @@ class TeacherManagementController extends Controller
                 'languages' => $teacher->teacherProfile->languages,
                 'teaching_type' => $teacher->teacherProfile->teaching_type,
                 'teaching_mode' => $teacher->teacherProfile->teaching_mode,
+                'qualification' => $teacher->teacherProfile->qualification,
                 'subjects' => $teacher->teacherProfile->subjects,
                 'rating' => $averageRating,
                 'reviews_count' => $reviewsCount,
@@ -931,5 +934,340 @@ class TeacherManagementController extends Controller
                 'message' => 'Failed to delete document: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Update teacher contact details.
+     */
+    public function updateContact(Request $request, User $teacher)
+    {
+        // Ensure the user is a teacher
+        if ($teacher->role !== 'teacher') {
+            abort(404, 'Teacher not found');
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users,email,' . $teacher->id,
+            'phone' => 'nullable|string|max:20',
+            'location' => 'nullable|string|max:255',
+        ]);
+
+        try {
+            // Update the user
+            $teacher->update([
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'phone' => $validated['phone'] ?? null,
+                'location' => $validated['location'] ?? null,
+            ]);
+
+            return back()->with('success', 'Contact details updated successfully.');
+        } catch (\Exception $e) {
+            \Log::error('Teacher contact update failed', [
+                'error' => $e->getMessage(),
+                'teacher_id' => $teacher->id
+            ]);
+
+            return back()->withErrors(['error' => 'Failed to update contact details: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Update teacher about section.
+     */
+    public function updateAbout(Request $request, TeacherProfile $teacherProfile)
+    {
+        $validated = $request->validate([
+            'bio' => 'nullable|string|max:1000',
+        ]);
+
+        try {
+            // Update the teacher profile bio
+            $teacherProfile->update([
+                'bio' => $validated['bio'] ?? null,
+            ]);
+
+            return back()->with('success', 'About section updated successfully.');
+        } catch (\Exception $e) {
+            \Log::error('Teacher about update failed', [
+                'error' => $e->getMessage(),
+                'teacher_profile_id' => $teacherProfile->id
+            ]);
+
+            return back()->withErrors(['error' => 'Failed to update about section: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Update teacher subjects and specializations.
+     */
+    public function updateSubjectsSpecializations(Request $request, User $teacher)
+    {
+        // Ensure the user is a teacher
+        if ($teacher->role !== 'teacher') {
+            abort(404, 'Teacher not found');
+        }
+
+        $validated = $request->validate([
+            'subjects' => 'nullable|string', // JSON string from FormData
+            'languages' => 'nullable|string', // JSON string from FormData
+            'teaching_mode' => 'nullable|string|in:full-time,part-time',
+            'teaching_type' => 'nullable|string|in:online,in-person,both',
+            'experience_years' => 'nullable|string|max:20',
+            'qualification' => 'nullable|string|max:255',
+            'availability' => 'nullable|string', // JSON string from FormData
+        ]);
+
+        // Parse JSON strings back to arrays
+        $subjects = $validated['subjects'] ? json_decode($validated['subjects'], true) : [];
+        $languages = $validated['languages'] ? json_decode($validated['languages'], true) : [];
+        $availability = $validated['availability'] ? json_decode($validated['availability'], true) : [];
+
+        try {
+            DB::transaction(function () use ($teacher, $validated, $request, $subjects, $languages, $availability) {
+                $teacherProfile = $teacher->teacherProfile;
+                
+                if (!$teacherProfile) {
+                    throw new \Exception('Teacher profile not found');
+                }
+
+                // Update teacher profile basic info
+                $teacherProfile->update([
+                    'teaching_mode' => $validated['teaching_mode'] ?? null,
+                    'teaching_type' => $validated['teaching_type'] ?? null,
+                    'experience_years' => $validated['experience_years'] ?? null,
+                    'languages' => !empty($languages) ? $languages : null, // Store as JSON array
+                ]);
+
+                // Update subjects using the existing subjects table structure
+                if (!empty($subjects)) {
+                    // Delete existing subjects for this teacher
+                    \App\Models\Subject::where('teacher_profile_id', $teacherProfile->id)->delete();
+                    
+                    // Create new subjects
+                    foreach ($subjects as $subjectName) {
+                        \App\Models\Subject::create([
+                            'teacher_profile_id' => $teacherProfile->id,
+                            'name' => $subjectName,
+                            'is_active' => true
+                        ]);
+                    }
+                }
+
+                // Update teacher availability schedule using teacher_availabilities table
+                if (!empty($availability)) {
+                    // Delete existing availabilities
+                    \App\Models\TeacherAvailability::where('teacher_id', $teacher->id)->delete();
+                    
+                    // Map day names to numbers (0 = Sunday, 1 = Monday, etc.)
+                    $dayMapping = [
+                        'sunday' => 0,
+                        'monday' => 1,
+                        'tuesday' => 2,
+                        'wednesday' => 3,
+                        'thursday' => 4,
+                        'friday' => 5,
+                        'saturday' => 6,
+                    ];
+                    
+                    foreach ($availability as $dayName => $schedule) {
+                        if (isset($schedule['enabled']) && $schedule['enabled'] && 
+                            !empty($schedule['from']) && !empty($schedule['to'])) {
+                            
+                            // Convert 12-hour format to 24-hour format for database storage
+                            $startTime = $this->convertTo24HourFormat($schedule['from']);
+                            $endTime = $this->convertTo24HourFormat($schedule['to']);
+                            
+                            \App\Models\TeacherAvailability::create([
+                                'teacher_id' => $teacher->id,
+                                'day_of_week' => $dayMapping[$dayName] ?? 1,
+                                'start_time' => $startTime,
+                                'end_time' => $endTime,
+                                'is_active' => true,
+                                'availability_type' => ucfirst($validated['teaching_mode'] ?? 'Part-Time'),
+                            ]);
+                        }
+                    }
+                }
+            });
+
+            return back()->with('success', 'Subjects & specializations updated successfully.');
+        } catch (\Exception $e) {
+            \Log::error('Teacher subjects specializations update failed', [
+                'error' => $e->getMessage(),
+                'teacher_id' => $teacher->id
+            ]);
+
+            return back()->withErrors(['error' => 'Failed to update subjects & specializations: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Convert 12-hour time format to 24-hour format for database storage.
+     */
+    private function convertTo24HourFormat(string $time): string
+    {
+        try {
+            // Handle formats like "09:00 AM", "05:00 PM", etc.
+            $time = trim($time);
+            
+            // If already in 24-hour format or doesn't contain AM/PM, try to add seconds
+            if (strpos($time, 'AM') === false && strpos($time, 'PM') === false) {
+                if (preg_match('/^\d{1,2}:\d{2}$/', $time)) {
+                    return $time . ':00';
+                }
+                return $time;
+            }
+            
+            // Convert to 24-hour format using DateTime
+            $dateTime = \DateTime::createFromFormat('h:i A', $time);
+            if (!$dateTime) {
+                $dateTime = \DateTime::createFromFormat('g:i A', $time); // Single digit hour
+            }
+            
+            if ($dateTime) {
+                return $dateTime->format('H:i:s');
+            }
+            
+            // Fallback: try using strtotime
+            $timestamp = strtotime($time);
+            if ($timestamp !== false) {
+                return date('H:i:s', $timestamp);
+            }
+            
+            // If all fails, return original
+            return $time;
+        } catch (\Exception $e) {
+            \Log::warning('Failed to convert time format', [
+                'input' => $time,
+                'error' => $e->getMessage()
+            ]);
+            return '00:00:00';
+        }
+    }
+
+    /**
+     * Display teacher earnings page with detailed financial information.
+     */
+    public function earnings(Request $request, User $teacher): Response
+    {
+        // Ensure the user is a teacher
+        if ($teacher->role !== 'teacher') {
+            abort(404, 'Teacher not found');
+        }
+
+        // Get comprehensive earnings data
+        $earningsData = $this->financialService->getTeacherEarningsRealTime($teacher);
+
+        // Get paginated transactions with filters
+        $transactionsQuery = Transaction::where('teacher_id', $teacher->id)
+            ->with(['session', 'createdBy']);
+
+        // Apply filters
+        if ($request->filled('type')) {
+            $transactionsQuery->where('transaction_type', $request->get('type'));
+        }
+
+        if ($request->filled('status')) {
+            $transactionsQuery->where('status', $request->get('status'));
+        }
+
+        if ($request->filled('date_from')) {
+            $transactionsQuery->whereDate('transaction_date', '>=', $request->get('date_from'));
+        }
+
+        if ($request->filled('date_to')) {
+            $transactionsQuery->whereDate('transaction_date', '<=', $request->get('date_to'));
+        }
+
+        $transactions = $transactionsQuery
+            ->orderBy('transaction_date', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->paginate(20)
+            ->withQueryString();
+
+        // Get paginated payout requests with filters
+        $payoutRequestsQuery = PayoutRequest::where('teacher_id', $teacher->id)
+            ->with('processedBy');
+
+        if ($request->filled('payout_status')) {
+            $payoutRequestsQuery->where('status', $request->get('payout_status'));
+        }
+
+        if ($request->filled('payout_date_from')) {
+            $payoutRequestsQuery->whereDate('request_date', '>=', $request->get('payout_date_from'));
+        }
+
+        if ($request->filled('payout_date_to')) {
+            $payoutRequestsQuery->whereDate('request_date', '<=', $request->get('payout_date_to'));
+        }
+
+        $payoutRequests = $payoutRequestsQuery
+            ->orderBy('request_date', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->paginate(10, ['*'], 'payout_page')
+            ->withQueryString();
+
+        // Format transactions for frontend
+        $formattedTransactions = $transactions->through(function ($transaction) {
+            return [
+                'id' => $transaction->id,
+                'uuid' => $transaction->transaction_uuid,
+                'date' => $transaction->transaction_date,
+                'description' => $transaction->description,
+                'amount' => $transaction->amount,
+                'formatted_amount' => number_format($transaction->amount, 2),
+                'type' => $transaction->transaction_type,
+                'status' => $transaction->status,
+                'session' => $transaction->session ? [
+                    'id' => $transaction->session->id,
+                    'subject' => $transaction->session->subject,
+                    'student_name' => $transaction->session->student->name ?? null,
+                ] : null,
+                'created_by' => $transaction->createdBy ? [
+                    'name' => $transaction->createdBy->name,
+                    'role' => $transaction->createdBy->role,
+                ] : null,
+                'created_at' => $transaction->created_at,
+            ];
+        });
+
+        // Format payout requests for frontend
+        $formattedPayoutRequests = $payoutRequests->through(function ($payout) {
+            return [
+                'id' => $payout->id,
+                'uuid' => $payout->request_uuid,
+                'request_date' => $payout->request_date,
+                'amount' => $payout->amount,
+                'formatted_amount' => number_format($payout->amount, 2),
+                'payment_method' => $payout->payment_method,
+                'payment_method_display' => ucwords(str_replace('_', ' ', $payout->payment_method)),
+                'status' => $payout->status,
+                'status_display' => ucwords($payout->status),
+                'processed_date' => $payout->processed_date,
+                'processed_by' => $payout->processedBy ? [
+                    'name' => $payout->processedBy->name,
+                ] : null,
+                'notes' => $payout->notes,
+                'created_at' => $payout->created_at,
+            ];
+        });
+
+        return Inertia::render('admin/teachers/earnings', [
+            'teacher' => [
+                'id' => $teacher->id,
+                'name' => $teacher->name,
+                'email' => $teacher->email,
+                'avatar' => $teacher->avatar,
+            ],
+            'earnings' => $earningsData,
+            'transactions' => $formattedTransactions,
+            'payoutRequests' => $formattedPayoutRequests,
+            'filters' => $request->only([
+                'type', 'status', 'date_from', 'date_to',
+                'payout_status', 'payout_date_from', 'payout_date_to'
+            ]),
+        ]);
     }
 } 

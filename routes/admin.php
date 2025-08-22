@@ -87,8 +87,12 @@ Route::middleware(['auth', 'verified', 'role:super-admin, admin'])->prefix('admi
     
     // Teacher management routes
     Route::resource('teachers', TeacherManagementController::class);
+    Route::get('/teachers/{teacher}/earnings', [TeacherManagementController::class, 'earnings'])->name('teachers.earnings');
     Route::patch('/teachers/{teacher}/approve', [TeacherManagementController::class, 'approve'])->name('teachers.approve');
     Route::patch('/teachers/{teacher}/reject', [TeacherManagementController::class, 'reject'])->name('teachers.reject');
+    Route::patch('/teachers/{teacher}/contact', [TeacherManagementController::class, 'updateContact'])->name('teachers.update-contact');
+    Route::patch('/teachers/{teacherProfile}/about', [TeacherManagementController::class, 'updateAbout'])->name('teachers.update-about');
+    Route::patch('/teachers/{teacher}/subjects-specializations', [TeacherManagementController::class, 'updateSubjectsSpecializations'])->name('teachers.update-subjects-specializations');
     Route::get('/documents/{document}/download', [TeacherManagementController::class, 'downloadDocument'])->name('teachers.document.download');
     
     // Document upload routes

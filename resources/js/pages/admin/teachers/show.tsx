@@ -137,12 +137,13 @@ export default function TeacherShow({
         />
         
         {/* About Section */}
-        <TeacherAboutSection profile={profile} />
+        <TeacherAboutSection profile={profile} teacherName={teacher.name} />
 
         {/* Subjects and Specializations Section */}
         <TeacherSubjectsSpecializations 
           profile={profile} 
-          availabilities={availabilities} 
+          availabilities={availabilities}
+          teacherId={teacher.id}
         />
         
         {/* Documents Section */}
