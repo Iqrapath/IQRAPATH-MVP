@@ -12,6 +12,9 @@ class ZoomService
 {
     protected $apiKey;
     protected $apiSecret;
+    protected $clientId;
+    protected $clientSecret;
+    protected $accountId;
     protected $baseUrl = 'https://api.zoom.us/v2/';
     protected $jwt;
 
@@ -19,6 +22,10 @@ class ZoomService
     {
         $this->apiKey = config('services.zoom.key');
         $this->apiSecret = config('services.zoom.secret');
+        $this->clientId = config('services.zoom.client_id');
+        $this->clientSecret = config('services.zoom.client_secret');
+        $this->accountId = config('services.zoom.account_id');
+        // Only generate legacy JWT if a secret is configured
         $this->jwt = $this->generateJWT();
     }
 
@@ -29,13 +36,57 @@ class ZoomService
     {
         $key = $this->apiKey;
         $secret = $this->apiSecret;
-        
+        // If secret is not configured, return empty token to avoid HMAC error
+        if (empty($key) || empty($secret) || !is_string($secret)) {
+            return '';
+        }
         $token = [
             'iss' => $key,
             'exp' => time() + 60 * 60, // 1 hour expiration
         ];
         
         return \Firebase\JWT\JWT::encode($token, $secret, 'HS256');
+    }
+
+    /**
+     * Get an access token, preferring Server-to-Server OAuth when configured.
+     */
+    protected function getAccessToken(): string
+    {
+        // Prefer Server-to-Server OAuth when account_id & client credentials are set
+        if (!empty($this->clientId) && !empty($this->clientSecret) && !empty($this->accountId)) {
+            return $this->getS2SToken();
+        }
+        // Fallback to legacy JWT (not recommended by Zoom)
+        return $this->jwt;
+    }
+
+    /**
+     * Retrieve and cache Server-to-Server OAuth token.
+     */
+    protected function getS2SToken(): string
+    {
+        return cache()->remember('zoom_s2s_token', 55 * 60, function () {
+            $basic = base64_encode($this->clientId . ':' . $this->clientSecret);
+            $http = Http::withHeaders([
+                'Authorization' => 'Basic ' . $basic,
+            ]);
+            if (app()->environment('local')) {
+                // Disable SSL verification only in local to avoid cURL 60 errors
+                $http = $http->withOptions(['verify' => false]);
+            }
+            $response = $http->asForm()->post('https://zoom.us/oauth/token', [
+                'grant_type' => 'account_credentials',
+                'account_id' => $this->accountId,
+            ]);
+
+            if (!$response->successful()) {
+                Log::error('Zoom OAuth token error: ' . $response->body());
+                throw new Exception('Failed to obtain Zoom access token');
+            }
+            $data = $response->json();
+            return $data['access_token'] ?? '';
+        });
     }
 
     /**
@@ -78,13 +129,16 @@ class ZoomService
             ];
             
             // If teacher has Zoom user ID, use it
+            $http = Http::withToken($this->getAccessToken());
+            if (app()->environment('local')) {
+                // Disable SSL verification only in local dev to avoid cURL 60 errors
+                $http = $http->withOptions(['verify' => false]);
+            }
             if ($teacher->zoom_user_id) {
-                $response = Http::withToken($this->jwt)
-                    ->post($this->baseUrl . 'users/' . $teacher->zoom_user_id . '/meetings', $data);
+                $response = $http->post($this->baseUrl . 'users/' . $teacher->zoom_user_id . '/meetings', $data);
             } else {
                 // Use default account
-                $response = Http::withToken($this->jwt)
-                    ->post($this->baseUrl . 'users/me/meetings', $data);
+                $response = $http->post($this->baseUrl . 'users/me/meetings', $data);
             }
             
             if ($response->successful()) {
@@ -109,6 +163,63 @@ class ZoomService
             }
         } catch (Exception $e) {
             Log::error('Zoom Meeting Creation Error: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Create an ad-hoc Zoom meeting not tied to TeachingSession (for verification calls)
+     *
+     * @param string $topic
+     * @param \DateTimeInterface $startAt
+     * @param int $durationMinutes
+     * @param string|null $hostZoomUserId
+     * @return array{id:mixed,host_id:string,join_url:string,start_url:string,password:string}
+     * @throws Exception
+     */
+    public function createAdhocMeeting(string $topic, \DateTimeInterface $startAt, int $durationMinutes = 30, ?string $hostZoomUserId = null): array
+    {
+        try {
+            $data = [
+                'topic' => $topic,
+                'type' => 2,
+                'start_time' => $startAt->format('Y-m-d\TH:i:s'),
+                'duration' => max(15, $durationMinutes),
+                'timezone' => config('app.timezone'),
+                'password' => $this->generatePassword(),
+                'settings' => [
+                    'host_video' => true,
+                    'participant_video' => true,
+                    'join_before_host' => false,
+                    'mute_upon_entry' => true,
+                    'waiting_room' => true,
+                    'audio' => 'both',
+                    'auto_recording' => 'none',
+                ],
+            ];
+
+            $url = $this->baseUrl . 'users/' . ($hostZoomUserId ?: 'me') . '/meetings';
+            $http = Http::withToken($this->getAccessToken());
+            if (app()->environment('local')) {
+                $http = $http->withOptions(['verify' => false]);
+            }
+            $response = $http->post($url, $data);
+
+            if (!$response->successful()) {
+                Log::error('Zoom API Error: ' . $response->body());
+                throw new Exception('Failed to create Zoom meeting: ' . $response->body());
+            }
+
+            $meetingData = $response->json();
+            return [
+                'id' => $meetingData['id'] ?? null,
+                'host_id' => $meetingData['host_id'] ?? '',
+                'join_url' => $meetingData['join_url'] ?? '',
+                'start_url' => $meetingData['start_url'] ?? '',
+                'password' => $meetingData['password'] ?? '',
+            ];
+        } catch (Exception $e) {
+            Log::error('Zoom Adhoc Meeting Creation Error: ' . $e->getMessage());
             throw $e;
         }
     }

@@ -1,0 +1,107 @@
+---
+alwaysApply: true
+---
+
+type: codebase
+description: Coding rules and best practices for Laravel 12.x projects integrated with React
+globs: ["/*.php", "/.blade.php", "**/.js", "/*.jsx", "/.ts", "**/.tsx"]
+alwaysApply: true
+Laravel 12.x with React Coding Rules
+These rules provide guidelines for generating and editing code in Laravel 12.x projects integrated with React, typically using the new React starter kit with Inertia.js. Follow them to ensure consistency, maintainability, and adherence to best practices.
+General Principles
+
+Follow the PSR-12 coding standard for PHP code and adhere to Airbnb or similar standards for JavaScript/TypeScript in React components.
+Use strict types in PHP: Always declare declare(strict_types=1); at the top of PHP files.
+Enable TypeScript for React: Leverage static typing for components, props, and state.
+Keep code DRY: Reuse code via traits, helpers, React hooks, and components.
+Obey the Single Responsibility Principle: Each class, component, or method should have one clear responsibility.
+Use shorter, readable syntax: E.g., session('key') in PHP; functional components with hooks in React.
+Maintain naming conventions:
+
+PHP: As per Laravel (models singular, controllers with suffix, etc.).
+React: PascalCase for components (e.g., UserProfile), camelCase for variables and functions.
+
+
+
+Project Structure and Organization
+
+Follow Laravel's default structure for backend: Controllers in app/Http/Controllers, models in app/Models.
+For frontend: Use the structure from the React starter kit – pages in resources/js/Pages, components in resources/js/Components, layouts in resources/js/Layouts.
+Modularize: Group related features (e.g., auth, dashboard) into directories.
+Avoid business logic in controllers or components: Use services/actions in backend; Redux or context in frontend if needed, but prefer Inertia's simplicity.
+Use Inertia.js for seamless SPA integration: Define routes in routes/web.php with Inertia responses.
+
+Backend: Eloquent and Database
+
+Prefer Eloquent ORM for readability and features.
+Use scopes, relationships, and eager loading to optimize queries.
+Implement soft deletes and chunk large datasets.
+Run migrations with proper up() and down() methods.
+
+Backend: Validation and Requests
+
+Use FormRequest classes for validation: Access via $request->validated().
+Keep controllers thin: Delegate to services or jobs.
+
+Backend: Controllers and API
+
+Inject dependencies for testability.
+For React integration, return Inertia responses: E.g., Inertia::render('Dashboard', $data).
+Use middleware for auth and authorization.
+If building a separate API, use resource controllers and API resources.
+
+Frontend: React with Inertia
+
+Use functional components with hooks: E.g., useState, useEffect.
+Leverage Inertia hooks: usePage(), useForm() for forms and data handling.
+Style with Tailwind CSS and shadcn/ui components: Import and use pre-built UI elements.
+Handle routing with Inertia links: <Link href="/users">Users</Link>.
+Manage global state sparingly: Use Inertia's page props; add context or Zustand for complex needs.
+Type props and components: E.g., interface Props { users: User[] }.
+
+Authentication and Authorization
+
+Use the built-in auth from the starter kit: Includes login, registration, etc., with Inertia pages.
+Optionally integrate WorkOS AuthKit for advanced features like SSO and passkeys.
+Secure routes with middleware; check permissions in React via page props.
+
+Performance and Caching
+
+Cache backend data with Cache::remember().
+Optimize React: Use memoization (React.memo, useMemo), code splitting, and lazy loading.
+Queue jobs for background tasks.
+Minify and bundle assets with Vite: Run npm run build for production.
+
+Testing
+
+Backend: Unit/feature tests with PHPUnit and AAA pattern; use RefreshDatabase.
+Frontend: Test React components with Jest and React Testing Library.
+End-to-end: Use Dusk or Cypress for browser testing.
+
+Security
+
+Protect against mass assignment in models.
+Use CSRF protection (handled by Inertia).
+Sanitize inputs; escape outputs in Blade if used.
+Follow OWASP guidelines for React: Prevent XSS, secure API calls.
+
+New Features in Laravel 12.x
+
+Utilize new starter kits: React kit with Inertia 2, TypeScript, shadcn/ui, Tailwind.
+Leverage PHP 8.3+ features: Typed properties, generics in Eloquent.
+Use Laravel Pennant for feature flags.
+Employ the Process facade for external commands.
+
+Documentation and Comments
+
+Use PHPDoc for PHP methods; JSDoc for React functions and components.
+Specify types: E.g., @param array<int, User> $users in PHP; /** @param {User[]} users */ in JS.
+
+Tools and Workflow
+
+Artisan CLI for backend tasks.
+Vite for asset compilation: npm run dev.
+Use ESLint and Prettier for code linting and formatting in React.
+Reference Laravel docs for Inertia integration.
+
+When generating code, provide examples and reference existing files (e.g., @resources/js/Pages/Dashboard.tsx). Ensure suggestions align with Laravel 12.x and React starter kit documentation.

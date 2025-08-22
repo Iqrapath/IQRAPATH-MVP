@@ -43,6 +43,8 @@ interface Teacher {
   rating: any; // Allow any type since we handle it safely
   classes_held: number;
   status: string;
+  can_approve?: boolean;
+  approval_block_reason?: string | null;
 }
 
 interface TeachersIndexProps {
@@ -357,15 +359,22 @@ export default function TeachersIndex({
                         <DropdownMenuContent align="end" className="w-56 p-0 border rounded-lg shadow-lg">
                           {teacher.status !== "Approved" && (
                             <DropdownMenuItem 
-                              className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 cursor-pointer w-full"
-                              onClick={() =>
+                              className={`flex items-center justify-between px-4 py-3 cursor-pointer w-full ${
+                                teacher.can_approve ? 'hover:bg-gray-50' : 'opacity-50 cursor-not-allowed'
+                              }`}
+                              onClick={() => {
+                                if (!teacher.can_approve) {
+                                  alert(teacher.approval_block_reason || 'Cannot approve this teacher yet.');
+                                  return;
+                                }
                                 router.patch(
                                   route("admin.teachers.approve", teacher.id)
-                                )
-                              }
+                                );
+                              }}
+                              title={teacher.approval_block_reason || 'Approve Teacher'}
                             >
-                              <span>Approve Teacher</span>
-                              <VerifiedIcon className="h-5 w-5 text-green-600" />
+                              <span>{teacher.can_approve ? 'Approve Teacher' : 'Cannot Approve'}</span>
+                              <VerifiedIcon className={`h-5 w-5 ${teacher.can_approve ? 'text-green-600' : 'text-gray-400'}`} />
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuItem asChild className="px-0 py-0">

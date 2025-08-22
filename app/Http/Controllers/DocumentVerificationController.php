@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Document;
+use App\Models\User;
 use App\Models\TeacherProfile;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;

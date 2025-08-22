@@ -15,7 +15,7 @@ class VerificationRequestPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->role === 'super-admin';
+        return in_array($user->role, ['super-admin', 'admin'], true);
     }
 
     /**
@@ -23,7 +23,7 @@ class VerificationRequestPolicy
      */
     public function view(User $user, VerificationRequest $verificationRequest): bool
     {
-        return $user->role === 'super-admin';
+        return in_array($user->role, ['super-admin', 'admin'], true);
     }
 
     /**
@@ -47,7 +47,9 @@ class VerificationRequestPolicy
      */
     public function requestVideoVerification(User $user, VerificationRequest $verificationRequest): bool
     {
-        return $user->role === 'super-admin' && $verificationRequest->status === 'pending';
+        // Allow super-admin and admin to schedule or generate links while the request is not finalized
+        return in_array($user->role, ['super-admin', 'admin'], true)
+            && in_array($verificationRequest->status, ['pending', 'live_video'], true);
     }
 
     /**
@@ -55,6 +57,7 @@ class VerificationRequestPolicy
      */
     public function completeVideoVerification(User $user, VerificationRequest $verificationRequest): bool
     {
-        return $user->role === 'super-admin' && $verificationRequest->status === 'live_video';
+        return in_array($user->role, ['super-admin', 'admin'], true)
+            && $verificationRequest->status === 'live_video';
     }
 } 

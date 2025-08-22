@@ -330,23 +330,23 @@ export default function VerificationIndex({
                                                 'N/A'
                                             }
                                         </TableCell>
-                                                                                 <TableCell>
-                                             <div className="flex flex-col gap-1">
-                                                 <div className="flex items-center gap-2">
-                                                     {getStatusBadge(request.status)}
-                                                     {request.status_corrected && (
-                                                         <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                                                             🔄 Auto-corrected
-                                                         </span>
-                                                     )}
-                                                 </div>
-                                                 {!request.can_approve && request.approval_block_reason && (
-                                                     <div className="text-xs text-red-600 bg-red-50 px-2 py-1 rounded">
-                                                         ⚠️ {request.approval_block_reason}
-                                                     </div>
-                                                 )}
-                                             </div>
-                                         </TableCell>
+                                        <TableCell>
+                                            <div className="flex flex-col gap-1">
+                                                <div className="flex items-center gap-2">
+                                                    {getStatusBadge(request.status)}
+                                                    {request.status_corrected && (
+                                                        <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                                                            🔄 Auto-corrected
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                {!request.can_approve && request.approval_block_reason && (
+                                                    <div className="text-xs text-red-600 bg-red-50 px-2 py-1 rounded">
+                                                        ⚠️ {request.approval_block_reason}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </TableCell>
                                         <TableCell>
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
@@ -359,28 +359,26 @@ export default function VerificationIndex({
                                                     </Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end" className="w-56 p-0 border rounded-lg shadow-lg">
-                                                                                                         <DropdownMenuItem
-                                                         className={`flex items-center justify-between px-4 py-3 cursor-pointer w-full ${
-                                                             request.can_approve 
-                                                                 ? 'hover:bg-gray-50' 
-                                                                 : 'opacity-50 cursor-not-allowed'
-                                                         }`}
-                                                         onClick={() => {
-                                                             if (!request.can_approve) {
-                                                                 alert(request.approval_block_reason || 'Cannot approve this teacher');
-                                                                 return;
-                                                             }
-                                                             if (confirm('Are you sure you want to verify this teacher?')) {
-                                                                 router.patch(route('admin.verification.approve', request.id));
-                                                             }
-                                                         }}
-                                                         title={request.approval_block_reason || 'Approve Teacher'}
-                                                     >
-                                                         <span>{request.can_approve ? 'Verify' : 'Cannot Verify'}</span>
-                                                         <VerifiedIcon className={`mr-2 h-4 w-4 ${
-                                                             request.can_approve ? 'text-green-600' : 'text-gray-400'
-                                                         }`} />
-                                                     </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        className={`flex items-center justify-between px-4 py-3 cursor-pointer w-full ${request.can_approve
+                                                                ? 'hover:bg-gray-50'
+                                                                : 'opacity-50 cursor-not-allowed'
+                                                            }`}
+                                                        onClick={() => {
+                                                            if (!request.can_approve) {
+                                                                alert(request.approval_block_reason || 'Cannot approve this teacher');
+                                                                return;
+                                                            }
+                                                            if (confirm('Are you sure you want to verify this teacher?')) {
+                                                                router.patch(route('admin.verification.approve', request.id));
+                                                            }
+                                                        }}
+                                                        title={request.approval_block_reason || 'Approve Teacher'}
+                                                    >
+                                                        <span>{request.can_approve ? 'Verify' : 'Cannot Verify'}</span>
+                                                        <VerifiedIcon className={`mr-2 h-4 w-4 ${request.can_approve ? 'text-green-600' : 'text-gray-400'
+                                                            }`} />
+                                                    </DropdownMenuItem>
                                                     <DropdownMenuItem asChild className="px-0 py-0">
                                                         <Link
                                                             href={route("admin.verification.show", request.id)}

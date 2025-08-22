@@ -117,6 +117,25 @@ class TeacherManagementController extends Controller
                 if ($teacher->teacherProfile && $teacher->teacherProfile->rating !== null) {
                     $rating = is_numeric($teacher->teacherProfile->rating) ? (float) $teacher->teacherProfile->rating : null;
                 }
+
+                // Compute approval capability similar to verification list
+                $canApprove = false;
+                $approvalBlockReason = null;
+                if ($teacher->teacherProfile) {
+                    $verificationRequest = $teacher->teacherProfile->verificationRequests()
+                        ->latest()
+                        ->first();
+                    if ($verificationRequest) {
+                        $canApprove = $this->canApproveTeacher($verificationRequest);
+                        if (!$canApprove) {
+                            $approvalBlockReason = $this->getApprovalBlockReason($verificationRequest);
+                        }
+                    } else {
+                        $approvalBlockReason = 'No verification request submitted.';
+                    }
+                } else {
+                    $approvalBlockReason = 'Teacher profile not found.';
+                }
                 
                 return [
                     'id' => $teacher->id,
@@ -127,6 +146,8 @@ class TeacherManagementController extends Controller
                     'rating' => $rating,
                     'classes_held' => $classesHeld,
                     'status' => $status,
+                    'can_approve' => $canApprove,
+                    'approval_block_reason' => $approvalBlockReason,
                 ];
             });
             
@@ -697,12 +718,12 @@ class TeacherManagementController extends Controller
      */
     public function downloadDocument(Document $document)
     {
-        // Check if the document exists
-        if (!Storage::exists($document->path)) {
+        // Use public disk where uploads are stored
+        if (!Storage::disk('public')->exists($document->path)) {
             abort(404, 'Document not found');
         }
 
-        return Storage::download($document->path, $document->name);
+        return Storage::disk('public')->download($document->path, $document->name);
     }
 
     /**
@@ -717,6 +738,7 @@ class TeacherManagementController extends Controller
                 'teacher_id' => 'required|integer|exists:users,id',
                 'side' => 'nullable|string|in:front,back',
                 'certificate_type' => 'nullable|string',
+                'document_id' => 'nullable|integer|exists:documents,id',
             ]);
 
             $teacher = User::findOrFail($validated['teacher_id']);
@@ -726,6 +748,18 @@ class TeacherManagementController extends Controller
                     'success' => false,
                     'message' => 'User is not a teacher'
                 ], 400);
+            }
+
+            // If replacing an existing document (re-upload), delete old one first
+            $existing = null;
+            if (!empty($validated['document_id'])) {
+                $existing = Document::find($validated['document_id']);
+                if ($existing && $existing->teacher_profile_id === $teacher->teacherProfile->id) {
+                    if (\Storage::disk('public')->exists($existing->path)) {
+                        \Storage::disk('public')->delete($existing->path);
+                    }
+                    $existing->delete();
+                }
             }
 
             $file = $request->file('document');
@@ -740,8 +774,8 @@ class TeacherManagementController extends Controller
                 'teacher_profile_id' => $teacher->teacherProfile->id,
                 'status' => 'pending',
                 'metadata' => [
-                    'side' => $validated['side'] ?? null,
-                    'certificate_type' => $validated['certificate_type'] ?? null,
+                    'side' => $validated['side'] ?? ($existing->metadata['side'] ?? null),
+                    'certificate_type' => $validated['certificate_type'] ?? ($existing->metadata['certificate_type'] ?? null),
                 ],
                 'uploaded_by' => auth()->id(),
                 'uploaded_at' => now(),
@@ -788,9 +822,9 @@ class TeacherManagementController extends Controller
                 ], 403);
             }
 
-            // Delete the file from storage
-            if (Storage::exists($document->path)) {
-                Storage::delete($document->path);
+            // Delete the file from public disk
+            if (Storage::disk('public')->exists($document->path)) {
+                Storage::disk('public')->delete($document->path);
             }
 
             // Delete the document record

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -19,6 +19,16 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Search, Eye, MoreHorizontal, CheckCircle, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { toast } from 'sonner';
+import { router } from '@inertiajs/react';
 
 interface Notification {
   id: string;
@@ -58,6 +68,8 @@ interface Props {
   statusFilter: string;
   setStatusFilter: (filter: string) => void;
   isLoading: boolean;
+  onPreview?: (notification: Notification) => void;
+  onPageChange?: (page: number) => void;
 }
 
 export default function NotificationHistory({
@@ -74,6 +86,8 @@ export default function NotificationHistory({
   statusFilter,
   setStatusFilter,
   isLoading,
+  onPreview,
+  onPageChange,
 }: Props) {
   const getDeliveryStatusIcon = (status: string) => {
     switch (status) {
@@ -108,19 +122,61 @@ export default function NotificationHistory({
     }
   };
 
-  const filteredNotifications = (notifications?.data || []).filter(notification => {
-    if (searchQuery && !notification.type.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return false;
+  const page = notifications?.current_page || 1;
+  const perPage = notifications?.per_page || 20;
+  const total = notifications?.total || 0;
+  const onFirstIndex = total === 0 ? 0 : (page - 1) * perPage + 1;
+  const onLastIndex = total === 0 ? 0 : (page - 1) * perPage + (notifications?.data?.length || 0);
+
+  const getCookie = (name: string) => {
+    const match = document.cookie.match(new RegExp('(^|; )' + name.replace(/([.$?*|{}()\[\]\\\/\+^])/g, '\\$1') + '=([^;]*)'));
+    return match ? decodeURIComponent(match[2]) : undefined;
+  };
+
+  const fetchWithCsrf = async (url: string, init: RequestInit) => {
+    let csrf = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content || '';
+    if (!csrf) csrf = getCookie('XSRF-TOKEN') || '';
+    if (!csrf) {
+      await fetch('/sanctum/csrf-cookie', { method: 'GET', credentials: 'same-origin' });
+      csrf = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content || getCookie('XSRF-TOKEN') || '';
     }
-    if (roleFilter !== 'all' && !notification.level.toLowerCase().includes(roleFilter.toLowerCase())) {
-      return false;
+    const headers = new Headers(init.headers as HeadersInit);
+    if (csrf) {
+      headers.set('X-CSRF-TOKEN', csrf);
+      headers.set('X-XSRF-TOKEN', csrf);
     }
-    if (statusFilter !== 'all') {
-      if (statusFilter === 'read' && !notification.read_at) return false;
-      if (statusFilter === 'unread' && notification.read_at) return false;
+    headers.set('X-Requested-With', 'XMLHttpRequest');
+    if (!headers.has('Accept')) headers.set('Accept', 'application/json');
+    return fetch(url, { ...init, headers, credentials: 'same-origin' });
+  };
+
+  const handleRowResend = async (id: string) => {
+    try {
+      const resp = await fetchWithCsrf(`/admin/notifications/${id}/resend`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+      if (!resp.ok) throw new Error(await resp.text());
+      const data = await resp.json().catch(() => ({} as any));
+      toast.success((data as any).message || 'Notification resent');
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to resend');
     }
-    return true;
-  });
+  };
+
+  const handleRowDelete = async (id: string) => {
+    if (!confirm('Delete this notification? This cannot be undone.')) return;
+    try {
+      const resp = await fetchWithCsrf(`/admin/notifications/${id}`, { method: 'DELETE' });
+      if (!resp.ok) throw new Error(await resp.text());
+      toast.success('Notification deleted');
+      // Refresh current page if possible
+      if (onPageChange) {
+        onPageChange(page);
+      } else {
+        router.reload();
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to delete');
+    }
+  };
 
   return (
     <div>
@@ -198,7 +254,7 @@ export default function NotificationHistory({
                 <TableHead className="w-16 px-6 py-4">
                   <div className="flex items-center justify-center">
                     <Checkbox
-                      checked={selectedNotifications.length === (filteredNotifications?.length || 0) && (filteredNotifications?.length || 0) > 0}
+                      checked={selectedNotifications.length === (notifications?.data?.length || 0) && (notifications?.data?.length || 0) > 0}
                       onCheckedChange={onSelectAll}
                       className="data-[state=checked]:bg-teal-600 data-[state=checked]:border-teal-600"
                     />
@@ -225,7 +281,7 @@ export default function NotificationHistory({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(filteredNotifications || []).map((notification, index) => (
+              {(notifications?.data || []).map((notification, index) => (
                 <TableRow 
                   key={notification.id}
                   className={cn(
@@ -261,7 +317,6 @@ export default function NotificationHistory({
                       <div className="truncate" title={notification.data?.message || notification.type}>
                         {notification.data?.message || notification.type}
                       </div>
-                      {/* Show rejection reason prominently for rejection notifications */}
                       {(notification.type === 'teacher_rejected' || notification.type === 'document_rejected') && notification.data?.rejection_reason && (
                         <div className="mt-2 p-2 bg-red-50 rounded border border-red-200">
                           <div className="text-xs text-red-800">
@@ -297,17 +352,36 @@ export default function NotificationHistory({
                         size="sm"
                         className="h-9 w-9 p-0 hover:bg-gray-100"
                         title="View Details"
+                        onClick={() => onPreview && onPreview(notification)}
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-9 w-9 p-0 hover:bg-gray-100"
-                        title="More Actions"
-                      >
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-9 w-9 p-0 hover:bg-gray-100"
+                            title="More Actions"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => onPreview && onPreview(notification)}>
+                            View details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleRowResend(notification.id)}>
+                            Resend
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => handleRowDelete(notification.id)} className="text-red-600 focus:text-red-600">
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -316,7 +390,7 @@ export default function NotificationHistory({
           </Table>
           
           {/* Empty State */}
-          {(!filteredNotifications || filteredNotifications.length === 0) && (
+          {(!notifications?.data || notifications.data.length === 0) && (
             <div className="py-12 text-center">
               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Search className="w-8 h-8 text-gray-400" />
@@ -331,6 +405,34 @@ export default function NotificationHistory({
                     ? 'No notifications match your current filters' 
                     : "No notifications available")}
               </p>
+            </div>
+          )}
+
+          {/* Pagination Controls (server-driven) */}
+          {notifications?.data && notifications.data.length > 0 && (
+            <div className="flex items-center justify-between px-4 py-3 border-top bg-white">
+              <div className="text-sm text-gray-600">
+                Showing {onFirstIndex} to {onLastIndex} of {total} results
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  className="rounded-full"
+                  onClick={() => onPageChange && onPageChange(page - 1)}
+                  disabled={page <= 1}
+                >
+                  Previous
+                </Button>
+                <div className="text-sm text-gray-700 px-2">Page {page} of {notifications.last_page || 1}</div>
+                <Button
+                  variant="outline"
+                  className="rounded-full"
+                  onClick={() => onPageChange && onPageChange(page + 1)}
+                  disabled={page >= (notifications.last_page || 1)}
+                >
+                  Next
+                </Button>
+              </div>
             </div>
           )}
         </div>

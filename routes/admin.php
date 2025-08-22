@@ -29,7 +29,7 @@ use Inertia\Inertia;
 */
 
 // Admin routes
-Route::middleware(['auth', 'verified', 'role:super-admin'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'verified', 'role:super-admin, admin'])->prefix('admin')->name('admin.')->group(function () {
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
@@ -50,6 +50,10 @@ Route::middleware(['auth', 'verified', 'role:super-admin'])->prefix('admin')->na
     // Admin notifications
     Route::get('/notifications', [App\Http\Controllers\Admin\NotificationsController::class, 'index'])->name('notifications.index');
     Route::get('/notifications/search', [App\Http\Controllers\Admin\NotificationsController::class, 'search'])->name('notifications.search');
+    Route::get('/notifications/{notification}/details', [App\Http\Controllers\Admin\NotificationsController::class, 'show'])->name('notifications.show');
+    Route::post('/notifications/{notification}/resend', [App\Http\Controllers\Admin\NotificationsController::class, 'resend'])->name('notifications.resend');
+    Route::get('/notifications/{notification}/edit', [App\Http\Controllers\Admin\NotificationsController::class, 'edit'])->name('notifications.edit');
+    Route::delete('/notifications/{notification}', [App\Http\Controllers\Admin\NotificationsController::class, 'destroy'])->name('notifications.destroy');
     
     // Notification creation
     Route::get('/notifications/create', [App\Http\Controllers\Admin\NotificationCreateController::class, 'create'])->name('notifications.create');
@@ -57,8 +61,8 @@ Route::middleware(['auth', 'verified', 'role:super-admin'])->prefix('admin')->na
     
     // Auto-notification triggers
     Route::get('/notifications/auto-triggers', [App\Http\Controllers\Admin\AutoNotificationController::class, 'index'])->name('notifications.auto-triggers');
-    Route::put('/notifications/{notificationTrigger}', [App\Http\Controllers\Admin\AutoNotificationController::class, 'update'])->name('notifications.update');
-    Route::delete('/notifications/{notificationTrigger}', [App\Http\Controllers\Admin\AutoNotificationController::class, 'destroy'])->name('notifications.destroy');
+    Route::put('/notifications/auto-triggers/{notificationTrigger}', [App\Http\Controllers\Admin\AutoNotificationController::class, 'update'])->name('notifications.auto-triggers.update');
+    Route::delete('/notifications/auto-triggers/{notificationTrigger}', [App\Http\Controllers\Admin\AutoNotificationController::class, 'destroy'])->name('notifications.auto-triggers.destroy');
     
     // Admin access to subjects
     Route::resource('subjects', SubjectController::class);
@@ -78,6 +82,7 @@ Route::middleware(['auth', 'verified', 'role:super-admin'])->prefix('admin')->na
     Route::patch('/verification/{verificationRequest}/reject', [TeacherVerificationController::class, 'reject'])->name('verification.reject');
     Route::post('/verification/{verificationRequest}/request-video', [TeacherVerificationController::class, 'requestVideoVerification'])->name('verification.request-video');
     Route::patch('/verification/{verificationRequest}/complete-video', [TeacherVerificationController::class, 'completeVideoVerification'])->name('verification.complete-video');
+    Route::post('/verification/{verificationRequest}/generate-meeting', [TeacherVerificationController::class, 'generateMeetingLink'])->name('verification.generate-meeting');
     
     // Teacher management routes
     Route::resource('teachers', TeacherManagementController::class);
