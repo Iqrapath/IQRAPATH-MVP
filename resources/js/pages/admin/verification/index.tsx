@@ -129,33 +129,33 @@ export default function VerificationIndex({
         switch (status) {
             case "pending":
                 return (
-                    <span className="text-yellow-600 font-medium">
+                    <Badge variant="outline" className="text-yellow-600 border-yellow-600 bg-yellow-50">
                         Pending
-                    </span>
+                    </Badge>
                 );
             case "verified":
                 return (
-                    <span className="text-green-600 font-medium">
+                    <Badge variant="outline" className="text-green-600 border-green-600 bg-green-50">
                         Verified
-                    </span>
+                    </Badge>
                 );
             case "rejected":
                 return (
-                    <span className="text-red-600 font-medium">
+                    <Badge variant="outline" className="text-red-600 border-red-600 bg-red-50">
                         Rejected
-                    </span>
+                    </Badge>
                 );
             case "live_video":
                 return (
-                    <span className="text-green-600 font-medium">
-                        Live
-                    </span>
+                    <Badge variant="outline" className="text-blue-600 border-blue-600 bg-blue-50">
+                        Live Video
+                    </Badge>
                 );
             default:
                 return (
-                    <span className="text-gray-600 font-medium">
+                    <Badge variant="outline" className="text-gray-600 border-gray-600 bg-gray-50">
                         {status}
-                    </span>
+                    </Badge>
                 );
         }
     };

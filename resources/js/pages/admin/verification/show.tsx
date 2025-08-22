@@ -111,7 +111,12 @@ export default function VerificationShow({
         </div>
         
         {/* Call Details Card */}
-        <VerificationCallDetailsCard call={latest_call || null} />
+        <VerificationCallDetailsCard 
+          call={latest_call || null} 
+          verificationRequestId={verificationRequest.id}
+          videoStatus={verification_status?.video_status as any}
+          requestStatus={verificationRequest?.status as any}
+        />
 
         {/* Documents Review Panel + Document Section */}
         <div className="mb-8">

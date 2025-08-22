@@ -83,6 +83,7 @@ Route::middleware(['auth', 'verified', 'role:super-admin, admin'])->prefix('admi
     Route::post('/verification/{verificationRequest}/request-video', [TeacherVerificationController::class, 'requestVideoVerification'])->name('verification.request-video');
     Route::patch('/verification/{verificationRequest}/complete-video', [TeacherVerificationController::class, 'completeVideoVerification'])->name('verification.complete-video');
     Route::post('/verification/{verificationRequest}/generate-meeting', [TeacherVerificationController::class, 'generateMeetingLink'])->name('verification.generate-meeting');
+    Route::post('/verification/{verificationRequest}/start-video', [TeacherVerificationController::class, 'startVideoVerification'])->name('verification.start-video');
     
     // Teacher management routes
     Route::resource('teachers', TeacherManagementController::class);

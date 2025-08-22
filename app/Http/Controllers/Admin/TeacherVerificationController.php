@@ -28,7 +28,7 @@ class TeacherVerificationController extends Controller
         $search = $request->query('search');
         $date = $request->query('date');
         
-                $verificationRequests = VerificationRequest::query()
+            $verificationRequests = VerificationRequest::query()
             ->with(['teacherProfile.user', 'teacherProfile.documents']);
             
         if ($status && $status !== 'all') {
@@ -416,6 +416,11 @@ class TeacherVerificationController extends Controller
             return 'rejected';
         }
         
+        // If currently in live video session, preserve that status
+        if ($verificationRequest->status === 'live_video') {
+            return 'live_video';
+        }
+        
         // Check if documents are verified
         $pendingDocuments = $verificationRequest->teacherProfile->documents()
             ->where('status', 'pending')
@@ -454,9 +459,9 @@ class TeacherVerificationController extends Controller
         ]);
         
         DB::transaction(function () use ($verificationRequest, $request, $validated) {
-            // Update verification request
+            // Update verification request - keep status as 'pending' until live verification starts
             $verificationRequest->update([
-                'status' => 'live_video',
+                'status' => 'pending',
                 'video_status' => 'scheduled',
                 'scheduled_call_at' => $validated['scheduled_call_at'],
                 'video_platform' => $validated['video_platform'],
@@ -476,10 +481,10 @@ class TeacherVerificationController extends Controller
             
             // Create audit log
             $verificationRequest->auditLogs()->create([
-                'status' => 'live_video',
+                'status' => 'pending',
                 'changed_by' => $request->user()->id,
                 'changed_at' => now(),
-                'notes' => 'Live video verification requested',
+                'notes' => 'Live video verification scheduled',
             ]);
         });
 
@@ -554,6 +559,73 @@ class TeacherVerificationController extends Controller
         
         return redirect()->route('admin.verification.show', $verificationRequest)
             ->with('success', 'Live video verification scheduled successfully.');
+    }
+
+    /**
+     * Mark the scheduled verification call as live (in progress).
+     */
+    public function startVideoVerification(Request $request, VerificationRequest $verificationRequest): RedirectResponse
+    {
+        Gate::authorize('requestVideoVerification', $verificationRequest);
+
+        DB::transaction(function () use ($verificationRequest, $request) {
+            // Update request to live - keep video_status as 'scheduled' since we're just starting
+            $verificationRequest->update([
+                'status' => 'live_video',
+                // Don't change video_status - it should remain 'scheduled' until actually completed
+            ]);
+
+            // Audit log
+            $verificationRequest->auditLogs()->create([
+                'status' => 'live_video',
+                'changed_by' => $request->user()->id,
+                'changed_at' => now(),
+                'notes' => 'Verification call started (live)',
+            ]);
+        });
+
+        // Notify both parties (non-blocking)
+        try {
+            $teacher = $verificationRequest->teacherProfile->user;
+            if (method_exists($teacher, 'receivedNotifications')) {
+                $teacher->receivedNotifications()->create([
+                    'id' => \Illuminate\Support\Str::uuid()->toString(),
+                    'type' => 'verification_call_live',
+                    'notifiable_type' => \App\Models\User::class,
+                    'notifiable_id' => $teacher->id,
+                    'channel' => 'database',
+                    'level' => 'info',
+                    'data' => [
+                        'title' => 'Verification Call Started',
+                        'message' => 'Your verification call is live now.',
+                        'action_text' => $verificationRequest->meeting_link ? 'Open meeting link' : null,
+                        'action_url' => $verificationRequest->meeting_link ?? null,
+                    ],
+                ]);
+            }
+            $admin = $request->user();
+            if ($admin && method_exists($admin, 'receivedNotifications')) {
+                $admin->receivedNotifications()->create([
+                    'id' => \Illuminate\Support\Str::uuid()->toString(),
+                    'type' => 'verification_call_live',
+                    'notifiable_type' => \App\Models\User::class,
+                    'notifiable_id' => $admin->id,
+                    'channel' => 'database',
+                    'level' => 'info',
+                    'data' => [
+                        'title' => 'Verification Call Started',
+                        'message' => 'Verification call is live for ' . ($teacher->name ?? 'teacher') . '.',
+                        'action_text' => 'View request',
+                        'action_url' => route('admin.verification.show', $verificationRequest->id),
+                    ],
+                ]);
+            }
+        } catch (\Throwable $e) {
+            // ignore
+        }
+
+        return redirect()->route('admin.verification.show', $verificationRequest)
+            ->with('success', 'Verification call marked as live.');
     }
 
     /**
@@ -643,16 +715,34 @@ class TeacherVerificationController extends Controller
                 $call->update([
                     'status' => 'completed',
                     'verification_result' => $validated['verification_result'],
-                    'verification_notes' => $validated['verification_notes'],
+                    'verification_notes' => $validated['verification_notes'] ?? null,
                     'verified_by' => $request->user()->id,
                     'verified_at' => now(),
                 ]);
             }
             
-            // Update verification request video status
+            // Update verification request video status and status
+            $videoPassed = $validated['verification_result'] === 'passed';
             $verificationRequest->update([
-                'video_status' => $validated['verification_result'] === 'passed' ? 'passed' : 'failed',
+                'video_status' => $videoPassed ? 'passed' : 'failed',
+                'status' => 'pending', // Reset status back to pending after live video
             ]);
+
+            // If both docs and video are verified, auto-verify teacher and request
+            if ($videoPassed) {
+                $pendingDocuments = $verificationRequest->teacherProfile->documents()
+                    ->where('status', 'pending')
+                    ->count();
+
+                if ($pendingDocuments === 0) {
+                    $verificationRequest->update([
+                        'status' => 'verified',
+                        'reviewed_by' => $request->user()->id,
+                        'reviewed_at' => now(),
+                    ]);
+                    $verificationRequest->teacherProfile->update(['verified' => true]);
+                }
+            }
             
             // Create audit log
             $verificationRequest->auditLogs()->create([
