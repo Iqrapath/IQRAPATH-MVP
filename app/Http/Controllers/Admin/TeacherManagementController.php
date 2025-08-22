@@ -88,6 +88,10 @@ class TeacherManagementController extends Controller
         $teachers = $query->orderBy('created_at', 'desc')
             ->paginate(10)
             ->through(function ($teacher) {
+                // Auto-correct inconsistent verification state and ensure verification request
+                if ($teacher->teacherProfile) {
+                    $this->autoCorrectTeacherVerificationState($teacher);
+                }
                 // Get classes held count
                 $classesHeld = TeachingSession::where('teacher_id', $teacher->id)
                     ->where('status', 'completed')
@@ -327,9 +331,14 @@ class TeacherManagementController extends Controller
             $documents['resume']['documentUrl'] = \Illuminate\Support\Facades\Storage::url($documents['resume']['path']);
         }
 
-        // Get verification request status
+        // Auto-correct inconsistent verification state and ensure verification request
+        if ($teacher->teacherProfile) {
+            $this->autoCorrectTeacherVerificationState($teacher);
+        }
+
+        // Get verification request status (latest)
         $verificationRequest = $teacher->teacherProfile ? 
-            $teacher->teacherProfile->verificationRequests()->where('status', 'pending')->first() : 
+            $teacher->teacherProfile->verificationRequests()->latest()->first() : 
             null;
 
         // Determine verification status based on actual documents and verification request
@@ -445,6 +454,68 @@ class TeacherManagementController extends Controller
     }
 
     /**
+     * Auto-correct teacher verification state and ensure a verification request exists when needed.
+     */
+    private function autoCorrectTeacherVerificationState(User $teacher): void
+    {
+        try {
+            DB::transaction(function () use ($teacher) {
+                $profile = $teacher->teacherProfile;
+                if (!$profile) return;
+
+                // Latest verification request
+                $vReq = $profile->verificationRequests()->latest()->first();
+
+                // Determine docs status from actual documents
+                $pendingDocuments = $profile->documents()->where('status', 'pending')->count();
+                $rejectedDocuments = $profile->documents()->where('status', 'rejected')->count();
+                $verifiedDocuments = $profile->documents()->where('status', 'verified')->count();
+                $totalDocuments = $profile->documents()->count();
+                $docsStatus = 'pending';
+                if ($rejectedDocuments > 0) {
+                    $docsStatus = 'rejected';
+                } elseif ($pendingDocuments === 0 && $verifiedDocuments > 0) {
+                    $docsStatus = 'verified';
+                } elseif ($totalDocuments === 0) {
+                    $docsStatus = 'pending';
+                }
+
+                $videoStatus = $vReq ? ($vReq->video_status ?? 'not_scheduled') : 'not_scheduled';
+
+                // If verified flag is true but prerequisites not met, flip and ensure verification request
+                $needsVerification = !($docsStatus === 'verified' && $videoStatus === 'passed');
+                if ($profile->verified && $needsVerification) {
+                    $profile->update(['verified' => false]);
+                }
+
+                if ($needsVerification) {
+                    if (!$vReq) {
+                        $vReq = $profile->verificationRequests()->create([
+                            'status' => 'pending',
+                            'docs_status' => $docsStatus,
+                            'video_status' => $videoStatus,
+                            'submitted_at' => now(),
+                        ]);
+                    } else {
+                        // Keep request status consistent
+                        $correctStatus = $docsStatus === 'verified' && $videoStatus === 'passed' ? 'verified' : ($vReq->status === 'rejected' ? 'rejected' : 'pending');
+                        $vReq->update([
+                            'status' => $correctStatus,
+                            'docs_status' => $docsStatus,
+                            'video_status' => $videoStatus,
+                        ]);
+                    }
+                }
+            });
+        } catch (\Throwable $e) {
+            \Log::warning('autoCorrectTeacherVerificationState failed', [
+                'teacher_id' => $teacher->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
      * Show the form for editing the specified teacher.
      */
     public function edit(User $teacher): Response
@@ -540,17 +611,26 @@ class TeacherManagementController extends Controller
             return back()->withErrors(['error' => 'Teacher profile not found.']);
         }
 
-        // Get current verification request
-        $verificationRequest = $teacher->teacherProfile->verificationRequests()
-            ->where('status', 'pending')
-            ->first();
-            
+        // Ensure verification prerequisites
+        $verificationRequest = $teacher->teacherProfile->verificationRequests()->latest()->first();
         if (!$verificationRequest) {
-            return back()->withErrors(['error' => 'No verification request found.']);
+            // Create a new verification request and block approval
+            $verificationRequest = $teacher->teacherProfile->verificationRequests()->create([
+                'status' => 'pending',
+                'docs_status' => 'pending',
+                'video_status' => 'not_scheduled',
+                'submitted_at' => now(),
+            ]);
+            $teacher->teacherProfile->update(['verified' => false]);
+            return back()->withErrors(['error' => 'Teacher moved to verification. All documents and video verification must be completed.']);
         }
 
-        // Check verification workflow completion
+        // Block approval if cannot approve yet
         if (!$this->canApproveTeacher($verificationRequest)) {
+            // Ensure teacher is marked unverified
+            if ($teacher->teacherProfile->verified) {
+                $teacher->teacherProfile->update(['verified' => false]);
+            }
             return back()->withErrors(['error' => $this->getApprovalBlockReason($verificationRequest)]);
         }
 

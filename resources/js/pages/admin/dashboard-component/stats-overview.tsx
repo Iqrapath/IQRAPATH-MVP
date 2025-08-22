@@ -3,7 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { StatCard } from '@/pages/admin/dashboard-component/stat-card';
 import { ReactNode } from 'react';
 import { Calendar } from 'lucide-react';
-import { Link } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 
 interface StatsOverviewProps {
   stats: Array<{
@@ -22,6 +22,7 @@ export function StatsOverview({ stats }: StatsOverviewProps) {
         <div className="flex justify-between items-center mb-8 -mt-2">
           <h2 className="text-xl font-bold text-gray-800">Your Stats</h2>
           <Button
+            onClick={() => router.visit('/admin/verification')}
             className="bg-[#2c7870] hover:bg-[#236158] text-white text-sm font-medium rounded-full h-9 px-4"
           >
             Approve New Teachers
