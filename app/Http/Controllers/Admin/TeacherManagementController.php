@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Document;
 use App\Models\Subject;
+use App\Models\SubjectTemplates;
 use App\Models\TeacherAvailability;
 use App\Models\TeacherEarning;
 use App\Models\TeacherProfile;
@@ -64,7 +65,7 @@ class TeacherManagementController extends Controller
         // Filter by subject if provided
         if ($request->has('subject') && $request->subject && $request->subject !== 'all') {
             $subject = $request->subject;
-            $query->whereHas('teacherProfile.subjects', function ($q) use ($subject) {
+            $query->whereHas('teacherProfile.subjects.template', function ($q) use ($subject) {
                 $q->where('name', 'like', "%{$subject}%");
             });
         }
@@ -101,7 +102,7 @@ class TeacherManagementController extends Controller
                     
                 // Get subjects
                 $subjects = $teacher->teacherProfile ? 
-                    $teacher->teacherProfile->subjects->pluck('name')->join(', ') : '';
+                    $teacher->teacherProfile->subjects->pluck('template.name')->join(', ') : '';
                     
                 // Get verification status
                 $status = 'Inactive';
@@ -157,8 +158,8 @@ class TeacherManagementController extends Controller
                 ];
             });
             
-        // Get all subjects for filter dropdown
-        $allSubjects = Subject::select('name')->distinct()->get()->pluck('name');
+        // Get all subjects for filter dropdown (from templates to avoid duplicates)
+        $allSubjects = SubjectTemplates::where('is_active', true)->pluck('name');
         
         // Get rating statistics
         $averageRating = TeacherProfile::avg('rating');

@@ -14,9 +14,13 @@ return new class extends Migration
         Schema::create('subjects', function (Blueprint $table) {
             $table->id();
             $table->foreignId('teacher_profile_id')->constrained()->onDelete('cascade');
-            $table->string('name');
+            $table->foreignId('subject_template_id')->constrained()->onDelete('cascade');
+            $table->text('teacher_notes')->nullable(); // Teacher's specific approach
             $table->boolean('is_active')->default(true);
             $table->timestamps();
+            
+            // One teacher can only have one instance of each subject template
+            $table->unique(['teacher_profile_id', 'subject_template_id']);
         });
     }
 

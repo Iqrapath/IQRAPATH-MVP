@@ -4,7 +4,7 @@ import { MessageCircleIcon } from "@/components/icons/message-circle-icon";
 import { StudentIcon } from "@/components/icons/student-icon";
 import { PlusIcon } from "@/components/icons/plus-icon";
 import { MessageCircleStudentIcon } from "@/components/icons/message-circle-student-icon";
-import { Link } from "@inertiajs/react";
+import { Link, router } from "@inertiajs/react";
 
 
 interface Student {
@@ -60,7 +60,11 @@ export function RecentStudents({ students, totalCount }: RecentStudentsProps) {
       </div>
 
       <div className="mt-6 text-center">
-        <Button variant="link" className="text-teal-600 p-0 h-auto">
+        <Button 
+        variant="link" 
+        className="text-teal-600 p-0 h-auto"
+        onClick={() => router.visit('/admin/students')}
+        >
           View more
         </Button>
       </div>

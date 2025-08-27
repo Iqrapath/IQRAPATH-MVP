@@ -6,6 +6,7 @@ use Illuminate\Database\Seeder;
 use App\Models\User;
 use App\Models\TeacherProfile;
 use App\Models\Subject;
+use App\Models\SubjectTemplates;
 use Illuminate\Support\Facades\Hash;
 
 class TeacherSeeder extends Seeder
@@ -53,9 +54,16 @@ class TeacherSeeder extends Seeder
             // Create subjects for the main teacher
             $mainTeacherSubjects = ['Tajweed', 'Hifz', 'Quran Recitation', 'Islamic Studies'];
             foreach ($mainTeacherSubjects as $subjectName) {
+                // Get or create subject template
+                $subjectTemplate = SubjectTemplates::firstOrCreate(
+                    ['name' => $subjectName],
+                    ['is_active' => true]
+                );
+                
                 Subject::create([
                     'teacher_profile_id' => $teacherProfile->id,
-                    'name' => $subjectName,
+                    'subject_template_id' => $subjectTemplate->id,
+                    'teacher_notes' => 'Specialized in teaching ' . $subjectName,
                     'is_active' => true,
                 ]);
             }
@@ -208,9 +216,16 @@ class TeacherSeeder extends Seeder
 
             // Create subjects for the teacher
             foreach ($subjects as $subjectName) {
+                // Get or create subject template
+                $subjectTemplate = SubjectTemplates::firstOrCreate(
+                    ['name' => $subjectName],
+                    ['is_active' => true]
+                );
+                
                 Subject::create([
                     'teacher_profile_id' => $profile->id,
-                    'name' => $subjectName,
+                    'subject_template_id' => $subjectTemplate->id,
+                    'teacher_notes' => 'Experienced in teaching ' . $subjectName,
                     'is_active' => true,
                 ]);
             }
@@ -232,9 +247,16 @@ class TeacherSeeder extends Seeder
             $randomSubjects = fake()->randomElements($subjectNames, fake()->numberBetween(2, 5));
             
             foreach ($randomSubjects as $subjectName) {
+                // Get or create subject template
+                $subjectTemplate = SubjectTemplates::firstOrCreate(
+                    ['name' => $subjectName],
+                    ['is_active' => true]
+                );
+                
                 Subject::create([
                     'teacher_profile_id' => $teacherProfile->id,
-                    'name' => $subjectName,
+                    'subject_template_id' => $subjectTemplate->id,
+                    'teacher_notes' => 'Proficient in teaching ' . $subjectName,
                     'is_active' => true,
                 ]);
             }

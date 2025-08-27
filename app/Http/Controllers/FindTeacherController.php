@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\TeacherProfile;
 use App\Models\Subject;
+use App\Models\SubjectTemplates;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Inertia\Inertia;
@@ -21,14 +22,14 @@ class FindTeacherController extends Controller
             ->whereHas('teacherProfile', function ($q) {
                 $q->where('verified', true);
             })
-            ->with(['teacherProfile', 'teacherProfile.subjects', 'availabilities']); // Added 'availabilities'
+            ->with(['teacherProfile', 'teacherProfile.subjects.template', 'availabilities']); // Added 'availabilities'
 
         // Apply search filter
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhereHas('teacherProfile.subjects', function ($subQuery) use ($search) {
+                  ->orWhereHas('teacherProfile.subjects.template', function ($subQuery) use ($search) {
                       $subQuery->where('name', 'like', "%{$search}%");
                   });
             });
@@ -36,7 +37,7 @@ class FindTeacherController extends Controller
 
         // Apply subject filter
         if ($request->filled('subject') && $request->subject !== 'All Subject') {
-            $query->whereHas('teacherProfile.subjects', function ($q) use ($request) {
+            $query->whereHas('teacherProfile.subjects.template', function ($q) use ($request) {
                 $q->where('name', $request->subject);
             });
         }
@@ -100,9 +101,8 @@ class FindTeacherController extends Controller
 
         $teachers = $query->paginate(6);
 
-        // Get all available subjects for filter
-        $subjects = Subject::where('is_active', true)
-            ->distinct()
+        // Get all available subjects for filter (from templates to avoid duplicates)
+        $subjects = SubjectTemplates::where('is_active', true)
             ->pluck('name')
             ->sort()
             ->values();
@@ -142,14 +142,14 @@ class FindTeacherController extends Controller
             ->whereHas('teacherProfile', function ($q) {
                 $q->where('verified', true);
             })
-            ->with(['teacherProfile', 'teacherProfile.subjects', 'availabilities']); // Added 'availabilities'
+            ->with(['teacherProfile', 'teacherProfile.subjects.template', 'availabilities']); // Added 'availabilities'
 
         // Apply search filter
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhereHas('teacherProfile.subjects', function ($subQuery) use ($search) {
+                  ->orWhereHas('teacherProfile.subjects.template', function ($subQuery) use ($search) {
                       $subQuery->where('name', 'like', "%{$search}%");
                   });
             });
@@ -157,7 +157,7 @@ class FindTeacherController extends Controller
 
         // Apply subject filter
         if ($request->filled('subject') && $request->subject !== 'All Subject') {
-            $query->whereHas('teacherProfile.subjects', function ($q) use ($request) {
+            $query->whereHas('teacherProfile.subjects.template', function ($q) use ($request) {
                 $q->where('name', $request->subject);
             });
         }
@@ -229,7 +229,7 @@ class FindTeacherController extends Controller
                 'name' => $teacher->name,
                 'image' => $teacher->avatar ? '/storage/' . $teacher->avatar : null,
                 'intro_video_url' => $teacher->teacherProfile->intro_video_url ? '/storage/' . $teacher->teacherProfile->intro_video_url : null,
-                'subjects' => $teacher->teacherProfile->subjects->pluck('name')->join(', '),
+                'subjects' => $teacher->teacherProfile->subjects->pluck('template.name')->join(', '),
                 'location' => $teacher->location ?? 'Location not specified',
                 'rating' => $teacher->teacherProfile->rating ?? 0,
                 'availability' => $this->formatAvailability($teacher),
@@ -246,37 +246,49 @@ class FindTeacherController extends Controller
 
         return response()->json([
             'teachers' => $formattedTeachers,
-            'total' => $teachers->total(),
-            'current_page' => $teachers->currentPage(),
-            'last_page' => $teachers->lastPage(),
-            'per_page' => $teachers->perPage(),
-            'from' => $teachers->firstItem(),
-            'to' => $teachers->lastItem(),
+            'pagination' => [
+                'current_page' => $teachers->currentPage(),
+                'last_page' => $teachers->lastPage(),
+                'per_page' => $teachers->perPage(),
+                'total' => $teachers->total(),
+            ],
         ]);
     }
 
     /**
-     * Format teacher availability
+     * Format teacher availability for display
      */
-    private function formatAvailability($teacher): string
+    private function formatAvailability($teacher): array
     {
-        // Check if teacher has availabilities
-        if ($teacher->availabilities && $teacher->availabilities->count() > 0) {
-            $availabilities = $teacher->availabilities->take(3); // Show first 3 availabilities
-            $formatted = $availabilities->map(function ($availability) {
-                $days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-                $dayName = $days[$availability->day_of_week] ?? 'Unknown';
-                return $dayName . ' (' . substr($availability->start_time, 0, 5) . ' - ' . substr($availability->end_time, 0, 5) . ')';
-            })->join(', ');
-            
-            if ($teacher->availabilities->count() > 3) {
-                $formatted .= ' +' . ($teacher->availabilities->count() - 3) . ' more';
-            }
-            
-            return $formatted;
+        if (!$teacher->availabilities || $teacher->availabilities->isEmpty()) {
+            return ['No availability set'];
         }
-        
-        // Fallback to default availability
-        return 'Mon-Sat (9 AM - 6 PM)';
+
+        $availability = [];
+        foreach ($teacher->availabilities as $slot) {
+            $day = $this->getDayName($slot->day_of_week);
+            $time = $slot->start_time . ' - ' . $slot->end_time;
+            $availability[] = "$day: $time";
+        }
+
+        return $availability;
+    }
+
+    /**
+     * Get day name from day number
+     */
+    private function getDayName($dayNumber): string
+    {
+        $days = [
+            0 => 'Sunday',
+            1 => 'Monday',
+            2 => 'Tuesday',
+            3 => 'Wednesday',
+            4 => 'Thursday',
+            5 => 'Friday',
+            6 => 'Saturday',
+        ];
+
+        return $days[$dayNumber] ?? 'Unknown';
     }
 }

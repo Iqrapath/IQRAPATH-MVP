@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('avatar')->nullable();
             $table->string('location')->nullable();
             $table->enum('role', ['super-admin', 'teacher', 'student', 'guardian'])->nullable();
-            $table->enum('account_status', ['active', 'inactive', 'suspended'])->default('active');
+            $table->enum('account_status', ['active', 'inactive', 'suspended', 'pending'])->default('active');
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->enum('status_type', ['online', 'away', 'busy', 'offline'])->default('offline');

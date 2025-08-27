@@ -47,6 +47,16 @@ Route::middleware(['auth', 'verified', 'role:super-admin, admin'])->prefix('admi
     Route::put('/user-management/{user}', [UserManagementController::class, 'update'])->name('user-management.update');
     Route::delete('/user-management/{user}', [UserManagementController::class, 'destroy'])->name('user-management.destroy');
     
+    // Student/Parent management routes
+    Route::get('/students', [App\Http\Controllers\Admin\StudentParentManagementController::class, 'index'])->name('students.index');
+    Route::get('/students/{user}', [App\Http\Controllers\Admin\StudentParentManagementController::class, 'show'])->name('students.show');
+    Route::get('/students/{user}/learning-progress', [App\Http\Controllers\Admin\StudentParentManagementController::class, 'learningProgress'])->name('students.learning-progress');
+    Route::post('/students/{user}/approve', [App\Http\Controllers\Admin\StudentParentManagementController::class, 'approve'])->name('students.approve');
+    Route::post('/students/{user}/suspend', [App\Http\Controllers\Admin\StudentParentManagementController::class, 'suspend'])->name('students.suspend');
+    Route::put('/students/{user}/contact-info', [App\Http\Controllers\Admin\StudentParentManagementController::class, 'updateContactInfo'])->name('students.update-contact-info');
+    Route::put('/students/{user}/preferences', [App\Http\Controllers\Admin\StudentParentManagementController::class, 'updatePreferences'])->name('students.update-preferences');
+    Route::put('/students/{user}/learning-preferences', [App\Http\Controllers\Admin\StudentParentManagementController::class, 'updateLearningPreferences'])->name('students.update-learning-preferences');
+    
     // Admin notifications
     Route::get('/notifications', [App\Http\Controllers\Admin\NotificationsController::class, 'index'])->name('notifications.index');
     Route::get('/notifications/search', [App\Http\Controllers\Admin\NotificationsController::class, 'search'])->name('notifications.search');

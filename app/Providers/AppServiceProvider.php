@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\ServiceProvider;
 use Inertia\Inertia;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use App\Models\StudentProfile;
+use App\Observers\StudentProfileObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -24,6 +26,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Register model observers
+        StudentProfile::observe(StudentProfileObserver::class);
+
         // Share auth user ID with all Inertia requests for WebSocket authentication
         Inertia::share([
             'auth.userId' => fn () => Auth::id(),

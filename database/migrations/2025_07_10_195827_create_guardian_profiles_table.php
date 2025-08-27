@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('guardian_profiles', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->enum('status', ['active', 'suspended', 'inactive'])->default('active');
+            $table->enum('status', ['active', 'inactive', 'pending', 'suspended'])->default('active');
             $table->timestamp('registration_date')->useCurrent();
             $table->integer('children_count')->default(0);
             $table->string('relationship')->nullable(); // Parent, Guardian, etc.

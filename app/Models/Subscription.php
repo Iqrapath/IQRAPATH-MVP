@@ -82,11 +82,64 @@ class Subscription extends Model
     }
 
     /**
+     * Get the subscription plan name.
+     */
+    public function getPlanNameAttribute(): string
+    {
+        return $this->plan ? $this->plan->name : 'Unknown Plan';
+    }
+
+    /**
      * Check if the subscription is active.
+     */
+    public function isActive(): bool
+    {
+        return $this->status === 'active' && 
+               $this->end_date >= now()->toDateString();
+    }
+
+    /**
+     * Check if the subscription is expired.
+     */
+    public function isExpired(): bool
+    {
+        return $this->end_date < now()->toDateString();
+    }
+
+    /**
+     * Check if the subscription is cancelled.
+     */
+    public function isCancelled(): bool
+    {
+        return $this->status === 'cancelled';
+    }
+
+    /**
+     * Get days remaining in subscription.
+     */
+    public function getDaysRemainingAttribute(): int
+    {
+        if ($this->isExpired()) {
+            return 0;
+        }
+        
+        return now()->diffInDays($this->end_date, false);
+    }
+
+    /**
+     * Get formatted amount with currency.
+     */
+    public function getFormattedAmountAttribute(): string
+    {
+        return $this->currency . ' ' . number_format($this->amount_paid, 2);
+    }
+
+    /**
+     * Check if the subscription is active (legacy method).
      *
      * @return bool
      */
-    public function isActive(): bool
+    public function isActiveLegacy(): bool
     {
         return $this->status === 'active' && now()->lte($this->end_date);
     }

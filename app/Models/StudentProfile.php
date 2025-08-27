@@ -80,6 +80,109 @@ class StudentProfile extends Model
     }
     
     /**
+     * Get the teaching sessions for this student.
+     */
+    public function teachingSessions(): HasMany
+    {
+        return $this->hasMany(TeachingSession::class, 'student_id', 'user_id');
+    }
+
+    /**
+     * Get the bookings for this student.
+     */
+    public function bookings(): HasMany
+    {
+        return $this->hasMany(Booking::class, 'student_id', 'user_id');
+    }
+
+    /**
+     * Get the subscription for this student.
+     */
+    public function subscription(): HasMany
+    {
+        return $this->hasMany(Subscription::class, 'user_id', 'user_id');
+    }
+
+    /**
+     * Get the active subscription for this student.
+     */
+    public function activeSubscription()
+    {
+        return $this->subscription()->where('status', 'active')->first();
+    }
+
+    /**
+     * Get completed sessions count.
+     */
+    public function getCompletedSessionsCountAttribute(): int
+    {
+        return $this->teachingSessions()->where('status', 'completed')->count();
+    }
+
+    /**
+     * Get total sessions count.
+     */
+    public function getTotalSessionsCountAttribute(): int
+    {
+        return $this->teachingSessions()->count();
+    }
+
+    /**
+     * Get attendance percentage.
+     */
+    public function getAttendancePercentageAttribute(): float
+    {
+        $totalSessions = $this->total_sessions_count;
+        if ($totalSessions === 0) {
+            return 0;
+        }
+
+        $attendedSessions = $this->teachingSessions()
+            ->where('student_marked_present', true)
+            ->count();
+
+        return round(($attendedSessions / $totalSessions) * 100, 1);
+    }
+
+    /**
+     * Get missed sessions count.
+     */
+    public function getMissedSessionsCountAttribute(): int
+    {
+        return $this->teachingSessions()
+            ->whereIn('status', ['no_show', 'missed'])
+            ->count();
+    }
+
+    /**
+     * Get average engagement score.
+     */
+    public function getAverageEngagementAttribute(): float
+    {
+        $averageRating = $this->teachingSessions()
+            ->whereNotNull('student_rating')
+            ->avg('student_rating');
+
+        return $averageRating ? round($averageRating, 1) : 0;
+    }
+
+    /**
+     * Check if student is active.
+     */
+    public function isActive(): bool
+    {
+        return $this->status === 'active';
+    }
+
+    /**
+     * Check if student is suspended.
+     */
+    public function isSuspended(): bool
+    {
+        return $this->status === 'suspended';
+    }
+
+    /**
      * Update the guardian's children count when this student is associated.
      */
     public function updateGuardianChildrenCount(): void
@@ -133,6 +236,6 @@ class StudentProfile extends Model
      */
     public function getFormattedRegistrationDateAttribute(): string
     {
-        return $this->registration_date ? $this->registration_date->format('F j, Y') : 'N/A';
+        return $this->registration_date ? $this->registration_date->format('M j, Y') : 'N/A';
     }
 }

@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Subject;
+use App\Models\SubjectTemplates;
 use App\Models\TeacherProfile;
 use App\Models\StudentProfile;
 use App\Models\TeachingSession;
@@ -49,18 +50,22 @@ class TeachingSessionSeeder extends Seeder
      */
     private function createSubjects($teacherId)
     {
-        $subjects = [
-            ['name' => 'Tajweed', 'teacher_profile_id' => $teacherId],
-            ['name' => 'Quran', 'teacher_profile_id' => $teacherId],
-            ['name' => 'Arabic', 'teacher_profile_id' => $teacherId],
-            ['name' => 'Islamic Studies', 'teacher_profile_id' => $teacherId],
-            ['name' => 'Fiqh', 'teacher_profile_id' => $teacherId],
-        ];
-        
+        $subjectNames = ['Tajweed', 'Quran', 'Arabic', 'Islamic Studies', 'Fiqh'];
         $createdSubjects = collect();
         
-        foreach ($subjects as $subject) {
-            $createdSubjects->push(Subject::create($subject));
+        foreach ($subjectNames as $subjectName) {
+            // Get or create subject template
+            $subjectTemplate = SubjectTemplates::firstOrCreate(
+                ['name' => $subjectName],
+                ['is_active' => true]
+            );
+            
+            $createdSubjects->push(Subject::create([
+                'teacher_profile_id' => $teacherId,
+                'subject_template_id' => $subjectTemplate->id,
+                'teacher_notes' => 'Teaching ' . $subjectName,
+                'is_active' => true,
+            ]));
         }
         
         return $createdSubjects;

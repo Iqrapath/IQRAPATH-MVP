@@ -82,7 +82,7 @@ class GuardianProfile extends Model
      */
     public function getFormattedRegistrationDateAttribute(): string
     {
-        return $this->registration_date ? $this->registration_date->format('F j, Y') : 'N/A';
+        return $this->registration_date ? $this->registration_date->format('M j, Y') : 'N/A';
     }
 
     /**

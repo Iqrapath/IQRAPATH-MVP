@@ -71,7 +71,7 @@ export default function TeacherSubjectsSpecializations({ profile, availabilities
   });
   const [newSubject, setNewSubject] = useState('');
   const [newLanguage, setNewLanguage] = useState('');
-  const subjectsList = profile?.subjects?.map(subject => subject.name).join(', ') || 'No subjects assigned';
+  const subjectsList = Array.isArray(profile?.subjects) ? profile.subjects.map(subject => subject.name).join(', ') : 'No subjects assigned';
   const experience = (() => {
     if (!profile?.experience_years) return 'No experience specified';
     
@@ -94,7 +94,7 @@ export default function TeacherSubjectsSpecializations({ profile, availabilities
   })();
   const teachingType = profile?.teaching_type || 'Not specified';
   const teachingMode = profile?.teaching_mode || 'Not specified';
-  const languagesList = profile?.languages?.join(', ') || 'Not specified';
+  const languagesList = Array.isArray(profile?.languages) ? profile.languages.join(', ') : 'Not specified';
 
   // Convert 12-hour time to 24-hour format for comparison
   const convertTo24Hour = (time12h: string): string => {
@@ -296,8 +296,8 @@ export default function TeacherSubjectsSpecializations({ profile, availabilities
 
     // Initialize form data with current values
     setFormData({
-      subjects: profile?.subjects?.map(s => s.name) || [],
-      languages: profile?.languages || [],
+      subjects: Array.isArray(profile?.subjects) ? profile.subjects.map(s => s.name) : [],
+      languages: Array.isArray(profile?.languages) ? profile.languages : [],
       teaching_mode: profile?.teaching_mode || '',
       teaching_type: profile?.teaching_type || '',
       experience_years: profile?.experience_years?.toString() || '',
@@ -420,17 +420,17 @@ export default function TeacherSubjectsSpecializations({ profile, availabilities
         <CardContent className="p-6">
           <div className="flex-1">
             <h3 className="text-lg font-bold text-gray-800 mb-4">Subjects & Specializations</h3>
-            <div className="space-y-3 text-sm">
+            <div className="space-y-3 text-base">
               <div className="flex">
-                <span className="font-medium text-gray-700 w-40">Subjects Taught:</span>
+                <span className="font-medium text-gray-700 w-45">Subjects Taught:</span>
                 <span className="text-gray-600">{subjectsList}</span>
               </div>
               <div className="flex">
-                <span className="font-medium text-gray-700 w-40">Teaching Experience:</span>
+                <span className="font-medium text-gray-700 w-45">Teaching Experience:</span>
                 <span className="text-gray-600">{experience}</span>
               </div>
               <div className="flex">
-                <span className="font-medium text-gray-700 w-40">Availability Schedule:</span>
+                <span className="font-medium text-gray-700 w-45">Availability Schedule:</span>
                 <div className="text-gray-600">
                   {formatAvailabilities().split('\n').map((line, index) => (
                     <div key={index} className="mb-1">
@@ -444,15 +444,15 @@ export default function TeacherSubjectsSpecializations({ profile, availabilities
                 </div>
               </div>
               <div className="flex">
-                <span className="font-medium text-gray-700 w-40">Teaching Type:</span>
+                <span className="font-medium text-gray-700 w-45">Teaching Type:</span>
                 <span className="text-gray-600">{teachingType}</span>
               </div>
               <div className="flex">
-                <span className="font-medium text-gray-700 w-40">Teaching Mode:</span>
+                <span className="font-medium text-gray-700 w-45">Teaching Mode:</span>
                 <span className="text-gray-600">{teachingMode}</span>
               </div>
               <div className="flex">
-                <span className="font-medium text-gray-700 w-40">Languages Spoken:</span>
+                <span className="font-medium text-gray-700 w-45">Languages Spoken:</span>
                 <span className="text-gray-600">{languagesList}</span>
               </div>
             </div>

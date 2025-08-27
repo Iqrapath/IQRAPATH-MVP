@@ -11,6 +11,13 @@ class BookingHistory extends Model
     use HasFactory;
 
     /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
+    protected $table = 'booking_history';
+
+    /**
      * Indicates if the model should be timestamped.
      *
      * @var bool

@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             SuperAdminSeeder::class,
             AdminSeeder::class,
+            SubjectTemplatesSeeder::class, // Must run before TeacherSeeder
             TeacherSeeder::class,
             StudentSeeder::class,
             GuardianSeeder::class,

@@ -17,7 +17,8 @@ class Subject extends Model
      */
     protected $fillable = [
         'teacher_profile_id',
-        'name',
+        'subject_template_id',
+        'teacher_notes',
         'is_active',
     ];
 
@@ -36,5 +37,21 @@ class Subject extends Model
     public function teacherProfile(): BelongsTo
     {
         return $this->belongsTo(TeacherProfile::class);
+    }
+
+    /**
+     * Get the subject template for this subject.
+     */
+    public function template(): BelongsTo
+    {
+        return $this->belongsTo(SubjectTemplates::class, 'subject_template_id');
+    }
+
+    /**
+     * Get the subject name from the template.
+     */
+    public function getNameAttribute()
+    {
+        return $this->template->name ?? 'Unknown Subject';
     }
 }

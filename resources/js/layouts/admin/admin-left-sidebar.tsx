@@ -143,8 +143,8 @@ export default function AdminLeftSidebar({ className, isMobile = false, isOpen =
             iconType: 'custom',
         },
         {
-            title: 'Parent Management',
-            href: '/admin/parents',
+            title: 'Student Management',
+            href: '/admin/students',
             icon: ParentManagementIcon,
             iconType: 'custom',
         },

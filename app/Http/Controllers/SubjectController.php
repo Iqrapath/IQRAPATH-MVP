@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Subject;
+use App\Models\SubjectTemplates;
 use App\Models\TeacherProfile;
 use App\Models\User;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -31,8 +32,8 @@ class SubjectController extends Controller
             // Admin view - show all subjects with teacher info
             $this->authorize('viewAny', Subject::class);
             
-            $subjects = Subject::with('teacherProfile.user')
-                ->orderBy('name')
+            $subjects = Subject::with(['teacherProfile.user', 'template'])
+                ->orderBy('id')
                 ->paginate(10);
                 
             return Inertia::render('Admin/Subjects/Index', [
@@ -46,7 +47,7 @@ class SubjectController extends Controller
                 abort(403, 'Only teachers can access subjects');
             }
             
-            $subjects = $teacherProfile->subjects()->orderBy('name')->get();
+            $subjects = $teacherProfile->subjects()->with('template')->orderBy('id')->get();
             
             return Inertia::render('Teacher/Subjects/Index', [
                 'subjects' => $subjects
@@ -68,12 +69,25 @@ class SubjectController extends Controller
             $teachers = User::where('role', 'teacher')
                 ->with('teacherProfile')
                 ->get();
+            
+            // Get available subject templates
+            $subjectTemplates = SubjectTemplates::where('is_active', true)
+                ->orderBy('name')
+                ->get();
                 
             return Inertia::render('Admin/Subjects/Create', [
-                'teachers' => $teachers
+                'teachers' => $teachers,
+                'subjectTemplates' => $subjectTemplates
             ]);
         } else {
-            return Inertia::render('Teacher/Subjects/Create');
+            // Get available subject templates for teacher to choose from
+            $subjectTemplates = SubjectTemplates::where('is_active', true)
+                ->orderBy('name')
+                ->get();
+                
+            return Inertia::render('Teacher/Subjects/Create', [
+                'subjectTemplates' => $subjectTemplates
+            ]);
         }
     }
 
@@ -90,15 +104,18 @@ class SubjectController extends Controller
         if ($isAdminContext) {
             $validated = $request->validate([
                 'teacher_profile_id' => 'required|exists:teacher_profiles,id',
-                'name' => [
-                    'required', 
-                    'string', 
-                    'max:255',
-                    Rule::unique('subjects')->where(function ($query) use ($request) {
-                        return $query->where('teacher_profile_id', $request->teacher_profile_id);
-                    })
-                ],
+                'subject_template_id' => 'required|exists:subject_templates,id',
+                'teacher_notes' => 'nullable|string|max:1000',
             ]);
+            
+            // Check if teacher already has this subject
+            $existingSubject = Subject::where('teacher_profile_id', $validated['teacher_profile_id'])
+                ->where('subject_template_id', $validated['subject_template_id'])
+                ->first();
+                
+            if ($existingSubject) {
+                return back()->withErrors(['subject_template_id' => 'This teacher already teaches this subject.']);
+            }
             
             Subject::create($validated);
             
@@ -113,15 +130,18 @@ class SubjectController extends Controller
             }
             
             $validated = $request->validate([
-                'name' => [
-                    'required', 
-                    'string', 
-                    'max:255',
-                    Rule::unique('subjects')->where(function ($query) use ($teacherProfile) {
-                        return $query->where('teacher_profile_id', $teacherProfile->id);
-                    })
-                ],
+                'subject_template_id' => 'required|exists:subject_templates,id',
+                'teacher_notes' => 'nullable|string|max:1000',
             ]);
+            
+            // Check if teacher already has this subject
+            $existingSubject = Subject::where('teacher_profile_id', $teacherProfile->id)
+                ->where('subject_template_id', $validated['subject_template_id'])
+                ->first();
+                
+            if ($existingSubject) {
+                return back()->withErrors(['subject_template_id' => 'You already teach this subject.']);
+            }
             
             $teacherProfile->subjects()->create($validated);
             
@@ -142,11 +162,11 @@ class SubjectController extends Controller
         
         if ($isAdminContext) {
             return Inertia::render('Admin/Subjects/Show', [
-                'subject' => $subject->load('teacherProfile.user')
+                'subject' => $subject->load(['teacherProfile.user', 'template'])
             ]);
         } else {
             return Inertia::render('Teacher/Subjects/Show', [
-                'subject' => $subject
+                'subject' => $subject->load('template')
             ]);
         }
     }
@@ -165,14 +185,26 @@ class SubjectController extends Controller
             $teachers = User::where('role', 'teacher')
                 ->with('teacherProfile')
                 ->get();
+            
+            // Get available subject templates
+            $subjectTemplates = SubjectTemplates::where('is_active', true)
+                ->orderBy('name')
+                ->get();
                 
             return Inertia::render('Admin/Subjects/Edit', [
-                'subject' => $subject,
-                'teachers' => $teachers
+                'subject' => $subject->load('template'),
+                'teachers' => $teachers,
+                'subjectTemplates' => $subjectTemplates
             ]);
         } else {
+            // Get available subject templates for teacher to choose from
+            $subjectTemplates = SubjectTemplates::where('is_active', true)
+                ->orderBy('name')
+                ->get();
+                
             return Inertia::render('Teacher/Subjects/Edit', [
-                'subject' => $subject
+                'subject' => $subject->load('template'),
+                'subjectTemplates' => $subjectTemplates
             ]);
         }
     }
@@ -190,15 +222,19 @@ class SubjectController extends Controller
         if ($isAdminContext) {
             $validated = $request->validate([
                 'teacher_profile_id' => 'required|exists:teacher_profiles,id',
-                'name' => [
-                    'required', 
-                    'string', 
-                    'max:255',
-                    Rule::unique('subjects')->where(function ($query) use ($request) {
-                        return $query->where('teacher_profile_id', $request->teacher_profile_id);
-                    })->ignore($subject->id)
-                ],
+                'subject_template_id' => 'required|exists:subject_templates,id',
+                'teacher_notes' => 'nullable|string|max:1000',
             ]);
+            
+            // Check if teacher already has this subject (excluding current subject)
+            $existingSubject = Subject::where('teacher_profile_id', $validated['teacher_profile_id'])
+                ->where('subject_template_id', $validated['subject_template_id'])
+                ->where('id', '!=', $subject->id)
+                ->first();
+                
+            if ($existingSubject) {
+                return back()->withErrors(['subject_template_id' => 'This teacher already teaches this subject.']);
+            }
             
             $subject->update($validated);
             
@@ -206,15 +242,19 @@ class SubjectController extends Controller
                 ->with('success', 'Subject updated successfully');
         } else {
             $validated = $request->validate([
-                'name' => [
-                    'required', 
-                    'string', 
-                    'max:255',
-                    Rule::unique('subjects')->where(function ($query) use ($subject) {
-                        return $query->where('teacher_profile_id', $subject->teacher_profile_id);
-                    })->ignore($subject->id)
-                ],
+                'subject_template_id' => 'required|exists:subject_templates,id',
+                'teacher_notes' => 'nullable|string|max:1000',
             ]);
+            
+            // Check if teacher already has this subject (excluding current subject)
+            $existingSubject = Subject::where('teacher_profile_id', $subject->teacher_profile_id)
+                ->where('subject_template_id', $validated['subject_template_id'])
+                ->where('id', '!=', $subject->id)
+                ->first();
+                
+            if ($existingSubject) {
+                return back()->withErrors(['subject_template_id' => 'You already teach this subject.']);
+            }
             
             $subject->update($validated);
             

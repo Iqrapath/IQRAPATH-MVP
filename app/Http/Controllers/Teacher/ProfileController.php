@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Teacher;
 use App\Http\Controllers\Controller;
 use App\Models\TeacherProfile;
 use App\Models\Subject;
+use App\Models\SubjectTemplates;
 use App\Models\TeacherAvailability;
 use App\Models\User;
 use App\Models\Document;
@@ -71,13 +72,13 @@ class ProfileController extends Controller
             ];
         }
         
-        // Get teacher's subjects
-        $teacherSubjects = $teacherProfile ? $teacherProfile->subjects()->where('is_active', true)->get() : collect();
+        // Get teacher's subjects with templates
+        $teacherSubjects = $teacherProfile ? $teacherProfile->subjects()->with('template')->where('is_active', true)->get() : collect();
         
         $subjectsWithSelection = $teacherSubjects->map(function ($subject) {
             return [
-                'id' => $subject->id,
-                'name' => $subject->name,
+                'id' => $subject->template->id,
+                'name' => $subject->template->name,
                 'is_selected' => true,
             ];
         })->toArray();
@@ -245,7 +246,7 @@ class ProfileController extends Controller
         try {
             $validated = $request->validate([
                 'subjects' => 'required|array',
-                'subjects.*' => 'string|max:100',
+                'subjects.*' => 'integer|exists:subject_templates,id',
                 'experience_years' => 'required|string|max:50',
             ]);
             
@@ -257,12 +258,13 @@ class ProfileController extends Controller
             // Delete all existing subjects for this teacher
             Subject::where('teacher_profile_id', $profile->id)->delete();
             
-            // Create new subjects for the teacher
-            foreach ($validated['subjects'] as $subjectName) {
-                if (!empty(trim($subjectName))) {
+            // Create new subjects for the teacher using subject templates
+            foreach ($validated['subjects'] as $subjectTemplateId) {
+                if ($subjectTemplateId) {
                     Subject::create([
                         'teacher_profile_id' => $profile->id,
-                        'name' => trim($subjectName),
+                        'subject_template_id' => $subjectTemplateId,
+                        'teacher_notes' => 'Teaching ' . SubjectTemplates::find($subjectTemplateId)->name,
                         'is_active' => true,
                     ]);
                 }
