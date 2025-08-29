@@ -89,19 +89,7 @@ export default function AppHeaderLayout({
                         {children}
                     </main>
 
-                    
                 </div>
-
-                {/* Mobile overlay when sidebar is open */}
-                {isMobile && (
-                    <div 
-                        className="fixed inset-0 bg-white/10 backdrop-blur-sm z-20"
-                        onClick={() => {
-                            // setShowLeftSidebar(false);
-                            // setShowRightSidebarMobile(false);
-                        }}
-                    />
-                )}
             </div>
         </>
     );

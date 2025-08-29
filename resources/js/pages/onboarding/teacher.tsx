@@ -148,6 +148,19 @@ export default function TeacherOnboarding({ user, subjects }: TeacherOnboardingP
         const completed = sessionStorage.getItem('teacher_onboarding_completed');
         return completed === 'true';
     });
+    
+    // Check if user is already verified (for returning verified teachers)
+    const [isVerified, setIsVerified] = useState(() => {
+        return user.teacherProfile?.verified || false;
+    });
+    
+    // Check if user should be redirected to dashboard (already verified)
+    useEffect(() => {
+        if (isVerified && user.role === 'teacher') {
+            // User is already verified, redirect to dashboard
+            router.visit(route('teacher.dashboard'));
+        }
+    }, [isVerified, user.role]);
     const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(null);
     const [cities, setCities] = useState<string[]>([]);
     const [loadingCities, setLoadingCities] = useState(false);
@@ -989,18 +1002,7 @@ export default function TeacherOnboarding({ user, subjects }: TeacherOnboardingP
                 </div>
             </div>
 
-            {/* Go to Dashboard Button */}
-            <Button
-                onClick={() => {
-                    // Clear all onboarding-related session storage
-                    sessionStorage.removeItem('teacher_onboarding_completed');
-                    sessionStorage.removeItem('teacher_onboarding_step');
-                    router.visit(route('dashboard'));
-                }}
-                className="bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-lg"
-            >
-                Go to Dashboard
-            </Button>
+
         </div>
     );
 

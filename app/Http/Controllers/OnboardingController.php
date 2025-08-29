@@ -13,6 +13,7 @@ use App\Models\TeacherProfile;
 use App\Models\TeacherEarning;
 use App\Models\Subject;
 use App\Models\User;
+use App\Models\VerificationRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -127,11 +128,20 @@ class OnboardingController extends Controller
         // Mark onboarding as complete - all data should already be saved via step saving
         $teacherProfile = $user->teacherProfile()->first();
         if ($teacherProfile) {
+            // Create verification request for admin review
+            $teacherProfile->verificationRequests()->create([
+                'status' => 'pending',
+                'docs_status' => 'pending',
+                'video_status' => 'not_scheduled',
+                'submitted_at' => now(),
+            ]);
+            
             // TODO: Send notification to admin about new teacher registration
             // TODO: Schedule verification video call
         }
 
-        return redirect()->route('teacher.dashboard')->with('success', 'Teacher registration completed successfully!');
+        // Stay on onboarding page - success screen will show until verification
+        return redirect()->route('onboarding.teacher')->with('onboarding_completed', true);
     }
 
     /**

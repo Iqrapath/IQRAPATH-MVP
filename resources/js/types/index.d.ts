@@ -45,6 +45,7 @@ export interface User {
     status_message?: string | null;
     last_active_at?: string | null;
     email_verified_at?: string | null;
+    teacherProfile?: TeacherProfile;
 }
 
 export interface Notification {
@@ -111,6 +112,14 @@ export interface TeacherProfile {
     experience_years?: string | null;
     availability?: string | null;
     hourly_rate?: number | null;
+    verified?: boolean;
+    qualification?: string | null;
+    languages?: string | null;
+    teaching_type?: string | null;
+    teaching_mode?: string | null;
+    hourly_rate_usd?: number | null;
+    hourly_rate_ngn?: number | null;
+    join_date?: string | null;
 }
 
 export interface StudentProfile {
