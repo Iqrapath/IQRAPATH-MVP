@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Document;
 use App\Models\User;
 use App\Models\TeacherProfile;
+use App\Notifications\DocumentVerifiedNotification;
+use App\Notifications\DocumentRejectedNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -86,6 +88,19 @@ class DocumentVerificationController extends Controller
         // Check if all documents for this teacher are now verified
         $this->checkAllDocumentsVerified($document->teacherProfile);
         
+        // Send notification to teacher
+        try {
+            $teacher = $document->teacherProfile->user;
+            $teacher->notify(new DocumentVerifiedNotification($document));
+        } catch (\Throwable $e) {
+            // Log error but don't block the verification
+            \Log::error('Failed to send document verified notification', [
+                'document_id' => $document->id,
+                'teacher_id' => $teacher->id ?? null,
+                'error' => $e->getMessage()
+            ]);
+        }
+        
         // Return JSON response for API calls
         if ($request->expectsJson()) {
             return response()->json([
@@ -121,7 +136,21 @@ class DocumentVerificationController extends Controller
         $this->checkAllDocumentsVerified($document->teacherProfile);
         
         // Send notification to teacher about rejection
-        $this->notifyTeacherDocumentRejected($document, $validated);
+        try {
+            $teacher = $document->teacherProfile->user;
+            $teacher->notify(new DocumentRejectedNotification(
+                $document,
+                $validated['rejection_reason'],
+                $validated['resubmission_instructions'] ?? null
+            ));
+        } catch (\Throwable $e) {
+            // Log error but don't block the rejection
+            \Log::error('Failed to send document rejected notification', [
+                'document_id' => $document->id,
+                'teacher_id' => $teacher->id ?? null,
+                'error' => $e->getMessage()
+            ]);
+        }
         
         // Return JSON response for API calls
         if ($request->expectsJson()) {
@@ -158,6 +187,19 @@ class DocumentVerificationController extends Controller
         foreach ($documents as $document) {
             $document->markAsVerified($request->user());
             $document->resetResubmissionCount();
+            
+            // Send notification to teacher for each verified document
+            try {
+                $teacher = $document->teacherProfile->user;
+                $teacher->notify(new DocumentVerifiedNotification($document));
+            } catch (\Throwable $e) {
+                // Log error but don't block the verification
+                \Log::error('Failed to send document verified notification', [
+                    'document_id' => $document->id,
+                    'teacher_id' => $teacher->id ?? null,
+                    'error' => $e->getMessage()
+                ]);
+            }
         }
         
         // Check verification status for each teacher profile
@@ -228,30 +270,5 @@ class DocumentVerificationController extends Controller
         }
     }
 
-    /**
-     * Send notification to teacher about document rejection.
-     */
-    private function notifyTeacherDocumentRejected(Document $document, array $data): void
-    {
-        $teacher = $document->teacherProfile->user;
-        
-        // Send in-app notification
-        $teacher->receivedNotifications()->create([
-            'id' => \Illuminate\Support\Str::uuid()->toString(),
-            'type' => 'document_rejected',
-            'notifiable_type' => User::class,
-            'notifiable_id' => $teacher->id,
-            'data' => [
-                'document_id' => $document->id,
-                'document_type' => $document->type,
-                'rejection_reason' => $data['rejection_reason'],
-                'resubmission_instructions' => $data['resubmission_instructions'] ?? 'Please resubmit the document with corrections.',
-                'remaining_attempts' => $document->getRemainingResubmissions(),
-                'message' => "Your {$document->type} document was rejected. Reason: {$data['rejection_reason']}"
-            ]
-        ]);
 
-        // TODO: Send email notification when email system is implemented
-        // $teacher->notify(new DocumentRejectedNotification($data));
-    }
 }

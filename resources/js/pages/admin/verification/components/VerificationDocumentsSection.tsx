@@ -8,6 +8,8 @@ import { IdCardIcon } from '@/components/icons/id-card-icon';
 import { CertificateIcon } from '@/components/icons/Certificate-icon';
 import { ResumeIcon } from '@/components/icons/Resume-icon';
 import { VerifiedIcon } from '@/components/icons/verified-icon';
+import { router } from '@inertiajs/react';
+import { toast } from 'sonner';
 
 interface FlatDocument {
     id: number | string;
@@ -38,6 +40,12 @@ interface Props {
 }
 
 export default function VerificationDocumentsSection({ documentsFlat, documentsGrouped, teacherId }: Props) {
+    // Local state management
+    const [localDocumentsFlat, setLocalDocumentsFlat] = useState<FlatDocument[]>(documentsFlat);
+    const [localDocumentsGrouped, setLocalDocumentsGrouped] = useState<DocumentsGrouped>(documentsGrouped);
+    const [isUploading, setIsUploading] = useState(false);
+    const [processingIds, setProcessingIds] = useState<Set<string | number>>(new Set());
+
     const statusDot = (status: string) => {
         const color = status === 'verified' ? 'bg-green-500' : status === 'pending' ? 'bg-yellow-500' : 'bg-red-500';
         return <span className={`inline-block h-2.5 w-2.5 rounded-full ${color}`}></span>;
@@ -50,8 +58,8 @@ export default function VerificationDocumentsSection({ documentsFlat, documentsG
         return <span className="inline-flex items-center gap-1 text-xs text-yellow-700">Pending</span>;
     };
 
-    const getIdFront = documentsGrouped.id_verifications.find(d => d.metadata?.side === 'front');
-    const getIdBack = documentsGrouped.id_verifications.find(d => d.metadata?.side === 'back');
+    const getIdFront = localDocumentsGrouped.id_verifications.find(d => d.metadata?.side === 'front');
+    const getIdBack = localDocumentsGrouped.id_verifications.find(d => d.metadata?.side === 'back');
 
     const idHeaderStatus = (() => {
         const docs = [getIdFront?.status, getIdBack?.status].filter(Boolean) as string[];
@@ -64,6 +72,57 @@ export default function VerificationDocumentsSection({ documentsFlat, documentsG
     // Upload + Verify helpers
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [pendingUpload, setPendingUpload] = useState<{ type: 'id_verification' | 'certificate' | 'resume'; side?: 'front' | 'back' | undefined; documentId?: number | string } | null>(null);
+
+    // Helper function to update document status in local state
+    const updateDocumentInLocalState = (documentId: string | number, updates: Partial<FlatDocument | GroupedDocument>) => {
+        // Update flat documents
+        setLocalDocumentsFlat(prev => 
+            prev.map(doc => doc.id === documentId ? { ...doc, ...updates } : doc)
+        );
+
+        // Update grouped documents
+        setLocalDocumentsGrouped(prev => {
+            const newGrouped = { ...prev };
+            
+            // Update ID verifications
+            newGrouped.id_verifications = newGrouped.id_verifications.map(doc => 
+                doc.id === documentId ? { ...doc, ...updates } : doc
+            );
+            
+            // Update certificates
+            newGrouped.certificates = newGrouped.certificates.map(doc => 
+                doc.id === documentId ? { ...doc, ...updates } : doc
+            );
+            
+            // Update resume
+            if (newGrouped.resume && newGrouped.resume.id === documentId) {
+                newGrouped.resume = { ...newGrouped.resume, ...updates };
+            }
+            
+            return newGrouped;
+        });
+    };
+
+    // Helper function to add new document to local state
+    const addDocumentToLocalState = (newDoc: FlatDocument, groupedDoc: GroupedDocument) => {
+        // Add to flat documents
+        setLocalDocumentsFlat(prev => [...prev, newDoc]);
+
+        // Add to grouped documents
+        setLocalDocumentsGrouped(prev => {
+            const newGrouped = { ...prev };
+            
+            if (newDoc.type === 'id_verification') {
+                newGrouped.id_verifications = [...newGrouped.id_verifications, groupedDoc];
+            } else if (newDoc.type === 'certificate') {
+                newGrouped.certificates = [...newGrouped.certificates, groupedDoc];
+            } else if (newDoc.type === 'resume') {
+                newGrouped.resume = groupedDoc;
+            }
+            
+            return newGrouped;
+        });
+    };
 
     const openUpload = (type: 'id_verification' | 'certificate' | 'resume', side?: 'front' | 'back', documentId?: number | string) => {
         setPendingUpload({ type, side, documentId });
@@ -78,6 +137,9 @@ export default function VerificationDocumentsSection({ documentsFlat, documentsG
     const onFileSelected: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
         const file = e.target.files?.[0];
         if (!file || !pendingUpload) return;
+
+        setIsUploading(true);
+        toast.info(`Uploading ${file.name}...`);
 
         try {
             const formData = new FormData();
@@ -99,12 +161,56 @@ export default function VerificationDocumentsSection({ documentsFlat, documentsG
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                 },
             });
-            if (!response.ok) throw new Error('Upload failed');
-            window.location.reload();
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || 'Upload failed');
+            }
+
+            const result = await response.json();
+            
+            // Create document objects for local state
+            const newFlatDoc: FlatDocument = {
+                id: result.document.id,
+                type: pendingUpload.type,
+                name: file.name,
+                status: 'pending',
+                url: result.document.url || ''
+            };
+
+            const newGroupedDoc: GroupedDocument = {
+                id: result.document.id,
+                name: file.name,
+                status: 'pending',
+                metadata: pendingUpload.type === 'id_verification' ? { side: pendingUpload.side } : undefined,
+                documentUrl: result.document.url || ''
+            };
+
+            // Update local state based on whether this is a new upload or replacement
+            if (pendingUpload.documentId) {
+                // Replace existing document
+                updateDocumentInLocalState(pendingUpload.documentId, {
+                    id: result.document.id,
+                    name: file.name,
+                    status: 'pending',
+                    url: result.document.url || '',
+                    documentUrl: result.document.url || ''
+                });
+            } else {
+                // Add new document
+                addDocumentToLocalState(newFlatDoc, newGroupedDoc);
+            }
+
+            toast.success(`${file.name} uploaded successfully!`);
+            
+            // Use Inertia router to refresh page data in background
+            router.reload({ only: ['documents', 'documents_grouped'] });
+            
         } catch (err) {
             console.error(err);
-            alert(err instanceof Error ? err.message : 'Upload failed');
+            toast.error(err instanceof Error ? err.message : 'Upload failed');
         } finally {
+            setIsUploading(false);
             setPendingUpload(null);
             if (fileInputRef.current) fileInputRef.current.value = '';
         }
@@ -112,35 +218,79 @@ export default function VerificationDocumentsSection({ documentsFlat, documentsG
 
     const verifyDocument = async (documentId?: number | string) => {
         if (!documentId) return;
-        const response = await fetch(`/admin/documents/${documentId}/verify`, {
-            method: 'PATCH',
-            headers: adminHeaders,
-        });
-        if (!response.ok) {
-            const t = await response.text();
-            console.error('Verify failed', t);
-            alert('Verification failed');
-            return;
+        
+        setProcessingIds(prev => new Set(prev.add(documentId)));
+        toast.info('Verifying document...');
+
+        try {
+            const response = await fetch(`/admin/documents/${documentId}/verify`, {
+                method: 'PATCH',
+                headers: adminHeaders,
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || 'Verification failed');
+            }
+
+            // Update local state
+            updateDocumentInLocalState(documentId, { status: 'verified' });
+            
+            toast.success('Document verified successfully!');
+            
+            // Use Inertia router to refresh page data in background
+            router.reload({ only: ['documents', 'documents_grouped', 'verification_status'] });
+            
+        } catch (err) {
+            console.error(err);
+            toast.error(err instanceof Error ? err.message : 'Verification failed');
+        } finally {
+            setProcessingIds(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(documentId);
+                return newSet;
+            });
         }
-        window.location.reload();
     };
 
     const rejectDocument = async (documentId?: number | string) => {
         if (!documentId) return;
         const reason = prompt('Enter rejection reason:');
         if (!reason) return;
-        const response = await fetch(`/admin/documents/${documentId}/reject`, {
-            method: 'PATCH',
-            headers: { ...adminHeaders, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ rejection_reason: reason, resubmission_instructions: 'Please correct and re-upload.' })
-        });
-        if (!response.ok) {
-            const t = await response.text();
-            console.error('Reject failed', t);
-            alert('Reject failed');
-            return;
+        
+        setProcessingIds(prev => new Set(prev.add(documentId)));
+        toast.info('Rejecting document...');
+
+        try {
+            const response = await fetch(`/admin/documents/${documentId}/reject`, {
+                method: 'PATCH',
+                headers: { ...adminHeaders, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rejection_reason: reason, resubmission_instructions: 'Please correct and re-upload.' })
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || 'Rejection failed');
+            }
+
+            // Update local state
+            updateDocumentInLocalState(documentId, { status: 'rejected' });
+            
+            toast.success('Document rejected successfully!');
+            
+            // Use Inertia router to refresh page data in background
+            router.reload({ only: ['documents', 'documents_grouped', 'verification_status'] });
+            
+        } catch (err) {
+            console.error(err);
+            toast.error(err instanceof Error ? err.message : 'Rejection failed');
+        } finally {
+            setProcessingIds(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(documentId);
+                return newSet;
+            });
         }
-        window.location.reload();
     };
 
     const viewDocument = (doc: FlatDocument) => {
@@ -156,15 +306,19 @@ export default function VerificationDocumentsSection({ documentsFlat, documentsG
     };
 
     const findIdSideByFlat = (flat: FlatDocument): 'front' | 'back' | undefined => {
-        const match = documentsGrouped.id_verifications.find(d => d.id === flat.id);
+        const match = localDocumentsGrouped.id_verifications.find(d => d.id === flat.id);
         return match?.metadata?.side;
     };
 
     const verifyAllCertificates = async () => {
-        const ids = (documentsGrouped.certificates || []).filter(c => c.status !== 'verified').map(c => c.id);
+        const ids = (localDocumentsGrouped.certificates || []).filter(c => c.status !== 'verified').map(c => c.id);
+        toast.info(`Verifying ${ids.length} certificates...`);
+        
         for (const id of ids) {
             await verifyDocument(id);
         }
+        
+        toast.success('All certificates verified!');
     };
 
     return (
@@ -188,8 +342,10 @@ export default function VerificationDocumentsSection({ documentsFlat, documentsG
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {documentsFlat.map(doc => (
-                                            <TableRow key={doc.id}>
+                                        {localDocumentsFlat.map(doc => {
+                                            const isProcessing = processingIds.has(doc.id);
+                                            return (
+                                            <TableRow key={doc.id} className={isProcessing ? 'opacity-50' : ''}>
                                                 <TableCell className="whitespace-nowrap">{doc.type === 'id_verification' ? 'ID Card' : doc.type === 'certificate' ? 'Teaching Certificate' : 'Resume/CV'}</TableCell>
                                                 <TableCell>
                                                     {doc.url ? (
@@ -240,7 +396,8 @@ export default function VerificationDocumentsSection({ documentsFlat, documentsG
                                                     </DropdownMenu>
                                                 </TableCell>
                                             </TableRow>
-                                        ))}
+                                            );
+                                        })}
                                     </TableBody>
                                 </Table>
                             </CardContent>
@@ -272,12 +429,16 @@ export default function VerificationDocumentsSection({ documentsFlat, documentsG
                                         </div>
                                         <div className="mt-1 text-xs text-gray-700 truncate">{getIdFront?.name || 'No file uploaded'}</div>
                                         <div className="mt-2 flex items-center justify-center gap-3 text-xs">
-                                            <Button variant="link" className="p-0 h-auto text-gray-600" onClick={() => openUpload('id_verification', 'front', getIdFront?.id)} disabled={getIdFront?.status === 'verified'}>Re-Upload</Button>
+                                            <Button variant="link" className="p-0 h-auto text-gray-600" onClick={() => openUpload('id_verification', 'front', getIdFront?.id)} disabled={getIdFront?.status === 'verified' || isUploading}>Re-Upload</Button>
                                             {!getIdFront && (
-                                                <Button variant="link" className="p-0 h-auto text-blue-600" onClick={() => openUpload('id_verification', 'front')}>Upload</Button>
+                                                <Button variant="link" className="p-0 h-auto text-blue-600" onClick={() => openUpload('id_verification', 'front')} disabled={isUploading}>
+                                                    {isUploading ? 'Uploading...' : 'Upload'}
+                                                </Button>
                                             )}
                                             {getIdFront?.id && (
-                                                <Button variant="link" className="p-0 h-auto text-blue-600" onClick={() => verifyDocument(getIdFront.id)} disabled={getIdFront?.status === 'verified'}>Verify</Button>
+                                                <Button variant="link" className="p-0 h-auto text-blue-600" onClick={() => verifyDocument(getIdFront.id)} disabled={getIdFront?.status === 'verified' || processingIds.has(getIdFront?.id || '')}>
+                                                    {processingIds.has(getIdFront?.id || '') ? 'Processing...' : 'Verify'}
+                                                </Button>
                                             )}
                                         </div>
                                     </div>
@@ -292,12 +453,16 @@ export default function VerificationDocumentsSection({ documentsFlat, documentsG
                                         </div>
                                         <div className="mt-1 text-xs text-gray-700 truncate">{getIdBack?.name || 'No file uploaded'}</div>
                                         <div className="mt-2 flex items-center justify-center gap-3 text-xs">
-                                            <Button variant="link" className="p-0 h-auto text-gray-600" onClick={() => openUpload('id_verification', 'back', getIdBack?.id)} disabled={getIdBack?.status === 'verified'}>Re-Upload</Button>
+                                            <Button variant="link" className="p-0 h-auto text-gray-600" onClick={() => openUpload('id_verification', 'back', getIdBack?.id)} disabled={getIdBack?.status === 'verified' || isUploading}>Re-Upload</Button>
                                             {!getIdBack && (
-                                                <Button variant="link" className="p-0 h-auto text-blue-600" onClick={() => openUpload('id_verification', 'back')}>Upload</Button>
+                                                <Button variant="link" className="p-0 h-auto text-blue-600" onClick={() => openUpload('id_verification', 'back')} disabled={isUploading}>
+                                                    {isUploading ? 'Uploading...' : 'Upload'}
+                                                </Button>
                                             )}
                                             {getIdBack?.id && (
-                                                <Button variant="link" className="p-0 h-auto text-blue-600" onClick={() => verifyDocument(getIdBack.id)} disabled={getIdBack?.status === 'verified'}>Verify</Button>
+                                                <Button variant="link" className="p-0 h-auto text-blue-600" onClick={() => verifyDocument(getIdBack.id)} disabled={getIdBack?.status === 'verified' || processingIds.has(getIdBack?.id || '')}>
+                                                    {processingIds.has(getIdBack?.id || '') ? 'Processing...' : 'Verify'}
+                                                </Button>
                                             )}
                                         </div>
                                     </div>
@@ -316,14 +481,16 @@ export default function VerificationDocumentsSection({ documentsFlat, documentsG
                                 <div className="flex items-center justify-between mb-4">
                                     <div className="text-gray-900 font-semibold">Certificates:</div>
                                     <div className="flex items-center gap-4">
-                                        <span className="text-xs text-gray-600">{(documentsGrouped.certificates || []).length > 0 ? 'Uploaded' : 'Not Uploaded'}</span>
-                                        {(documentsGrouped.certificates || []).some(c => c.status !== 'verified') && (
+                                        <span className="text-xs text-gray-600">{(localDocumentsGrouped.certificates || []).length > 0 ? 'Uploaded' : 'Not Uploaded'}</span>
+                                        {(localDocumentsGrouped.certificates || []).some(c => c.status !== 'verified') && (
                                             <Button variant="link" className="p-0 h-auto text-teal-600" onClick={verifyAllCertificates}>Verify certificates</Button>
                                         )}
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-6">
-                                    {(documentsGrouped.certificates || []).map((cert) => (
+                                    {(localDocumentsGrouped.certificates || []).map((cert) => {
+                                        const isProcessing = processingIds.has(cert.id);
+                                        return (
                                         <div key={cert.id} className="rounded-xl border border-gray-200 p-4 bg-white text-center">
                                             <div className="h-28 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 flex items-center justify-center">
                                                 <CertificateIcon className="text-gray-400" />
@@ -332,13 +499,16 @@ export default function VerificationDocumentsSection({ documentsFlat, documentsG
                                                 <span className={`${cert.name.toLowerCase().includes('quran') ? 'text-green-600' : 'text-gray-700'}`}>{cert.name}</span>
                                                 {getStatusChip(cert.status)}
                                             </div>
-                                            <div className="flex items-center justify-center gap-4 text-xs mt-2">
+                                            <div className={`flex items-center justify-center gap-4 text-xs mt-2 ${isProcessing ? 'opacity-50' : ''}`}>
                                                 <Button variant="link" className="p-0 h-auto text-gray-600" onClick={() => cert.documentUrl && window.open(cert.documentUrl, '_blank')}>View</Button>
-                                                <Button variant="link" className="p-0 h-auto text-gray-600" onClick={() => openUpload('certificate', undefined, cert.id)} disabled={cert.status === 'verified'}>Re-Upload</Button>
-                                                <Button variant="link" className="p-0 h-auto text-blue-600" onClick={() => verifyDocument(cert.id)} disabled={cert.status === 'verified'}>Verify</Button>
+                                                <Button variant="link" className="p-0 h-auto text-gray-600" onClick={() => openUpload('certificate', undefined, cert.id)} disabled={cert.status === 'verified' || isProcessing || isUploading}>Re-Upload</Button>
+                                                <Button variant="link" className="p-0 h-auto text-blue-600" onClick={() => verifyDocument(cert.id)} disabled={cert.status === 'verified' || isProcessing}>
+                                                    {isProcessing ? 'Processing...' : 'Verify'}
+                                                </Button>
                                             </div>
                                         </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                                 <div className="flex items-center justify-end mt-3">
                                     <Button variant="link" className="p-0 h-auto text-teal-600" onClick={() => openUpload('certificate')}>Add Certificate</Button>
@@ -351,16 +521,20 @@ export default function VerificationDocumentsSection({ documentsFlat, documentsG
                             <div className="flex items-center">
                                 <ResumeIcon className="text-gray-500 mr-2" />
                                 <span className="text-gray-900 font-medium">CV/Resume:</span>
-                                <span className="ml-2 text-sm text-gray-500">{documentsGrouped.resume ? 'Uploaded' : 'Not Uploaded'}</span>
+                                <span className="ml-2 text-sm text-gray-500">{localDocumentsGrouped.resume ? 'Uploaded' : 'Not Uploaded'}</span>
                             </div>
-                            {documentsGrouped.resume ? (
+                            {localDocumentsGrouped.resume ? (
                                 <div className="flex items-center gap-4">
-                                    <Button variant="link" className="p-0 h-auto text-teal-600" onClick={() => documentsGrouped.resume?.documentUrl && window.open(documentsGrouped.resume.documentUrl, '_blank')}>Download {documentsGrouped.resume.name}</Button>
-                                    <Button variant="link" className="p-0 h-auto text-blue-600" onClick={() => verifyDocument(documentsGrouped.resume?.id)} disabled={documentsGrouped.resume?.status === 'verified'}>Verify</Button>
-                                    <Button variant="link" className="p-0 h-auto text-gray-600" onClick={() => openUpload('resume', undefined, documentsGrouped.resume?.id)} disabled={documentsGrouped.resume?.status === 'verified'}>Re-Upload</Button>
+                                    <Button variant="link" className="p-0 h-auto text-teal-600" onClick={() => localDocumentsGrouped.resume?.documentUrl && window.open(localDocumentsGrouped.resume.documentUrl, '_blank')}>Download {localDocumentsGrouped.resume.name}</Button>
+                                    <Button variant="link" className="p-0 h-auto text-blue-600" onClick={() => verifyDocument(localDocumentsGrouped.resume?.id)} disabled={localDocumentsGrouped.resume?.status === 'verified' || processingIds.has(localDocumentsGrouped.resume?.id || '')}>
+                                        {processingIds.has(localDocumentsGrouped.resume?.id || '') ? 'Processing...' : 'Verify'}
+                                    </Button>
+                                    <Button variant="link" className="p-0 h-auto text-gray-600" onClick={() => openUpload('resume', undefined, localDocumentsGrouped.resume?.id)} disabled={localDocumentsGrouped.resume?.status === 'verified' || isUploading}>Re-Upload</Button>
                                 </div>
                             ) : (
-                                <Button variant="link" className="p-0 h-auto text-gray-600" onClick={() => openUpload('resume')}>Upload Resume</Button>
+                                <Button variant="link" className="p-0 h-auto text-gray-600" onClick={() => openUpload('resume')} disabled={isUploading}>
+                                    {isUploading ? 'Uploading...' : 'Upload Resume'}
+                                </Button>
                             )}
                         </div>
                     </div>

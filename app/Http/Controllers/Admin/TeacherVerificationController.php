@@ -3,9 +3,16 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\PayoutRequest;
 use App\Models\TeacherProfile;
 use App\Models\User;
 use App\Models\VerificationRequest;
+use App\Services\UnifiedWalletService;
+use App\Notifications\VerificationCallScheduledNotification;
+use App\Notifications\VerificationCallStartedNotification;
+use App\Notifications\VerificationCallCompletedNotification;
+use App\Notifications\VerificationApprovedNotification;
+use App\Notifications\VerificationRejectedNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -51,27 +58,37 @@ class TeacherVerificationController extends Controller
             ->paginate(10)
             ->withQueryString();
         
-        // Add approval status to each verification request and auto-correct status
+        // Add approval status to each verification request
         $verificationRequests->getCollection()->transform(function ($request) {
-            // Auto-correct status if it doesn't match verification data
-            $correctedStatus = $this->getCorrectStatus($request);
-            if ($correctedStatus !== $request->status) {
-                // Actually update the database with the corrected status
-                $request->update(['status' => $correctedStatus]);
-                
-                // Also update teacher profile verification status if needed
-                if ($correctedStatus !== 'verified' && $request->teacherProfile->verified) {
-                    $request->teacherProfile->update(['verified' => false]);
-                }
-                
-                $request->status = $correctedStatus;
-                $request->status_corrected = true; // Flag to show this was auto-corrected
-            }
-            
+            // Calculate approval status without modifying data
             $request->can_approve = $this->canApproveTeacher($request);
             $request->approval_block_reason = $request->can_approve ? null : $this->getApprovalBlockReason($request);
+            
+            // Add calculated docs status based on actual document statuses
+            $request->calculated_docs_status = $this->calculateDocsStatus($request);
+            
+            // Add status suggestion without auto-modification
+            $suggestedStatus = $this->getCorrectStatus($request);
+            if ($suggestedStatus !== $request->status) {
+                $request->status_suggestion = $suggestedStatus;
+                $request->needs_status_review = true;
+            }
+            
             return $request;
         });
+
+        // Calculate correct stats based on actual status logic
+        $correctStats = [
+            'pending' => 0,
+            'verified' => 0,
+            'rejected' => 0,
+            'live_video' => 0,
+        ];
+
+        foreach ($verificationRequests->getCollection() as $request) {
+            $actualStatus = $request->status_suggestion ?? $request->status;
+            $correctStats[$actualStatus]++;
+        }
 
         return Inertia::render('admin/verification/index', [
             'verificationRequests' => $verificationRequests,
@@ -80,12 +97,7 @@ class TeacherVerificationController extends Controller
                 'search' => $search,
                 'date' => $date,
             ],
-            'stats' => [
-                'pending' => VerificationRequest::where('status', 'pending')->count(),
-                'verified' => VerificationRequest::where('status', 'verified')->count(),
-                'rejected' => VerificationRequest::where('status', 'rejected')->count(),
-                'live_video' => VerificationRequest::where('status', 'live_video')->count(),
-            ],
+            'stats' => $correctStats,
         ]);
     }
 
@@ -104,12 +116,78 @@ class TeacherVerificationController extends Controller
             'auditLogs.changer',
         ]);
         
+        // Defensive check for required relationships
+        if (!$verificationRequest->teacherProfile) {
+            abort(404, 'Teacher profile not found for this verification request.');
+        }
+        
+        if (!$verificationRequest->teacherProfile->user) {
+            abort(404, 'Teacher user not found for this verification request.');
+        }
+        
         $teacher = $verificationRequest->teacherProfile->user;
         
-        // Get real-time earnings data from FinancialService
-        $financialService = app(\App\Services\FinancialService::class);
-        $earningsData = $financialService->getTeacherEarningsRealTime($teacher);
+        // Get real-time earnings data from UnifiedWalletService
+        $walletService = app(\App\Services\UnifiedWalletService::class);
         
+        // Get teacher wallet data (new system) with error handling
+        try {
+            $teacherWallet = $walletService->getTeacherWallet($teacher);
+        } catch (\Exception $e) {
+            // Log error and fallback to legacy system
+            \Log::warning('Failed to get teacher wallet during verification', [
+                'teacher_id' => $teacher->id,
+                'error' => $e->getMessage()
+            ]);
+            
+            // Fallback to legacy system immediately
+            $financialService = app(\App\Services\FinancialService::class);
+            $earningsData = $financialService->getTeacherEarningsRealTime($teacher);
+            
+            // Ensure we have the required fields
+            $earningsData['pending_payout_requests'] = PayoutRequest::where('teacher_id', $teacher->id)
+                ->where('status', 'pending')
+                ->orderBy('created_at', 'desc')
+                ->get();
+            
+            // Skip to session stats since we have earnings data
+            goto sessionStats;
+        }
+        
+        // Get payout requests for this teacher
+        $pendingPayoutRequests = PayoutRequest::where('teacher_id', $teacher->id)
+            ->where('status', 'pending')
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
+        $earningsData = [
+            'wallet_balance' => $teacherWallet->balance,
+            'total_earned' => $teacherWallet->total_earned,
+            'total_withdrawn' => $teacherWallet->total_withdrawn,
+            'pending_payouts' => $teacherWallet->pending_payouts,
+            'recent_transactions' => $teacherWallet->unifiedTransactions()
+                ->orderBy('transaction_date', 'desc')
+                ->take(10)
+                ->get(),
+            'pending_payout_requests' => $pendingPayoutRequests,
+            'calculated_at' => now()->toDateTimeString(),
+        ];
+        
+        // Fallback to legacy FinancialService if wallet doesn't exist or is empty
+        if (!$teacherWallet->wasRecentlyCreated && $teacherWallet->total_earned == 0) {
+            $financialService = app(\App\Services\FinancialService::class);
+            $legacyData = $financialService->getTeacherEarningsRealTime($teacher);
+            
+            // Merge legacy data if available, but keep our payout requests
+            if (isset($legacyData['total_earned']) && $legacyData['total_earned'] > 0) {
+                $earningsData = array_merge($legacyData, [
+                    'pending_payout_requests' => $pendingPayoutRequests,
+                    'calculated_at' => now()->toDateTimeString(),
+                ]);
+            }
+        }
+        
+        sessionStats:
         // Get teaching sessions stats from teaching_sessions table
         $sessionsStats = [
             'total' => \App\Models\TeachingSession::where('teacher_id', $teacher->id)->count(),
@@ -252,7 +330,7 @@ class TeacherVerificationController extends Controller
             'sessions_stats' => $sessionsStats,
             'upcoming_sessions' => $upcomingSessions,
             'verification_status' => [
-                'docs_status' => $verificationRequest->docs_status,
+                'docs_status' => $this->calculateDocsStatus($verificationRequest),
                 'video_status' => $verificationRequest->video_status,
             ],
             'latest_call' => $verificationRequest->calls()->latest()->first()?->only([
@@ -269,12 +347,21 @@ class TeacherVerificationController extends Controller
         Gate::authorize('approve', $verificationRequest);
         
         // Check if documents are submitted and verified
-        $pendingDocuments = $verificationRequest->teacherProfile->documents()
-            ->where('status', 'pending')
-            ->count();
-            
+        $documents = $verificationRequest->teacherProfile->documents;
+        $pendingDocuments = $documents->where('status', 'pending')->count();
+        $rejectedDocuments = $documents->where('status', 'rejected')->count();
+        
+        // Allow approval if no documents exist (empty profile case)
+        if ($documents->count() === 0) {
+            return back()->with('error', 'Teacher must submit at least one document before approval.');
+        }
+        
         if ($pendingDocuments > 0) {
-            return back()->with('error', 'All documents must be verified before approving the teacher.');
+            return back()->with('error', "Cannot approve: {$pendingDocuments} document(s) still pending review.");
+        }
+        
+        if ($rejectedDocuments > 0) {
+            return back()->with('error', "Cannot approve: {$rejectedDocuments} document(s) have been rejected and need resubmission.");
         }
         
         // Check if video call is completed and passed
@@ -309,6 +396,19 @@ class TeacherVerificationController extends Controller
                 'notes' => 'Teacher verification approved after document and video verification',
             ]);
         });
+
+        // Send notification to teacher
+        try {
+            $teacher = $verificationRequest->teacherProfile->user;
+            $teacher->notify(new VerificationApprovedNotification($verificationRequest));
+        } catch (\Throwable $e) {
+            // Log error but don't block the approval
+            \Log::error('Failed to send verification approved notification', [
+                'verification_request_id' => $verificationRequest->id,
+                'teacher_id' => $teacher->id ?? null,
+                'error' => $e->getMessage()
+            ]);
+        }
         
         return redirect()->route('admin.verification.index')
             ->with('success', 'Teacher verification approved successfully after complete verification workflow.');
@@ -342,6 +442,22 @@ class TeacherVerificationController extends Controller
                 'notes' => 'Teacher verification rejected: ' . $validated['rejection_reason'],
             ]);
         });
+
+        // Send notification to teacher
+        try {
+            $teacher = $verificationRequest->teacherProfile->user;
+            $teacher->notify(new VerificationRejectedNotification(
+                $verificationRequest,
+                $validated['rejection_reason']
+            ));
+        } catch (\Throwable $e) {
+            // Log error but don't block the rejection
+            \Log::error('Failed to send verification rejected notification', [
+                'verification_request_id' => $verificationRequest->id,
+                'teacher_id' => $teacher->id ?? null,
+                'error' => $e->getMessage()
+            ]);
+        }
         
         return redirect()->route('admin.verification.index')
             ->with('success', 'Teacher verification rejected successfully.');
@@ -421,12 +537,27 @@ class TeacherVerificationController extends Controller
             return 'live_video';
         }
         
-        // Check if documents are verified
-        $pendingDocuments = $verificationRequest->teacherProfile->documents()
-            ->where('status', 'pending')
+        // Check if documents are submitted and verified
+        $totalDocuments = $verificationRequest->teacherProfile->documents()->count();
+        $verifiedDocuments = $verificationRequest->teacherProfile->documents()
+            ->where('status', 'verified')
+            ->count();
+        $rejectedDocuments = $verificationRequest->teacherProfile->documents()
+            ->where('status', 'rejected')
             ->count();
             
-        if ($pendingDocuments > 0) {
+        // If no documents submitted, status is pending
+        if ($totalDocuments === 0) {
+            return 'pending';
+        }
+        
+        // If any documents are rejected, status is rejected
+        if ($rejectedDocuments > 0) {
+            return 'rejected';
+        }
+        
+        // If not all documents are verified, status is pending
+        if ($verifiedDocuments < $totalDocuments) {
             return 'pending';
         }
         
@@ -488,73 +619,39 @@ class TeacherVerificationController extends Controller
             ]);
         });
 
-        // Send notifications and email with ICS
+        // Send notifications using new notification classes
         try {
             $teacher = $verificationRequest->teacherProfile->user;
-            $scheduledAt = \Carbon\Carbon::parse($request->input('scheduled_call_at'));
+            $scheduledAt = $request->input('scheduled_call_at');
             $platform = $request->input('video_platform');
             $meetingLink = $request->input('meeting_link');
-            $duration = 30; // default
+            $notes = $request->input('notes');
 
-            // In-app notification (teacher)
-            if (method_exists($teacher, 'receivedNotifications')) {
-                $teacher->receivedNotifications()->create([
-                    'id' => \Illuminate\Support\Str::uuid()->toString(),
-                    'type' => 'verification_call_scheduled',
-                    'notifiable_type' => \App\Models\User::class,
-                    'notifiable_id' => $teacher->id,
-                    'channel' => 'database',
-                    'level' => 'info',
-                    'data' => [
-                        'title' => 'Verification Call Scheduled',
-                        'message' => 'Your verification call has been scheduled.',
-                        'scheduled_at' => $scheduledAt->toIso8601String(),
-                        'scheduled_at_human' => $scheduledAt->format('M d, Y g:i A'),
-                        'platform' => $platform,
-                        'platform_label' => $platform === 'zoom' ? 'Zoom' : ($platform === 'google_meet' ? 'Google Meet' : 'Other'),
-                        'meeting_link' => $meetingLink,
-                        'action_text' => $meetingLink ? 'Open meeting link' : null,
-                        'action_url' => $meetingLink ?: null,
-                    ],
-                ]);
-            }
+            // Send notification to teacher
+            $teacher->notify(new VerificationCallScheduledNotification(
+                $verificationRequest,
+                $scheduledAt,
+                $platform,
+                $meetingLink,
+                $notes
+            ));
 
-            // In-app notification (admin who scheduled)
+            // Send notification to admin
             $admin = $request->user();
-            if ($admin && method_exists($admin, 'receivedNotifications')) {
-                $admin->receivedNotifications()->create([
-                    'id' => \Illuminate\Support\Str::uuid()->toString(),
-                    'type' => 'verification_call_scheduled',
-                    'notifiable_type' => \App\Models\User::class,
-                    'notifiable_id' => $admin->id,
-                    'channel' => 'database',
-                    'level' => 'info',
-                    'data' => [
-                        'title' => 'Verification Call Scheduled',
-                        'message' => 'You scheduled a verification call for ' . ($teacher->name ?? 'teacher') . '.',
-                        'scheduled_at' => $scheduledAt->toIso8601String(),
-                        'scheduled_at_human' => $scheduledAt->format('M d, Y g:i A'),
-                        'platform' => $platform,
-                        'platform_label' => $platform === 'zoom' ? 'Zoom' : ($platform === 'google_meet' ? 'Google Meet' : 'Other'),
-                        'meeting_link' => $meetingLink,
-                        'action_text' => 'View request',
-                        'action_url' => route('admin.verification.show', $verificationRequest->id),
-                    ],
-                ]);
-            }
+            $admin->notify(new VerificationCallScheduledNotification(
+                $verificationRequest,
+                $scheduledAt,
+                $platform,
+                $meetingLink,
+                $notes
+            ));
 
-            // Email with ICS to teacher and admin
-            $ics = $this->buildIcsInvite('Verification Call', $scheduledAt, $duration, 'Platform: ' . $platform . ( $meetingLink ? "\nLink: $meetingLink" : ''), $meetingLink);
-            foreach (array_filter([$teacher->email, $request->user()->email]) as $to) {
-                Mail::send([], [], function ($message) use ($to, $ics) {
-                    $message->to($to)
-                        ->subject('Verification Call Scheduled')
-                        ->setBody('Your verification call has been scheduled. See attached calendar invite.', 'text/plain')
-                        ->attachData($ics, 'verification-call.ics', ['mime' => 'text/calendar; charset=utf-8']);
-                });
-            }
         } catch (\Throwable $e) {
-            // swallow notification errors to not block scheduling
+            // Log error but don't block scheduling
+            \Log::error('Failed to send verification call scheduled notifications', [
+                'verification_request_id' => $verificationRequest->id,
+                'error' => $e->getMessage()
+            ]);
         }
         
         return redirect()->route('admin.verification.show', $verificationRequest)
@@ -584,44 +681,23 @@ class TeacherVerificationController extends Controller
             ]);
         });
 
-        // Notify both parties (non-blocking)
+        // Send notifications using new notification classes
         try {
             $teacher = $verificationRequest->teacherProfile->user;
-            if (method_exists($teacher, 'receivedNotifications')) {
-                $teacher->receivedNotifications()->create([
-                    'id' => \Illuminate\Support\Str::uuid()->toString(),
-                    'type' => 'verification_call_live',
-                    'notifiable_type' => \App\Models\User::class,
-                    'notifiable_id' => $teacher->id,
-                    'channel' => 'database',
-                    'level' => 'info',
-                    'data' => [
-                        'title' => 'Verification Call Started',
-                        'message' => 'Your verification call is live now.',
-                        'action_text' => $verificationRequest->meeting_link ? 'Open meeting link' : null,
-                        'action_url' => $verificationRequest->meeting_link ?? null,
-                    ],
-                ]);
-            }
             $admin = $request->user();
-            if ($admin && method_exists($admin, 'receivedNotifications')) {
-                $admin->receivedNotifications()->create([
-                    'id' => \Illuminate\Support\Str::uuid()->toString(),
-                    'type' => 'verification_call_live',
-                    'notifiable_type' => \App\Models\User::class,
-                    'notifiable_id' => $admin->id,
-                    'channel' => 'database',
-                    'level' => 'info',
-                    'data' => [
-                        'title' => 'Verification Call Started',
-                        'message' => 'Verification call is live for ' . ($teacher->name ?? 'teacher') . '.',
-                        'action_text' => 'View request',
-                        'action_url' => route('admin.verification.show', $verificationRequest->id),
-                    ],
-                ]);
-            }
+
+            // Send notification to teacher
+            $teacher->notify(new VerificationCallStartedNotification($verificationRequest));
+
+            // Send notification to admin
+            $admin->notify(new VerificationCallStartedNotification($verificationRequest));
+
         } catch (\Throwable $e) {
-            // ignore
+            // Log error but don't block the process
+            \Log::error('Failed to send verification call started notifications', [
+                'verification_request_id' => $verificationRequest->id,
+                'error' => $e->getMessage()
+            ]);
         }
 
         return redirect()->route('admin.verification.show', $verificationRequest)
@@ -752,6 +828,27 @@ class TeacherVerificationController extends Controller
                 'notes' => 'Video verification ' . $validated['verification_result'] . ': ' . ($validated['verification_notes'] ?? 'No notes'),
             ]);
         });
+
+        // Send notifications using new notification classes
+        try {
+            $teacher = $verificationRequest->teacherProfile->user;
+            $result = $validated['verification_result'];
+            $notes = $validated['verification_notes'] ?? null;
+
+            // Send notification to teacher
+            $teacher->notify(new VerificationCallCompletedNotification(
+                $verificationRequest,
+                $result,
+                $notes
+            ));
+
+        } catch (\Throwable $e) {
+            // Log error but don't block the process
+            \Log::error('Failed to send verification call completed notifications', [
+                'verification_request_id' => $verificationRequest->id,
+                'error' => $e->getMessage()
+            ]);
+        }
         
         return redirect()->route('admin.verification.index')
             ->with('success', 'Video verification marked as ' . $validated['verification_result'] . ' successfully.');
@@ -781,5 +878,35 @@ class TeacherVerificationController extends Controller
             'can_approve' => $this->canApproveTeacher($verificationRequest),
             'approval_block_reason' => $this->getApprovalBlockReason($verificationRequest),
         ];
+    }
+
+    /**
+     * Calculate the actual docs status based on individual document statuses
+     */
+    private function calculateDocsStatus(VerificationRequest $verificationRequest): string
+    {
+        $documents = $verificationRequest->teacherProfile->documents;
+        
+        // If no documents submitted, status is pending
+        if ($documents->count() === 0) {
+            return 'pending';
+        }
+        
+        $totalDocs = $documents->count();
+        $verifiedDocs = $documents->where('status', 'verified')->count();
+        $rejectedDocs = $documents->where('status', 'rejected')->count();
+        
+        // If any document is rejected, overall status is rejected
+        if ($rejectedDocs > 0) {
+            return 'rejected';
+        }
+        
+        // If all documents are verified, status is verified
+        if ($verifiedDocs === $totalDocs) {
+            return 'verified';
+        }
+        
+        // Otherwise, some documents are still pending
+        return 'pending';
     }
 } 

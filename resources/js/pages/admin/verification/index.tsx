@@ -41,15 +41,17 @@ interface VerificationRequest {
     submitted_at: string;
     can_approve: boolean;
     approval_block_reason?: string;
-    status_corrected?: boolean;
-    teacher_profile: {
-        user: {
+    status_suggestion?: 'pending' | 'verified' | 'rejected' | 'live_video';
+    needs_status_review?: boolean;
+    calculated_docs_status?: 'pending' | 'verified' | 'rejected';
+    teacher_profile?: {
+        user?: {
             id: number;
             name: string;
             email: string;
             avatar?: string;
         };
-        documents: Array<{
+        documents?: Array<{
             id: number;
             type: string;
             name: string;
@@ -160,7 +162,19 @@ export default function VerificationIndex({
         }
     };
 
-    const getDocsStatusText = (documents: any[]) => {
+    const getDocsStatusText = (request: VerificationRequest) => {
+        // Use calculated docs status from backend if available
+        if (request.calculated_docs_status) {
+            const statusMap: Record<string, string> = {
+                'verified': '✅ Verified',
+                'rejected': '❌ Rejected', 
+                'pending': '⏳ Pending'
+            };
+            return statusMap[request.calculated_docs_status] || 'Unknown';
+        }
+        
+        // Fallback to document count (legacy)
+        const documents = request.teacher_profile?.documents || [];
         if (documents.length === 0) return 'No Files';
         return `${documents.length} Files`;
     };
@@ -302,17 +316,21 @@ export default function VerificationIndex({
                                         </TableCell>
                                         <TableCell>
                                             <Avatar className="w-10 h-10 border">
-                                                <AvatarImage src={request.teacher_profile.user.avatar || ""} />
+                                                <AvatarImage src={request.teacher_profile?.user?.avatar || ""} />
                                                 <AvatarFallback className="bg-gray-200 text-gray-600">
-                                                    {getInitials(request.teacher_profile.user.name)}
+                                                    {getInitials(request.teacher_profile?.user?.name || 'NA')}
                                                 </AvatarFallback>
                                             </Avatar>
                                         </TableCell>
-                                        <TableCell className="font-medium">{request.teacher_profile.user.name}</TableCell>
-                                        <TableCell>{request.teacher_profile.user.email}</TableCell>
+                                        <TableCell className="font-medium">
+                                            {request.teacher_profile?.user?.name || 'Name not available'}
+                                        </TableCell>
+                                        <TableCell>
+                                            {request.teacher_profile?.user?.email || 'Email not available'}
+                                        </TableCell>
                                         <TableCell>
                                             <Badge variant="outline">
-                                                {getDocsStatusText(request.teacher_profile.documents)}
+                                                {getDocsStatusText(request)}
                                             </Badge>
                                         </TableCell>
                                         <TableCell>
@@ -333,10 +351,10 @@ export default function VerificationIndex({
                                         <TableCell>
                                             <div className="flex flex-col gap-1">
                                                 <div className="flex items-center gap-2">
-                                                    {getStatusBadge(request.status)}
-                                                    {request.status_corrected && (
-                                                        <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                                                            🔄 Auto-corrected
+                                                    {getStatusBadge(request.status_suggestion || request.status)}
+                                                    {request.needs_status_review && (
+                                                        <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
+                                                            ⚠️ Needs Review
                                                         </span>
                                                     )}
                                                 </div>

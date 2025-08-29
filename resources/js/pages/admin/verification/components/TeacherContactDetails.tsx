@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Mail, Phone, FileText, Calendar, Star, Video } from 'lucide-react';
+import { router } from '@inertiajs/react';
+import { toast } from 'sonner';
 import ScheduleVerificationModal from './ScheduleVerificationModal';
 
 interface TeacherContactDetailsProps {
@@ -34,6 +36,19 @@ export default function TeacherContactDetails({
   verification_status 
 }: TeacherContactDetailsProps) {
   const [openSchedule, setOpenSchedule] = useState(false);
+  const [localVideoStatus, setLocalVideoStatus] = useState(verification_status.video_status);
+
+  const handleScheduled = () => {
+    // Update local state immediately for instant feedback
+    setLocalVideoStatus('scheduled');
+    setOpenSchedule(false);
+    
+    // Show success message
+    toast.success('Verification call scheduled successfully!');
+    
+    // Background sync with server
+    router.reload({ only: ['latest_call', 'verification_status', 'verificationRequest'] });
+  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -140,7 +155,7 @@ export default function TeacherContactDetails({
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-gray-700 font-medium">Live Video Status:</span>
-                  {getVideoStatusBadge(verification_status.video_status)}
+                  {getVideoStatusBadge(localVideoStatus)}
                 </div>
               </div>
 
@@ -167,7 +182,7 @@ export default function TeacherContactDetails({
         isOpen={openSchedule}
         onOpenChange={setOpenSchedule}
         verificationRequestId={verificationRequest.id}
-        onScheduled={() => window.location.reload()}
+        onScheduled={handleScheduled}
       />
     </>
   );
