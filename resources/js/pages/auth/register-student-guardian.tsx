@@ -1,6 +1,7 @@
 import { Head, useForm } from '@inertiajs/react';
 import { Eye, EyeOff, LoaderCircle } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
+import { type User } from '@/types';
 
 import InputError from '@/components/input-error';
 import TextLink from '@/components/text-link';
@@ -9,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import AuthLayout from '@/layouts/auth-layout';
+import RegistrationSuccessModal from '@/components/auth/registration-success-modal';
 
 type RegisterForm = {
     name: string;
@@ -18,7 +20,12 @@ type RegisterForm = {
     terms: boolean;
 };
 
-export default function Register() {
+interface RegisterStudentGuardianProps {
+    success?: boolean;
+    user?: User;
+}
+
+export default function RegisterStudentGuardian({ success = false, user }: RegisterStudentGuardianProps) {
     const { data, setData, post, processing, errors, reset } = useForm<Required<RegisterForm>>({
         name: '',
         email: '',
@@ -32,24 +39,24 @@ export default function Register() {
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        post(route('register.teacher'), {
+        post(route('register.student-guardian'), {
             onFinish: () => reset('password', 'password_confirmation'),
         });
     };
 
     return (
         <AuthLayout>
-            <Head title="Register" />
+            <Head title="Welcome! Start Learning Today" />
             <div className="flex flex-col gap-6 w-full max-w-md mx-auto p-6">
                 <div className="text-start">
-                    <h1 className="text-2xl font-bold mb-1">Create an Account</h1>
-                    <p className="text-sm text-muted-foreground">Join as a Quran Teacher and connect with students worldwide.</p>
+                    <h1 className="text-2xl font-bold mb-1">👋 Welcome! Start Learning Today</h1>
+                    <p className="text-sm text-muted-foreground">Create your account to browse teachers, book sessions, and start learning with ease.</p>
                 </div>
 
                 <form className="flex flex-col gap-6" onSubmit={submit}>
                     <div className="grid gap-5">
                         <div className="grid gap-2">
-                            <Label htmlFor="name">Name</Label>
+                            <Label htmlFor="name">Username</Label>
                             <Input
                                 id="name"
                                 type="text"
@@ -59,7 +66,7 @@ export default function Register() {
                                 value={data.name}
                                 onChange={(e) => setData('name', e.target.value)}
                                 disabled={processing}
-                                placeholder="zakirsoft"
+                                placeholder="zakirsoft@gmail.com"
                             />
                             <InputError message={errors.name} />
                         </div>
@@ -92,7 +99,7 @@ export default function Register() {
                                     value={data.password}
                                     onChange={(e) => setData('password', e.target.value)}
                                     disabled={processing}
-                                    placeholder="********"
+                                    placeholder="••••"
                                 />
                                 <button
                                     type="button"
@@ -120,7 +127,7 @@ export default function Register() {
                                     value={data.password_confirmation}
                                     onChange={(e) => setData('password_confirmation', e.target.value)}
                                     disabled={processing}
-                                    placeholder="********"
+                                    placeholder="••••"
                                 />
                                 <button
                                     type="button"
@@ -157,7 +164,7 @@ export default function Register() {
                             disabled={processing}
                         >
                             {processing && <LoaderCircle className="h-4 w-4 animate-spin mr-2" />}
-                            Create an Account
+                            Create Account
                         </Button>
                     </div>
                 </form>
@@ -200,6 +207,14 @@ export default function Register() {
                     </TextLink>
                 </div>
             </div>
+
+            {/* Success Modal */}
+            {success && user && (
+                <RegistrationSuccessModal 
+                    isOpen={success} 
+                    user={user}
+                />
+            )}
         </AuthLayout>
     );
 }

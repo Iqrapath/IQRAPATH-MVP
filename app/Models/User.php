@@ -2,8 +2,9 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Notifications\CustomResetPasswordNotification;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -13,7 +14,7 @@ use Laravel\Sanctum\HasApiTokens;
 use Carbon\Carbon;
 use App\Models\Subscription;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, HasApiTokens;
@@ -29,6 +30,8 @@ class User extends Authenticatable
         'phone',
         'avatar',
         'location',
+        'country',
+        'city',
         'role',
         'account_status',
         'status_type',
@@ -61,6 +64,16 @@ class User extends Authenticatable
             'registration_date' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * Get the avatar URL with proper path.
+     */
+    protected function avatar(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => $value ? asset('storage/' . $value) : null,
+        );
     }
 
     /**

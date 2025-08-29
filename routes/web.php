@@ -66,6 +66,7 @@ Route::middleware(['auth'])->group(function () {
 
 // Include other route files
 require __DIR__.'/auth.php';
+require __DIR__.'/onboarding.php';
 require __DIR__.'/settings.php';
 require __DIR__.'/dashboard.php';
 require __DIR__.'/admin.php';

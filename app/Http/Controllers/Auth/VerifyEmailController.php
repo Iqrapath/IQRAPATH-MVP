@@ -14,17 +14,40 @@ class VerifyEmailController extends Controller
      */
     public function __invoke(EmailVerificationRequest $request): RedirectResponse
     {
-        if ($request->user()->hasVerifiedEmail()) {
-            return redirect()->intended(route('dashboard', absolute: false).'?verified=1');
+        $user = $request->user();
+        
+        if ($user->hasVerifiedEmail()) {
+            return $this->redirectToOnboarding($user);
         }
 
-        if ($request->user()->markEmailAsVerified()) {
-            /** @var \Illuminate\Contracts\Auth\MustVerifyEmail $user */
-            $user = $request->user();
-
+        if ($user->markEmailAsVerified()) {
             event(new Verified($user));
         }
 
-        return redirect()->intended(route('dashboard', absolute: false).'?verified=1');
+        return $this->redirectToOnboarding($user);
+    }
+
+    /**
+     * Redirect user to appropriate onboarding based on their role.
+     */
+    private function redirectToOnboarding($user): RedirectResponse
+    {
+        // Teachers go directly to teacher onboarding
+        if ($user->role === 'teacher') {
+            return redirect()->route('onboarding.teacher');
+        }
+        
+        // Students/Guardians go to role selection
+        if ($user->role === null) {
+            return redirect()->route('onboarding');
+        }
+        
+        // Users with assigned roles go to their specific onboarding
+        return match ($user->role) {
+            'student' => redirect()->route('onboarding.student'),
+            'guardian' => redirect()->route('onboarding.guardian'),
+            'super-admin' => redirect()->route('admin.dashboard'),
+            default => redirect()->route('dashboard'),
+        };
     }
 }

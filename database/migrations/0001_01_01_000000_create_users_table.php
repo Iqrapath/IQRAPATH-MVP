@@ -18,6 +18,8 @@ return new class extends Migration
             $table->string('phone')->nullable();
             $table->string('avatar')->nullable();
             $table->string('location')->nullable();
+            $table->string('country')->nullable();
+            $table->string('city')->nullable();
             $table->enum('role', ['super-admin', 'teacher', 'student', 'guardian'])->nullable();
             $table->enum('account_status', ['active', 'inactive', 'suspended', 'pending'])->default('active');
             $table->timestamp('email_verified_at')->nullable();

@@ -1,20 +1,29 @@
-import { Head } from '@inertiajs/react';
-import { type StudentProfile, type User } from '@/types';
+import { Head, usePage } from '@inertiajs/react';
+import { useState } from 'react';
+import { type StudentProfile, type User, type SharedData } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import StudentLayout from '@/layouts/student/student-layout';
+import StudentOnboardingModal from '@/components/onboarding/student-onboarding-modal';
 
 interface StudentDashboardProps {
     studentProfile: StudentProfile;
     user?: User;
+    availableSubjects: string[];
+    showOnboarding?: boolean;
 }
 
-export default function StudentDashboard({ studentProfile, user }: StudentDashboardProps) {
+export default function StudentDashboard({ studentProfile, user, availableSubjects, showOnboarding = false }: StudentDashboardProps) {
+    const { auth } = usePage<SharedData>().props;
+    const [isOnboardingOpen, setIsOnboardingOpen] = useState(showOnboarding);
+    
+    // Use user from props if available, otherwise from auth
+    const currentUser = user || auth.user;
     return (
         <StudentLayout pageTitle="Student Dashboard">
             <Head title="Student Dashboard" />
             
             <div className="container mx-auto py-10">
-                <h1 className="text-3xl font-bold mb-6">Welcome Back, {user?.name || 'Student'}</h1>
+                <h1 className="text-3xl font-bold mb-6">Welcome Back, {currentUser?.name || 'Student'}</h1>
                 
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                     <Card>
@@ -81,6 +90,17 @@ export default function StudentDashboard({ studentProfile, user }: StudentDashbo
                     </Card>
                 </div>
             </div>
+
+            {/* Onboarding Modal */}
+            {currentUser && (
+                <StudentOnboardingModal 
+                    isOpen={isOnboardingOpen}
+                    onClose={() => setIsOnboardingOpen(false)}
+                    user={currentUser}
+                    studentProfile={studentProfile}
+                    availableSubjects={availableSubjects}
+                />
+            )}
         </StudentLayout>
     );
 } 

@@ -7,14 +7,31 @@ use App\Http\Controllers\Auth\EmailVerificationPromptController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\Auth\ResendVerificationController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
-    Route::get('register', [RegisteredUserController::class, 'create'])
-        ->name('register');
+    // Student/Guardian registration routes
+    Route::get('register/student-guardian', [RegisteredUserController::class, 'createStudentGuardian'])
+        ->name('register.student-guardian');
+    
+    Route::post('register/student-guardian', [RegisteredUserController::class, 'storeStudentGuardian']);
 
-    Route::post('register', [RegisteredUserController::class, 'store']);
+    // Teacher registration routes
+    Route::get('register/teacher', [RegisteredUserController::class, 'createTeacher'])
+        ->name('register.teacher');
+    
+    Route::post('register/teacher', [RegisteredUserController::class, 'storeTeacher']);
+
+    // Legacy route - redirect to student-guardian by default
+    Route::get('register', function () {
+        return redirect()->route('register.student-guardian');
+    })->name('register');
+
+    // Resend email verification (for guest users from success page)
+    Route::post('resend-verification', [ResendVerificationController::class, 'store'])
+        ->name('verification.resend');
 
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');

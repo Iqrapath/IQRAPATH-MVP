@@ -33,14 +33,14 @@ export default function Hero() {
 
             <div className="flex flex-wrap gap-4 sm:gap-6 justify-center">
               <Link
-                href="/find-teacher"
+                href={route('register.student-guardian')}
                 className="bg-[#2F8D8C] hover:bg-[#267373] text-white rounded-full px-6 sm:px-8 py-2.5 sm:py-3 text-sm sm:text-base font-medium transition-colors duration-200"
               >
                 Find a Teacher
               </Link>
 
               <Link
-                href="/become-teacher"
+                href={route('register.teacher')}
                 className="border-2 border-[#2F8D8C] hover:bg-[#2F8D8C] hover:text-white text-[#2F8D8C] rounded-full px-6 sm:px-8 py-2.5 sm:py-3 text-sm sm:text-base font-medium transition-colors duration-200"
               >
                 Become a Teacher

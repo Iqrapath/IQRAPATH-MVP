@@ -15,8 +15,34 @@ class EmailVerificationPromptController extends Controller
      */
     public function __invoke(Request $request): Response|RedirectResponse
     {
-        return $request->user()->hasVerifiedEmail()
-                    ? redirect()->intended(route('dashboard', absolute: false))
-                    : Inertia::render('auth/verify-email', ['status' => $request->session()->get('status')]);
+        if ($request->user()->hasVerifiedEmail()) {
+            return $this->redirectToOnboarding($request->user());
+        }
+
+        return Inertia::render('auth/verify-email', ['status' => $request->session()->get('status')]);
+    }
+
+    /**
+     * Redirect user to appropriate onboarding based on their role.
+     */
+    private function redirectToOnboarding($user): RedirectResponse
+    {
+        // Teachers go directly to teacher onboarding
+        if ($user->role === 'teacher') {
+            return redirect()->route('onboarding.teacher');
+        }
+        
+        // Students/Guardians go to role selection
+        if ($user->role === null) {
+            return redirect()->route('onboarding');
+        }
+        
+        // Users with assigned roles go to their specific onboarding
+        return match ($user->role) {
+            'student' => redirect()->route('onboarding.student'),
+            'guardian' => redirect()->route('onboarding.guardian'),
+            'super-admin' => redirect()->route('admin.dashboard'),
+            default => redirect()->route('dashboard'),
+        };
     }
 }

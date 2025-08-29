@@ -1,6 +1,7 @@
 import { Head, useForm } from '@inertiajs/react';
 import { Eye, EyeOff, LoaderCircle } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
+import { type User } from '@/types';
 
 import InputError from '@/components/input-error';
 import TextLink from '@/components/text-link';
@@ -9,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import AuthLayout from '@/layouts/auth-layout';
+import RegistrationSuccessModal from '@/components/auth/registration-success-modal';
 
 type RegisterForm = {
     name: string;
@@ -18,7 +20,12 @@ type RegisterForm = {
     terms: boolean;
 };
 
-export default function Register() {
+interface RegisterTeacherProps {
+    success?: boolean;
+    user?: User;
+}
+
+export default function Register({ success = false, user }: RegisterTeacherProps) {
     const { data, setData, post, processing, errors, reset } = useForm<Required<RegisterForm>>({
         name: '',
         email: '',
@@ -200,6 +207,14 @@ export default function Register() {
                     </TextLink>
                 </div>
             </div>
+
+            {/* Success Modal */}
+            {success && user && (
+                <RegistrationSuccessModal 
+                    isOpen={success} 
+                    user={user}
+                />
+            )}
         </AuthLayout>
     );
 }

@@ -25,7 +25,7 @@ class StudentProfile extends Model
         'guardian_id',
         'learning_goals',
         'subjects_of_interest',
-        'preferred_learning_times',
+
         'age_group',
         'payment_id',
         'status',
@@ -43,7 +43,7 @@ class StudentProfile extends Model
     protected $casts = [
         'date_of_birth' => 'date',
         'subjects_of_interest' => 'array',
-        'preferred_learning_times' => 'array',
+
         'registration_date' => 'datetime',
     ];
 

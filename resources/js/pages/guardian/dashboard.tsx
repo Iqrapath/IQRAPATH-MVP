@@ -1,10 +1,36 @@
-import { Head } from '@inertiajs/react';
-import { type GuardianProfile } from '@/types';
-import AppLayout from '@/layouts/app-layout';
+import { Head, usePage } from '@inertiajs/react';
+import { useState } from 'react';
+import { type GuardianProfile, type User, type SharedData } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import GuardianOnboardingModal from '@/components/onboarding/guardian-onboarding-modal';
+import GuardianLayout from '@/layouts/guardian/guardian-layout';
+
+type DaySchedule = {
+    enabled: boolean;
+    from: string;
+    to: string;
+};
+
+interface Child {
+    id: number;
+    name: string;
+    age: string;
+    gender: string;
+    preferred_subjects: string[];
+    preferred_learning_times: {
+        monday: DaySchedule;
+        tuesday: DaySchedule;
+        wednesday: DaySchedule;
+        thursday: DaySchedule;
+        friday: DaySchedule;
+        saturday: DaySchedule;
+        sunday: DaySchedule;
+    };
+}
 
 interface GuardianDashboardProps {
     guardianProfile: GuardianProfile;
+    children: Child[];
     students: Array<{
         user: {
             id: number;
@@ -14,11 +40,15 @@ interface GuardianDashboardProps {
         grade_level?: string;
         school_name?: string;
     }>;
+    availableSubjects: string[];
+    showOnboarding?: boolean;
 }
 
-export default function GuardianDashboard({ guardianProfile, students }: GuardianDashboardProps) {
+export default function GuardianDashboard({ guardianProfile, children, students, availableSubjects, showOnboarding = false }: GuardianDashboardProps) {
+    const { auth } = usePage<SharedData>().props;
+    const [isOnboardingOpen, setIsOnboardingOpen] = useState(showOnboarding);
     return (
-        <AppLayout>
+        <GuardianLayout pageTitle="Guardian Dashboard">
             <Head title="Guardian Dashboard" />
             
             <div className="container mx-auto py-10">
@@ -77,6 +107,16 @@ export default function GuardianDashboard({ guardianProfile, students }: Guardia
                     </Card>
                 </div>
             </div>
-        </AppLayout>
+
+            {/* Onboarding Modal */}
+            <GuardianOnboardingModal 
+                isOpen={isOnboardingOpen}
+                onClose={() => setIsOnboardingOpen(false)}
+                user={auth.user}
+                guardianProfile={guardianProfile}
+                children={children}
+                availableSubjects={availableSubjects}
+            />
+        </GuardianLayout>
     );
 } 

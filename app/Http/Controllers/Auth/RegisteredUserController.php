@@ -18,77 +18,104 @@ use Inertia\Response;
 class RegisteredUserController extends Controller
 {
     /**
-     * Show the registration page.
+     * Show the student/guardian registration page.
      */
-    public function create(): Response
+    public function createStudentGuardian(): Response
     {
-        return Inertia::render('auth/register');
+        return Inertia::render('auth/register-student-guardian');
     }
 
     /**
-     * Handle an incoming registration request.
+     * Show the teacher registration page.
+     */
+    public function createTeacher(): Response
+    {
+        return Inertia::render('auth/register-teacher');
+    }
+
+    /**
+     * Legacy method - redirect to student-guardian registration
+     */
+    public function create(): Response
+    {
+        return redirect()->route('register.student-guardian');
+    }
+
+    /**
+     * Handle student/guardian registration request.
      *
      * @throws \Illuminate\Validation\ValidationException
      */
-    public function store(Request $request): RedirectResponse
+    public function storeStudentGuardian(Request $request): Response
     {
-        // Validate common fields
-        $commonRules = [
+        $request->validate([
             'name' => 'required|string|max:255',
+            'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'terms' => ['required', 'accepted'],
-        ];
-        
-        // Determine if registration is via email or phone
-        if (!empty($request->email) && empty($request->phone)) {
-            // Email registration
-            $validator = Validator::make($request->all(), array_merge($commonRules, [
-                'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
-                'phone' => 'nullable|string|max:20',
-            ]));
-        } elseif (!empty($request->phone) && empty($request->email)) {
-            // Phone registration
-            $validator = Validator::make($request->all(), array_merge($commonRules, [
-                'phone' => 'required|string|max:20|unique:'.User::class.',phone',
-                'email' => 'nullable|string|lowercase|email|max:255',
-            ]));
-        } else {
-            // Both or neither provided - require email
-            $validator = Validator::make($request->all(), array_merge($commonRules, [
-                'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
-                'phone' => 'nullable|string|max:20',
-            ]));
-        }
-        
-        $validator->validate();
+        ]);
 
-        $userData = [
+        $user = User::create([
             'name' => $request->name,
+            'email' => $request->email,
             'password' => Hash::make($request->password),
-            'role' => null, // New users start as unassigned
-        ];
-        
-        // Add email if provided
-        if (!empty($request->email)) {
-            $userData['email'] = $request->email;
-        }
-        
-        // Add phone if provided
-        if (!empty($request->phone)) {
-            $userData['phone'] = $request->phone;
-        }
+            'role' => null, // Will be assigned in onboarding
+        ]);
 
-        $user = User::create($userData);
-
-        // Dispatch Laravel's built-in Registered event
+        // Dispatch events
         event(new Registered($user));
-        
-        // Dispatch our custom UserRegistered event
         event(new UserRegistered($user));
 
+        // Auto-login the user so email verification works properly
         Auth::login($user);
 
-        // All new users are unassigned by default
-        return redirect()->route('unassigned');
+        return Inertia::render('auth/register-student-guardian', [
+            'success' => true,
+            'user' => $user,
+        ]);
+    }
+
+    /**
+     * Handle teacher registration request.
+     *
+     * @throws \Illuminate\Validation\ValidationException
+     */
+    public function storeTeacher(Request $request): Response
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
+            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'terms' => ['required', 'accepted'],
+        ]);
+
+        $user = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+            'role' => 'teacher',
+        ]);
+
+        // Dispatch events
+        event(new Registered($user));
+        event(new UserRegistered($user));
+
+        // Auto-login the user so email verification works properly
+        Auth::login($user);
+
+        return Inertia::render('auth/register-teacher', [
+            'success' => true,
+            'user' => $user,
+        ]);
+    }
+
+    /**
+     * Legacy registration method - redirect to student-guardian
+     *
+     * @throws \Illuminate\Validation\ValidationException
+     */
+    public function store(Request $request): Response
+    {
+        return $this->storeStudentGuardian($request);
     }
 }
