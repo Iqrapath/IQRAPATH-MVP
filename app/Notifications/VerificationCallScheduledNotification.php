@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\VerificationRequest;
+use App\Mail\VerificationCallScheduledMail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -47,65 +48,13 @@ class VerificationCallScheduledNotification extends Notification implements Shou
      */
     public function toMail(object $notifiable): MailMessage
     {
-        $teacher = $this->verificationRequest->teacherProfile->user;
-        $scheduledDate = \Carbon\Carbon::parse($this->scheduledAt);
-        $platformLabel = $this->getPlatformLabel($this->platform);
-        
-        // Generate calendar link for Google Calendar
-        $calendarUrl = $this->generateGoogleCalendarUrl($scheduledDate, $platformLabel);
-        
-        $mail = (new MailMessage)
-            ->subject('🎯 Your Teacher Verification Call is Scheduled - IqraPath')
-            ->greeting('Hello ' . $notifiable->name . '! 👋')
-            ->line('<h2 style="color: #28a745; margin: 20px 0 10px 0;">Great news! Your teacher verification call has been successfully scheduled.</h2>')
-            ->line('<div style="background-color: #e3f2fd; border: 1px solid #bbdefb; border-radius: 8px; padding: 20px; margin: 20px 0;">')
-            ->line('<h3 style="color: #1976d2; margin-top: 0;">📅 Meeting Details</h3>')
-            ->line('<p><strong>Date:</strong> ' . $scheduledDate->format('l, F j, Y') . '</p>')
-            ->line('<p><strong>Time:</strong> ' . $scheduledDate->format('g:i A T') . '</p>')
-            ->line('<p><strong>Platform:</strong> ' . $platformLabel . ' 🎥</p>')
-            ->line('<p><strong>Duration:</strong> Approximately 15-20 minutes</p>');
-            
-        if ($this->meetingLink) {
-            $mail->line('<p><strong>Meeting Link:</strong> <a href="' . $this->meetingLink . '" style="color: #007bff; text-decoration: none;">Click here to join</a> 🔗</p>');
-        }
-        
-        if ($this->notes) {
-            $mail->line('<p><strong>Special Notes:</strong> ' . $this->notes . ' 📝</p>');
-        }
-        
-        $mail->line('</div>')
-            ->line('<div style="background-color: #f8f9fa; border-radius: 8px; padding: 20px; margin: 20px 0;">')
-            ->line('<h3 style="color: #495057; margin-top: 0;">📝 What to Prepare:</h3>')
-            ->line('<ul style="margin: 0; padding-left: 20px;">')
-            ->line('<li>✅ Valid government-issued ID (passport, driver\'s license, or national ID)</li>')
-            ->line('<li>✅ Your teaching certificates or qualifications</li>')
-            ->line('<li>✅ Stable internet connection and good lighting</li>')
-            ->line('<li>✅ Quiet environment without distractions</li>')
-            ->line('<li>✅ Join 5 minutes early to test your audio/video</li>')
-            ->line('</ul>')
-            ->line('</div>')
-            ->line('<div style="background-color: #fff3cd; border-radius: 8px; padding: 20px; margin: 20px 0;">')
-            ->line('<h3 style="color: #856404; margin-top: 0;">🎯 During the Call:</h3>')
-            ->line('<ul style="margin: 0; padding-left: 20px;">')
-            ->line('<li>Our verification team will verify your identity</li>')
-            ->line('<li>Review your teaching qualifications</li>')
-            ->line('<li>Discuss your teaching experience and goals</li>')
-            ->line('<li>Answer any questions you might have</li>')
-            ->line('</ul>')
-            ->line('</div>')
-            ->line('<div style="background-color: #e8f5e8; border: 1px solid #c3e6cb; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">')
-            ->line('<h3 style="color: #155724; margin-top: 0;">📅 Add to Your Calendar</h3>')
-            ->line('<p>Don\'t forget about your call! <a href="' . $calendarUrl . '" style="color: #28a745; font-weight: bold; text-decoration: none;">Add to Google Calendar</a> to set a reminder.</p>')
-            ->line('</div>');
-            
-        if ($this->meetingLink) {
-            $mail->action('🚀 Join Verification Call', $this->meetingLink);
-        }
-        
-        return $mail->line('<hr style="margin: 30px 0; border: none; border-top: 1px solid #dee2e6;">')
-               ->line('<p style="color: #6c757d;"><strong>Need to reschedule?</strong> Please contact our support team at least 2 hours before your scheduled time.</p>')
-               ->line('<p style="font-size: 16px; color: #28a745; font-weight: bold;">We\'re excited to welcome you to the IqraPath teaching community! 🌟</p>')
-               ->salutation('<div style="margin-top: 30px; color: #495057;">Best regards,<br><strong>The IqraPath Team</strong></div>');
+        return (new VerificationCallScheduledMail(
+            $this->verificationRequest,
+            $this->scheduledAt,
+            $this->platform,
+            $this->meetingLink,
+            $this->notes
+        ))->to($notifiable->email);
     }
 
     /**

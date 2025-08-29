@@ -60,6 +60,10 @@ Route::middleware(['auth', 'verified', 'role:guardian'])->prefix('guardian')->na
     Route::get('/notifications', function () {
         return Inertia::render('guardian/notifications/notifications');
     })->name('notifications');
+    Route::get('/children', [GuardianDashboardController::class, 'childrenIndex'])->name('children.index');
+    Route::get('/children/create', [GuardianDashboardController::class, 'createChild'])->name('children.create');
+    Route::post('/children', [GuardianDashboardController::class, 'storeChild'])->name('children.store');
+    Route::get('/children/{child}/progress', [GuardianDashboardController::class, 'childProgress'])->name('children.progress');
 });
 
 // User status routes

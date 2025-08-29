@@ -41,51 +41,13 @@ class VerificationCallStartedNotification extends Notification implements Should
     {
         $currentTime = now()->format('l, F j, Y \a\t g:i A T');
         
-        $mail = (new MailMessage)
-            ->subject('🔴 LIVE: Your Verification Call Has Started - IqraPath')
-            ->greeting('Hello ' . $notifiable->name . '! 👋')
-            ->line('<h2 style="color: #dc3545; margin: 20px 0 10px 0;">🔴 Your verification call is now LIVE!</h2>')
-            ->line('<div style="background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 20px; margin: 20px 0;">')
-            ->line('<h3 style="color: #856404; margin-top: 0;">⚡ Immediate Action Required</h3>')
-            ->line('<p><strong>Current Time:</strong> ' . $currentTime . '</p>')
-            ->line('<p><strong>Status:</strong> 🟢 Active & Waiting for You</p>')
-            ->line('<p><strong>Our Verification Team:</strong> Ready and waiting</p>')
-            ->line('</div>');
-            
-        if ($this->verificationRequest->meeting_link) {
-            $mail->line('<div style="text-align: center; margin: 20px 0;">')
-                 ->line('<p style="font-size: 16px; margin-bottom: 15px;"><strong>Meeting Room:</strong> <a href="' . $this->verificationRequest->meeting_link . '" style="color: #007bff; text-decoration: none;">Click here to join NOW</a> 🚀</p>')
-                 ->line('</div>');
-        }
-        
-        $mail->line('<div style="background-color: #f8f9fa; border-radius: 8px; padding: 20px; margin: 20px 0;">')
-            ->line('<h3 style="color: #495057; margin-top: 0;">📋 Quick Checklist (30 seconds):</h3>')
-            ->line('<ul style="margin: 0; padding-left: 20px;">')
-            ->line('<li>🎥 Camera working and good lighting?</li>')
-            ->line('<li>🎤 Microphone clear and no background noise?</li>')
-            ->line('<li>📄 ID and teaching documents within reach?</li>')
-            ->line('<li>📶 Stable internet connection?</li>')
-            ->line('</ul>')
-            ->line('</div>')
-            ->line('<div style="background-color: #e3f2fd; border-radius: 8px; padding: 20px; margin: 20px 0;">')
-            ->line('<h3 style="color: #1976d2; margin-top: 0;">💡 Pro Tips:</h3>')
-            ->line('<ul style="margin: 0; padding-left: 20px;">')
-            ->line('<li><strong>Join immediately</strong> - Don\'t keep the team waiting</li>')
-            ->line('<li><strong>Speak clearly</strong> and maintain eye contact</li>')
-            ->line('<li><strong>Have documents ready</strong> for quick verification</li>')
-            ->line('<li><strong>Stay calm and confident</strong> - you\'ve got this!</li>')
-            ->line('</ul>')
-            ->line('</div>')
-            ->line('<p style="font-size: 18px; font-weight: bold; color: #dc3545; text-align: center;">⏰ Time is of the essence - Our team is ready for you now!</p>');
-            
-        if ($this->verificationRequest->meeting_link) {
-            $mail->action('🔴 JOIN LIVE CALL NOW', $this->verificationRequest->meeting_link);
-        }
-        
-        return $mail->line('<hr style="margin: 30px 0; border: none; border-top: 1px solid #dee2e6;">')
-               ->line('<p style="color: #6c757d;"><strong>Technical issues?</strong> If you can\'t join, contact support immediately.</p>')
-               ->line('<p style="font-size: 16px; color: #28a745; font-weight: bold;">Your teaching journey with IqraPath starts here! 🌟</p>')
-               ->salutation('<div style="margin-top: 30px; color: #495057;">Best of luck!<br><strong>The IqraPath Verification Team</strong></div>');
+        return (new MailMessage)
+            ->subject('LIVE: Your Verification Call Has Started - IqraPath')
+            ->markdown('emails.verification-call-started', [
+                'notifiable' => $notifiable,
+                'verificationRequest' => $this->verificationRequest,
+                'currentTime' => $currentTime,
+            ]);
     }
 
     /**
