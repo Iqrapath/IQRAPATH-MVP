@@ -1,6 +1,7 @@
 import { Head, useForm, router } from '@inertiajs/react';
 import { FormEventHandler, useState, useEffect } from 'react';
 import { type User } from '@/types';
+import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -54,6 +55,13 @@ type TeacherFormData = {
     currency: string;
     hourly_rate: string;
     payment_method: string;
+    
+    // Wallet & Earnings Setup
+    withdrawal_method: string;
+    bank_name?: string;
+    custom_bank_name?: string;
+    account_number?: string;
+    account_name?: string;
 };
 
 const EXPERIENCE_OPTIONS = [
@@ -200,7 +208,14 @@ export default function TeacherOnboarding({ user, subjects }: TeacherOnboardingP
         // Step 4
         currency: '',
         hourly_rate: '',
-        payment_method: ''
+        payment_method: '',
+        
+        // Wallet & Earnings Setup
+        withdrawal_method: '',
+        bank_name: '',
+        custom_bank_name: '',
+        account_number: '',
+        account_name: ''
     });
 
     // Fetch cities when country changes
@@ -349,6 +364,11 @@ export default function TeacherOnboarding({ user, subjects }: TeacherOnboardingP
                     formData.append('currency', data.currency || '');
                     formData.append('hourly_rate', data.hourly_rate || '');
                     formData.append('payment_method', data.payment_method || '');
+                    formData.append('withdrawal_method', data.withdrawal_method || '');
+                    formData.append('bank_name', data.bank_name || '');
+                    formData.append('custom_bank_name', data.custom_bank_name || '');
+                    formData.append('account_number', data.account_number || '');
+                    formData.append('account_name', data.account_name || '');
                     break;
             }
 
@@ -382,14 +402,26 @@ export default function TeacherOnboarding({ user, subjects }: TeacherOnboardingP
             
             if (result.success) {
                 console.log('Step saved successfully:', result.message);
+                
+                // Show success toast for each step
+                const stepMessages: Record<number, string> = {
+                    1: '✅ Personal information saved successfully!',
+                    2: '✅ Teaching details saved successfully!',
+                    3: '✅ Availability & schedule saved successfully!',
+                    4: '✅ Payment & earnings setup completed!'
+                };
+                
+                toast.success(stepMessages[currentStep] || '✅ Step completed successfully!');
                 return true;
             } else {
                 console.error('Error saving step:', result.message);
                 console.error('Full response:', result);
+                toast.error(`❌ Failed to save step ${currentStep}: ${result.message}`);
                 return false;
             }
         } catch (error) {
             console.error('Error saving step:', error);
+            toast.error(`❌ Network error while saving step ${currentStep}. Please try again.`);
             return false;
         }
     };
@@ -406,8 +438,17 @@ export default function TeacherOnboarding({ user, subjects }: TeacherOnboardingP
             setCurrentStep(nextStepNumber);
             // Save step to sessionStorage
             sessionStorage.setItem('teacher_onboarding_step', nextStepNumber.toString());
+            
+            // Show step progress toast
+            const stepNames: Record<number, string> = {
+                2: 'Teaching Details',
+                3: 'Availability & Schedule', 
+                4: 'Payment & Earnings'
+            };
+            toast.info(`📋 Step ${nextStepNumber}: ${stepNames[nextStepNumber]}`);
         } else if (!saved) {
             console.error('Failed to save step, not proceeding');
+            toast.error('❌ Please complete all required fields before proceeding.');
         }
     };
 
@@ -436,8 +477,14 @@ export default function TeacherOnboarding({ user, subjects }: TeacherOnboardingP
             sessionStorage.setItem('teacher_onboarding_completed', 'true');
             // Clear the step tracking since onboarding is complete
             sessionStorage.removeItem('teacher_onboarding_step');
+            
+            // Show final success toast
+            toast.success('🎉 Teacher onboarding completed successfully! Welcome to IqraPath!', {
+                duration: 5000,
+            });
         } else {
             console.error('Failed to save final step');
+            toast.error('❌ Failed to complete onboarding. Please try again.');
         }
     };
 
@@ -665,58 +712,132 @@ export default function TeacherOnboarding({ user, subjects }: TeacherOnboardingP
                 <p className="text-gray-600">Set Your Rate & Payment Method</p>
             </div>
 
-            <div>
-                <Label>Preferred Currency</Label>
-                <div className="flex space-x-4 mt-2">
-                    <div className="flex items-center space-x-2">
-                        <Checkbox
-                            id="naira"
-                            checked={data.currency === 'naira'}
-                            onCheckedChange={(checked) => checked && setData('currency', 'naira')}
-                        />
-                        <Label htmlFor="naira" className="cursor-pointer">Naira</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                        <Checkbox
-                            id="dollar"
-                            checked={data.currency === 'dollar'}
-                            onCheckedChange={(checked) => checked && setData('currency', 'dollar')}
-                        />
-                        <Label htmlFor="dollar" className="cursor-pointer">Dollar</Label>
-                    </div>
-                </div>
-                {errors.currency && <p className="text-red-500 text-sm mt-1">{errors.currency}</p>}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Earning Configuration */}
+            <div className="space-y-6">
                 <div>
-                    <Label htmlFor="hourly_rate">Minimum & Maximum Hourly Rate</Label>
-                    <Input
-                        id="hourly_rate"
-                        type="number"
-                        value={data.hourly_rate}
-                        onChange={(e) => setData('hourly_rate', e.target.value)}
-                        placeholder="Input hourly rate"
-                        className="mt-1"
-                    />
-                    {errors.hourly_rate && <p className="text-red-500 text-sm mt-1">{errors.hourly_rate}</p>}
+                    <Label>Preferred Currency</Label>
+                    <div className="flex space-x-4 mt-2">
+                        <div className="flex items-center space-x-2">
+                            <Checkbox
+                                id="naira"
+                                checked={data.currency === 'naira'}
+                                onCheckedChange={(checked) => checked && setData('currency', 'naira')}
+                            />
+                            <Label htmlFor="naira" className="cursor-pointer">Nigerian Naira (₦)</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <Checkbox
+                                id="dollar"
+                                checked={data.currency === 'dollar'}
+                                onCheckedChange={(checked) => checked && setData('currency', 'dollar')}
+                            />
+                            <Label htmlFor="dollar" className="cursor-pointer">US Dollar ($)</Label>
+                        </div>
+                    </div>
+                    {errors.currency && <p className="text-red-500 text-sm mt-1">{errors.currency}</p>}
                 </div>
 
-                <div>
-                    <Label htmlFor="payment_method">Payment Method</Label>
-                    <Select value={data.payment_method} onValueChange={(value) => setData('payment_method', value)}>
-                        <SelectTrigger id="payment_method" className="mt-1">
-                            <SelectValue placeholder="Select payment method" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                            <SelectItem value="paypal">PayPal</SelectItem>
-                            <SelectItem value="stripe">Stripe</SelectItem>
-                            <SelectItem value="flutterwave">Flutterwave</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    {errors.payment_method && <p className="text-red-500 text-sm mt-1">{errors.payment_method}</p>}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <Label htmlFor="hourly_rate">Hourly Rate</Label>
+                        <Input
+                            id="hourly_rate"
+                            type="number"
+                            value={data.hourly_rate}
+                            onChange={(e) => setData('hourly_rate', e.target.value)}
+                            placeholder={data.currency === 'dollar' ? 'e.g., 25' : 'e.g., 5000'}
+                            className="mt-1"
+                        />
+                        <p className="text-sm text-gray-500 mt-1">
+                            {data.currency === 'dollar' ? 'USD per hour' : 'NGN per hour'}
+                        </p>
+                        {errors.hourly_rate && <p className="text-red-500 text-sm mt-1">{errors.hourly_rate}</p>}
+                    </div>
+
+                    <div>
+                        <Label htmlFor="withdrawal_method">Withdrawal Method</Label>
+                        <Select value={data.withdrawal_method} onValueChange={(value) => setData('withdrawal_method', value)}>
+                            <SelectTrigger id="withdrawal_method" className="mt-1">
+                                <SelectValue placeholder="Select withdrawal method" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                                <SelectItem value="paystack">Paystack</SelectItem>
+                                <SelectItem value="stripe">Stripe</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        {errors.withdrawal_method && <p className="text-red-500 text-sm mt-1">{errors.withdrawal_method}</p>}
+                    </div>
                 </div>
+
+                {/* Bank Transfer Details */}
+                {data.withdrawal_method === 'bank_transfer' && (
+                    <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+                        <h4 className="font-medium">Bank Account Details</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <Label htmlFor="bank_name">Bank Name</Label>
+                                <Select value={data.bank_name} onValueChange={(value) => setData('bank_name', value)}>
+                                    <SelectTrigger id="bank_name" className="mt-1">
+                                        <SelectValue placeholder="Select your bank" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="access_bank">Access Bank</SelectItem>
+                                        <SelectItem value="gtbank">GTBank</SelectItem>
+                                        <SelectItem value="first_bank">First Bank</SelectItem>
+                                        <SelectItem value="uba">UBA</SelectItem>
+                                        <SelectItem value="zenith_bank">Zenith Bank</SelectItem>
+                                        <SelectItem value="fidelity_bank">Fidelity Bank</SelectItem>
+                                        <SelectItem value="sterling_bank">Sterling Bank</SelectItem>
+                                        <SelectItem value="union_bank">Union Bank</SelectItem>
+                                        <SelectItem value="wema_bank">Wema Bank</SelectItem>
+                                        <SelectItem value="fcmb">FCMB</SelectItem>
+                                        <SelectItem value="other">Other (Enter Below)</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                {errors.bank_name && <p className="text-red-500 text-sm mt-1">{errors.bank_name}</p>}
+                                
+                                {data.bank_name === 'other' && (
+                                    <div className="mt-2">
+                                        <Label htmlFor="custom_bank_name">Bank Name</Label>
+                                        <Input
+                                            id="custom_bank_name"
+                                            value={data.custom_bank_name}
+                                            onChange={(e) => setData('custom_bank_name', e.target.value)}
+                                            placeholder="Enter your bank name"
+                                            className="mt-1"
+                                        />
+                                        {errors.custom_bank_name && <p className="text-red-500 text-sm mt-1">{errors.custom_bank_name}</p>}
+                                    </div>
+                                )}
+                            </div>
+                            
+                            <div>
+                                <Label htmlFor="account_name">Account Name</Label>
+                                <Input
+                                    id="account_name"
+                                    value={data.account_name}
+                                    onChange={(e) => setData('account_name', e.target.value)}
+                                    placeholder="Full name on account"
+                                    className="mt-1"
+                                />
+                                {errors.account_name && <p className="text-red-500 text-sm mt-1">{errors.account_name}</p>}
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <Label htmlFor="account_number">Account Number</Label>
+                            <Input
+                                id="account_number"
+                                value={data.account_number}
+                                onChange={(e) => setData('account_number', e.target.value)}
+                                placeholder="Account number"
+                                className="mt-1"
+                            />
+                            {errors.account_number && <p className="text-red-500 text-sm mt-1">{errors.account_number}</p>}
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

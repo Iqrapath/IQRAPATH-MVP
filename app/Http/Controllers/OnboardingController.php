@@ -11,9 +11,11 @@ use App\Models\SubjectTemplates;
 use App\Models\TeacherAvailability;
 use App\Models\TeacherProfile;
 use App\Models\TeacherEarning;
+use App\Models\TeacherWallet;
 use App\Models\Subject;
 use App\Models\User;
 use App\Models\VerificationRequest;
+use App\Services\UnifiedWalletService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +26,9 @@ use Inertia\Response;
 
 class OnboardingController extends Controller
 {
+    public function __construct(
+        private UnifiedWalletService $walletService
+    ) {}
     /**
      * Show the role selection onboarding page.
      */
@@ -558,14 +563,20 @@ class OnboardingController extends Controller
     }
 
     /**
-     * Save Step 4: Payment & Earnings
+     * Save Step 4: Payment & Earnings Setup with Unified Wallet
      */
     private function saveStep4(Request $request, User $user): \Illuminate\Http\JsonResponse
     {
         $request->validate([
-            'currency' => 'nullable|string|in:naira,dollar',
-            'hourly_rate' => 'nullable|numeric|min:1',
-            'payment_method' => 'nullable|string|in:bank_transfer,paypal,stripe,flutterwave',
+            'currency' => 'required|string|in:naira,dollar',
+            'hourly_rate' => 'required|numeric|min:1',
+            'withdrawal_method' => 'required|string|in:bank_transfer,paystack,stripe',
+            
+            // Bank transfer fields (conditional)
+            'bank_name' => 'required_if:withdrawal_method,bank_transfer|nullable|string|max:255',
+            'custom_bank_name' => 'required_if:bank_name,other|nullable|string|max:255',
+            'account_number' => 'required_if:withdrawal_method,bank_transfer|nullable|string|max:20',
+            'account_name' => 'required_if:withdrawal_method,bank_transfer|nullable|string|max:255',
         ]);
 
         try {
@@ -579,7 +590,7 @@ class OnboardingController extends Controller
                     ]);
                 }
 
-                // Create or update teacher earnings record
+                // Create or update teacher earnings record (for backward compatibility)
                 TeacherEarning::updateOrCreate(
                     ['teacher_id' => $user->id],
                     [
@@ -590,21 +601,74 @@ class OnboardingController extends Controller
                     ]
                 );
 
-                // Store payment method preference in user's session or cache for later use
-                // When teacher makes their first payout request, we'll use this preference
-                if ($request->payment_method) {
-                    \Cache::put("teacher_payment_preference_{$user->id}", [
-                        'payment_method' => $request->payment_method,
-                        'currency' => $request->currency,
-                        'hourly_rate' => $request->hourly_rate,
-                    ], now()->addDays(30)); // Store for 30 days
+                // Create teacher wallet with payment methods and settings
+                $paymentMethods = [];
+                
+                // Add withdrawal method to payment methods
+                if ($request->withdrawal_method === 'bank_transfer') {
+                    $bankName = $request->bank_name === 'other' ? $request->custom_bank_name : $request->bank_name;
+                    
+                    $paymentMethods[] = [
+                        'id' => 'bank_' . uniqid(),
+                        'type' => 'bank_transfer',
+                        'bank_name' => $bankName,
+                        'account_number' => $request->account_number,
+                        'account_name' => $request->account_name,
+                        'is_default' => true,
+                        'created_at' => now()->toDateTimeString(),
+                    ];
+                } else {
+                    // For paystack, stripe
+                    $paymentMethods[] = [
+                        'id' => $request->withdrawal_method . '_' . uniqid(),
+                        'type' => $request->withdrawal_method,
+                        'is_default' => true,
+                        'created_at' => now()->toDateTimeString(),
+                    ];
                 }
+
+                $withdrawalSettings = [
+                    'preferred_method' => $request->withdrawal_method,
+                    'currency' => $request->currency,
+                ];
+
+                // Create or update teacher wallet
+                $wallet = TeacherWallet::updateOrCreate(
+                    ['user_id' => $user->id],
+                    [
+                        'balance' => 0,
+                        'total_earned' => 0,
+                        'total_withdrawn' => 0,
+                        'pending_payouts' => 0,
+                        'payment_methods' => $paymentMethods,
+                        'default_payment_method' => $paymentMethods[0]['id'] ?? null,
+                        'auto_withdrawal_enabled' => false,
+                        'auto_withdrawal_threshold' => null,
+                        'withdrawal_settings' => $withdrawalSettings,
+                    ]
+                );
+
+                \Log::info('Teacher wallet created/updated during onboarding', [
+                    'user_id' => $user->id,
+                    'wallet_id' => $wallet->id,
+                    'withdrawal_method' => $request->withdrawal_method,
+                    'currency' => $request->currency,
+                ]);
             });
 
-            return response()->json(['success' => true, 'message' => 'Step 4 saved successfully']);
+            return response()->json([
+                'success' => true, 
+                'message' => 'Payment setup completed successfully! Your teacher wallet is ready.'
+            ]);
         } catch (\Exception $e) {
-            \Log::error('Error saving step 4: ' . $e->getMessage());
-            return response()->json(['success' => false, 'message' => 'Error saving step 4: ' . $e->getMessage()], 500);
+            \Log::error('Error saving teacher payment setup: ' . $e->getMessage(), [
+                'user_id' => $user->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'success' => false, 
+                'message' => 'Error setting up payment preferences: ' . $e->getMessage()
+            ], 500);
         }
     }
 }

@@ -471,6 +471,62 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Get the user's wallet (for students) - alias for wallet().
+     */
+    public function studentWallet(): HasOne
+    {
+        return $this->hasOne(StudentWallet::class);
+    }
+
+    /**
+     * Get the user's wallet (for teachers).
+     */
+    public function teacherWallet(): HasOne
+    {
+        return $this->hasOne(TeacherWallet::class);
+    }
+
+    /**
+     * Get the user's wallet (for guardians).
+     */
+    public function guardianWallet(): HasOne
+    {
+        return $this->hasOne(GuardianWallet::class);
+    }
+
+    /**
+     * Get the user's unified transactions across all wallet types.
+     */
+    public function unifiedTransactions()
+    {
+        $walletRelations = [];
+        
+        if ($this->role === 'student') {
+            $walletRelations[] = ['wallet_type' => StudentWallet::class, 'wallet_id' => $this->studentWallet?->id ?? 0];
+        }
+        
+        if ($this->role === 'teacher') {
+            $walletRelations[] = ['wallet_type' => TeacherWallet::class, 'wallet_id' => $this->teacherWallet?->id ?? 0];
+        }
+        
+        if ($this->role === 'guardian') {
+            $walletRelations[] = ['wallet_type' => GuardianWallet::class, 'wallet_id' => $this->guardianWallet?->id ?? 0];
+        }
+
+        $query = UnifiedTransaction::query();
+        
+        foreach ($walletRelations as $i => $relation) {
+            if ($i === 0) {
+                $query->where($relation);
+            } else {
+                $query->orWhere($relation);
+            }
+        }
+        
+        return $query;
+    }
+
+    /**
      * Get the learning progress records for the user.
      */
     public function learningProgress()

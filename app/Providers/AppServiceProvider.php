@@ -7,7 +7,11 @@ use Illuminate\Support\ServiceProvider;
 use Inertia\Inertia;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use App\Models\StudentProfile;
+use App\Models\TeacherEarning;
+use App\Models\TeacherWallet;
 use App\Observers\StudentProfileObserver;
+use App\Observers\TeacherEarningObserver;
+use App\Observers\TeacherWalletObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -28,6 +32,8 @@ class AppServiceProvider extends ServiceProvider
     {
         // Register model observers
         StudentProfile::observe(StudentProfileObserver::class);
+        TeacherEarning::observe(TeacherEarningObserver::class);
+        TeacherWallet::observe(TeacherWalletObserver::class);
 
         // Share auth user ID with all Inertia requests for WebSocket authentication
         Inertia::share([
