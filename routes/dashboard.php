@@ -52,6 +52,9 @@ Route::middleware(['auth', 'verified', 'role:student'])->prefix('student')->name
     Route::get('/notifications', function () {
         return Inertia::render('student/notifications/notifications');
     })->name('notifications');
+    
+    // Session routes
+    Route::get('/sessions', [App\Http\Controllers\Student\SessionController::class, 'index'])->name('sessions.index');
 });
 
 // Guardian routes

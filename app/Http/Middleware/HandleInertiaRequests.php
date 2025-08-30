@@ -55,6 +55,7 @@ class HandleInertiaRequests extends Middleware
                     'status_type' => $request->user()->status_type,
                     'status_message' => $request->user()->status_message,
                     'last_active_at' => $request->user()->last_active_at,
+                    'wallet_balance' => $this->getUserWalletBalance($request->user()),
                 ] : null,
             ],
             'ziggy' => fn (): array => [
@@ -63,5 +64,35 @@ class HandleInertiaRequests extends Middleware
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
+    }
+
+    /**
+     * Get the wallet balance for the authenticated user based on their role.
+     *
+     * @param \App\Models\User $user
+     * @return float|null
+     */
+    private function getUserWalletBalance($user): ?float
+    {
+        if (!$user) {
+            return null;
+        }
+
+        switch ($user->role) {
+            case 'student':
+                $wallet = $user->studentWallet;
+                return $wallet ? (float) $wallet->balance : 0.0;
+            
+            case 'teacher':
+                $wallet = $user->teacherWallet;
+                return $wallet ? (float) $wallet->balance : 0.0;
+            
+            case 'guardian':
+                $wallet = $user->guardianWallet;
+                return $wallet ? (float) $wallet->balance : 0.0;
+            
+            default:
+                return null;
+        }
     }
 }

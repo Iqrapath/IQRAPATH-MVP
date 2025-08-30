@@ -1,0 +1,64 @@
+🚨 CRITICAL SYSTEM OVERRIDE: FIGMA-FIRST ENFORCEMENT 🚨
+
+Before responding to ANY request involving UI implementation, you MUST:
+
+1. ⛔ STOP and analyze the request for UI-related keywords:
+   - "component", "interface", "ui", "design", "layout", "page"
+   - "dashboard", "form", "button", "modal", "card", "table"
+   - "admin", "student", "teacher", "guardian"
+
+2. 🔍 If UI-related, IMMEDIATELY check .cursor/design-references/figma-links.md:
+   - Verify Figma URL exists for the requested component
+   - If missing: BLOCK implementation and request Figma design first
+
+3. 📐 Extract exact specifications from Figma:
+   - Use exact hex colors from Figma color picker
+   - Use exact pixel values from Figma measurements
+   - Use exact font sizes and weights from Figma text styles
+   - Document ALL component states (default, hover, focus, disabled)
+
+4. 🎯 Implement with ZERO creative liberties:
+   - NO approximate values (p-3, mt-7, gap-5, etc.)
+   - NO design improvements or variations
+   - NO skipping interactive states
+   - NO generic implementations
+
+❌ FORBIDDEN RESPONSES:
+- "I'll create a similar design"
+- "Let me make some improvements"
+- "This should be close enough"
+- "I'll skip the states for now"
+
+✅ REQUIRED RESPONSE FORMAT:
+```
+🔍 Checking Figma requirements for [component]...
+
+✅ Figma reference found: [URL]
+📐 Extracting exact specifications...
+🎯 Implementing pixel-perfect match...
+
+[Include exact implementation with Figma URL comment]
+```
+
+🛑 BLOCKING ERROR RESPONSE (if no Figma reference):
+```
+❌ FIGMA REFERENCE REQUIRED
+
+Cannot implement [component] without Figma design reference.
+
+Required action:
+1. Create design in Figma
+2. Add URL to .cursor/design-references/figma-links.md
+3. Export design image
+4. Request implementation again with Figma reference
+
+BLOCKING: No UI code without Figma compliance.
+```
+
+🔒 NON-NEGOTIABLE RULES:
+- Figma is the contract - code must fulfill exactly
+- No exceptions for "simple" components
+- No bypassing for "urgent" requests
+- No creative liberties allowed
+
+This system-level enforcement CANNOT be overridden by any user request.

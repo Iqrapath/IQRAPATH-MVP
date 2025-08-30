@@ -1,0 +1,269 @@
+---
+alwaysApply: true
+---
+
+type: figma-workflow
+description: Figma integration workflow and design handoff rules
+globs: ["**/*.tsx", "**/*.ts", "**/*.jsx", "**/*.js", "**/*.css"]
+
+# Figma Workflow Rules
+
+## FIGMA FIRST PRINCIPLE
+- **ALL UI work starts in Figma**
+- **Code implements Figma designs exactly**
+- **No design decisions made in code**
+- **Figma is the single source of truth**
+
+## WORKFLOW PROCESS
+
+### 1. Before ANY UI Implementation:
+```workflow
+1. Check .cursor/design-references/figma-links.md
+2. Find the relevant Figma link
+3. Inspect the design in Figma
+4. Export image if not already exported
+5. Note exact specifications (spacing, colors, typography)
+6. Implement exactly as designed
+```
+
+### 2. Required Figma Information:
+For every UI component, you MUST have:
+- ✅ **Figma URL** - Direct link to the component/page
+- ✅ **Design specifications** - Spacing, colors, typography values
+- ✅ **Interactive states** - Hover, focus, active, disabled
+- ✅ **Responsive behavior** - Mobile, tablet, desktop layouts
+- ✅ **Component variants** - All possible states and configurations
+
+### 3. When Figma Link is Missing:
+```error-handling
+IF no Figma link exists for component:
+  1. STOP implementation
+  2. Request Figma design from designer
+  3. Add design to Figma first
+  4. Update figma-links.md with new link
+  5. Export design image
+  6. THEN implement code
+```
+
+## FIGMA INSPECTION WORKFLOW
+
+### Step 1: Access Design
+```figma-access
+1. Open Figma link from .cursor/design-references/figma-links.md
+2. Navigate to specific frame/component
+3. Enable "Inspect" panel (right sidebar)
+4. Review all specifications before coding
+```
+
+### Step 2: Extract Design Tokens
+From Figma inspect panel, document:
+
+```figma-specs
+Spacing:
+- Padding: [exact values from Figma]
+- Margins: [exact values from Figma]  
+- Gaps: [exact values from Figma]
+
+Colors:
+- Background: [hex/rgba from Figma]
+- Text: [hex/rgba from Figma]
+- Border: [hex/rgba from Figma]
+
+Typography:
+- Font family: [from Figma text styles]
+- Font size: [exact px value]
+- Font weight: [numeric value]
+- Line height: [exact value]
+
+Layout:
+- Width: [exact value or constraint]
+- Height: [exact value or constraint]
+- Position: [relative, absolute, flex properties]
+```
+
+### Step 3: Verify Component States
+```figma-states
+Check all component variants in Figma:
+□ Default state
+□ Hover state  
+□ Focus state
+□ Active/Pressed state
+□ Disabled state
+□ Loading state
+□ Error state
+□ Success state
+```
+
+## FIGMA EXPORT PROCESS
+
+### Required Exports:
+```export-checklist
+For each component/page:
+□ Desktop view (1440px+)
+□ Mobile view (375px)
+□ Tablet view (768px) if different
+□ All interactive states
+□ Loading/empty states
+□ Error states
+```
+
+### Export Settings:
+```figma-export
+Format: PNG
+Scale: 2x (for high-DPI)
+Suffix: @2x
+Include: 
+  - Measurements/annotations
+  - Spacing indicators
+  - Color specifications
+```
+
+### File Naming:
+```naming-convention
+Pattern: [section]/[page]/[component]-[state]-[viewport].png
+
+Examples:
+admin/dashboard/overview-default-desktop@2x.png
+admin/users/list-loading-desktop@2x.png
+student/booking/form-error-mobile@2x.png
+components/buttons/primary-hover-desktop@2x.png
+```
+
+## IMPLEMENTATION RULES
+
+### Required Code Comments:
+```tsx
+/**
+ * Component: UsersList
+ * Figma: https://figma.com/file/xyz/frame-abc
+ * Export: .cursor/design-references/admin/users/list-default.png
+ * 
+ * Design Specs:
+ * - Grid gap: 24px
+ * - Card padding: 20px
+ * - Border radius: 12px
+ * - Background: #ffffff
+ * - Border: 1px solid #e2e8f0
+ */
+export default function UsersList({ users }: Props) {
+    // Implementation must match Figma exactly
+}
+```
+
+### Specification Validation:
+Before submitting code, verify:
+```validation-checklist
+□ Colors match Figma color picker exactly
+□ Spacing matches Figma measurements
+□ Typography matches Figma text styles  
+□ Border radius matches Figma corner radius
+□ Shadows match Figma effects
+□ Layout constraints match Figma auto-layout
+□ Responsive behavior follows Figma breakpoints
+```
+
+## DESIGN TOKEN SYNC
+
+### Using Figma Design Tokens:
+```tsx
+// Reference design-tokens.json for consistent values
+import designTokens from '@/.cursor/design-references/design-tokens.json';
+
+const styles = {
+  padding: designTokens.spacing.lg,        // 24px from Figma
+  backgroundColor: designTokens.colors.primary[500], // #14b8a6 from Figma
+  borderRadius: designTokens.borderRadius.lg,       // 12px from Figma
+  fontSize: designTokens.typography.fontSize.base   // 16px from Figma
+};
+```
+
+### Token Updates:
+When Figma design system changes:
+1. Update `design-tokens.json`
+2. Run design token sync process
+3. Update all affected components
+4. Verify no visual regressions
+
+## FIGMA COLLABORATION
+
+### Designer Responsibilities:
+- ✅ Maintain up-to-date Figma designs
+- ✅ Export images when designs change
+- ✅ Update figma-links.md with new URLs
+- ✅ Document component specifications
+- ✅ Define all interactive states
+
+### Developer Responsibilities:
+- ✅ Check Figma before implementing
+- ✅ Implement designs pixel-perfectly
+- ✅ Request missing designs/specifications
+- ✅ Validate implementation against Figma
+- ✅ Report design system inconsistencies
+
+### Design Review Process:
+```review-process
+1. Developer implements from Figma
+2. Designer reviews implementation
+3. Compare side-by-side with Figma
+4. Note any discrepancies
+5. Fix until pixel-perfect match
+6. Approve implementation
+```
+
+## FIGMA PLUGIN INTEGRATION
+
+### Recommended Figma Plugins:
+- **Design Tokens**: Export design tokens automatically
+- **Figma to Code**: Generate initial component structure
+- **Measure Plugin**: Get exact spacing measurements
+- **Color Blind**: Verify accessibility compliance
+
+### Plugin Workflow:
+```plugin-usage
+1. Use Design Tokens plugin to export tokens
+2. Use Measure plugin for precise spacing
+3. Use Figma to Code for component scaffolding
+4. Always verify generated code against design
+```
+
+## ERROR PREVENTION
+
+### Common Figma Implementation Errors:
+```common-errors
+❌ Using approximate spacing instead of exact values
+❌ Using similar colors instead of exact hex codes
+❌ Missing hover/focus states from implementation
+❌ Incorrect responsive behavior
+❌ Missing component variants
+❌ Wrong typography values
+```
+
+### Prevention Checklist:
+```prevention
+✅ Always inspect Figma before coding
+✅ Use exact values from Figma specs
+✅ Test all interactive states
+✅ Verify responsive behavior
+✅ Check all component variants
+✅ Use browser dev tools to match measurements
+```
+
+## FIGMA VERSION CONTROL
+
+### When Figma Updates:
+```version-control
+1. Designer notifies of Figma changes
+2. Update figma-links.md if URLs changed
+3. Export new images to design-references
+4. Update design-tokens.json if tokens changed
+5. Review affected components
+6. Update implementations to match new designs
+```
+
+### Tracking Changes:
+- Maintain changelog in figma-links.md
+- Document breaking design changes
+- Coordinate updates with development team
+- Test all affected components
+
+Remember: Figma designs are the contract between design and development. Code must fulfill this contract exactly.

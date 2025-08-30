@@ -39,6 +39,7 @@ class EventServiceProvider extends ServiceProvider
             SendWelcomeNotification::class,
             ProcessNotificationTrigger::class,
             \App\Listeners\NotifyAdminsOfNewUser::class,
+            \App\Listeners\CreateWalletOnRegistration::class,
         ],
         
         // User login event

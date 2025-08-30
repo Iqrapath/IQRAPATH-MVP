@@ -1,0 +1,415 @@
+---
+alwaysApply: true
+---
+
+type: frontend
+description: React/TypeScript patterns for IQRAPATH platform
+globs: ["**/*.tsx", "**/*.ts", "**/*.jsx", "**/*.js"]
+
+# React Patterns - IQRAPATH Specific
+
+## INERTIA.JS PATTERNS
+
+### Page Component Structure (FOLLOW EXACTLY):
+```tsx
+import { Head } from '@inertiajs/react';
+import AuthenticatedLayout from '@/layouts/authenticated-layout';
+import { PageProps } from '@/types';
+
+interface Props extends PageProps {
+    users: User[];
+    stats: {
+        total: number;
+        active: number;
+    };
+}
+
+export default function UsersIndex({ auth, users, stats }: Props) {
+    return (
+        <AuthenticatedLayout
+            user={auth.user}
+            header={<h2>Users Management</h2>}
+        >
+            <Head title="Users" />
+            
+            <div className="py-12">
+                {/* Component content */}
+            </div>
+        </AuthenticatedLayout>
+    );
+}
+```
+
+### Form Handling with Inertia (USE THIS PATTERN):
+```tsx
+import { useForm } from '@inertiajs/react';
+import { FormEventHandler } from 'react';
+
+interface FormData {
+    name: string;
+    email: string;
+    role: string;
+}
+
+export default function UserForm({ user }: { user?: User }) {
+    const { data, setData, post, put, processing, errors, reset } = useForm<FormData>({
+        name: user?.name || '',
+        email: user?.email || '',
+        role: user?.role || 'student',
+    });
+
+    const submit: FormEventHandler = (e) => {
+        e.preventDefault();
+
+        if (user) {
+            put(route('admin.users.update', user.id));
+        } else {
+            post(route('admin.users.store'));
+        }
+    };
+
+    return (
+        <form onSubmit={submit}>
+            {/* Form fields */}
+        </form>
+    );
+}
+```
+
+## EXISTING LAYOUTS (USE THESE):
+
+### Layout Files (DON'T CREATE NEW ONES):
+- `@/layouts/authenticated-layout.tsx` - Main authenticated layout
+- `@/layouts/guest-layout.tsx` - Guest/auth pages
+- `@/layouts/admin-layout.tsx` - Admin dashboard layout
+
+## COMPONENT ORGANIZATION
+
+### Existing UI Components (USE THESE):
+Located in `resources/js/components/ui/`:
+- `Button`, `Input`, `Select`, `Textarea`
+- `Dialog`, `Modal`, `Sheet`
+- `Card`, `Avatar`, `Badge`
+- `Progress`, `Tabs`, `Collapsible`
+- `DataTable`, `Pagination`
+
+### Custom Components (CHECK THESE FIRST):
+Located in `resources/js/components/`:
+- `DashboardCard` - Dashboard statistics
+- `NotificationDropdown` - User notifications
+- `UserAvatar` - Profile pictures
+- `StatusBadge` - Role/status indicators
+
+## TYPESCRIPT PATTERNS
+
+### Interface Definitions (USE EXISTING TYPES):
+```tsx
+// Check @/types/index.ts first
+import { User, PageProps, PaginatedData } from '@/types';
+
+// Role-specific interfaces
+interface StudentUser extends User {
+    role: 'student';
+    studentProfile: StudentProfile;
+}
+
+interface TeacherUser extends User {
+    role: 'teacher';
+    teacherProfile: TeacherProfile;
+}
+```
+
+### Component Props Pattern:
+```tsx
+interface ComponentProps {
+    user: User;
+    onUpdate: (user: User) => void;
+    className?: string;
+    children?: React.ReactNode;
+}
+
+export default function Component({ user, onUpdate, className, children }: ComponentProps) {
+    return (
+        <div className={cn("default-classes", className)}>
+            {children}
+        </div>
+    );
+}
+```
+
+## STATE MANAGEMENT
+
+### Local State (PREFER THIS):
+```tsx
+import { useState, useEffect } from 'react';
+
+export default function Component() {
+    const [loading, setLoading] = useState(false);
+    const [data, setData] = useState<Data[]>([]);
+
+    useEffect(() => {
+        // Fetch data
+    }, []);
+
+    return (
+        // Component JSX
+    );
+}
+```
+
+### Page Props (INERTIA PROVIDES THIS):
+```tsx
+import { usePage } from '@inertiajs/react';
+import { PageProps } from '@/types';
+
+export default function Component() {
+    const { auth, flash } = usePage<PageProps>().props;
+    
+    return (
+        <div>
+            Welcome, {auth.user.name}
+        </div>
+    );
+}
+```
+
+## STYLING PATTERNS
+
+### Tailwind Usage (FOLLOW PROJECT THEME):
+```tsx
+// Use project's design system colors
+className="bg-primary text-primary-foreground"
+className="bg-secondary text-secondary-foreground"
+className="bg-muted text-muted-foreground"
+
+// Consistent spacing
+className="p-6 space-y-4"
+className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+
+// Responsive design
+className="block md:hidden" // Mobile only
+className="hidden md:block" // Desktop only
+```
+
+### Component Styling Pattern:
+```tsx
+import { cn } from '@/lib/utils';
+
+interface Props {
+    variant?: 'default' | 'secondary' | 'destructive';
+    size?: 'sm' | 'md' | 'lg';
+    className?: string;
+}
+
+export default function Component({ variant = 'default', size = 'md', className }: Props) {
+    return (
+        <div
+            className={cn(
+                // Base styles
+                "rounded-md font-medium transition-colors",
+                // Variants
+                {
+                    'bg-primary text-primary-foreground': variant === 'default',
+                    'bg-secondary text-secondary-foreground': variant === 'secondary',
+                    'bg-destructive text-destructive-foreground': variant === 'destructive',
+                },
+                // Sizes
+                {
+                    'px-2 py-1 text-sm': size === 'sm',
+                    'px-4 py-2': size === 'md',
+                    'px-6 py-3 text-lg': size === 'lg',
+                },
+                className
+            )}
+        >
+            {/* Content */}
+        </div>
+    );
+}
+```
+
+## API COMMUNICATION
+
+### Inertia Requests (PREFERRED):
+```tsx
+import { router } from '@inertiajs/react';
+
+// Navigation
+router.visit(route('admin.users.show', user.id));
+
+// Form submission
+router.post(route('admin.users.store'), data, {
+    onSuccess: () => {
+        // Handle success
+    },
+    onError: (errors) => {
+        // Handle errors
+    },
+});
+
+// DELETE requests
+router.delete(route('admin.users.destroy', user.id), {
+    onBefore: () => confirm('Are you sure?'),
+});
+```
+
+### API Calls (FOR DYNAMIC DATA):
+```tsx
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+
+export default function Component() {
+    const [notifications, setNotifications] = useState<Notification[]>([]);
+
+    useEffect(() => {
+        const fetchNotifications = async () => {
+            try {
+                const response = await axios.get('/api/notifications');
+                setNotifications(response.data);
+            } catch (error) {
+                console.error('Failed to fetch notifications:', error);
+            }
+        };
+
+        fetchNotifications();
+    }, []);
+
+    return (
+        // Component JSX
+    );
+}
+```
+
+## ERROR HANDLING
+
+### Form Errors (INERTIA PATTERN):
+```tsx
+import { useForm } from '@inertiajs/react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+
+export default function Form() {
+    const { data, setData, post, errors } = useForm({
+        name: '',
+        email: '',
+    });
+
+    return (
+        <form>
+            <div>
+                <Label htmlFor="name">Name</Label>
+                <Input
+                    id="name"
+                    value={data.name}
+                    onChange={(e) => setData('name', e.target.value)}
+                    className={errors.name ? 'border-destructive' : ''}
+                />
+                {errors.name && (
+                    <p className="text-sm text-destructive mt-1">{errors.name}</p>
+                )}
+            </div>
+        </form>
+    );
+}
+```
+
+### Global Error Handling:
+```tsx
+import { usePage } from '@inertiajs/react';
+import { toast } from 'sonner';
+import { useEffect } from 'react';
+
+export default function Component() {
+    const { flash } = usePage().props;
+
+    useEffect(() => {
+        if (flash?.success) {
+            toast.success(flash.success);
+        }
+        if (flash?.error) {
+            toast.error(flash.error);
+        }
+    }, [flash]);
+
+    return (
+        // Component JSX
+    );
+}
+```
+
+## EXISTING PAGE STRUCTURE (FOLLOW THIS):
+
+### Page Directories:
+- `pages/admin/` - Admin dashboard pages
+- `pages/student/` - Student dashboard pages  
+- `pages/teacher/` - Teacher dashboard pages
+- `pages/guardian/` - Guardian dashboard pages
+- `pages/auth/` - Authentication pages
+- `pages/settings/` - Settings pages
+
+### Component Directories:
+- `components/ui/` - Reusable UI components
+- `components/forms/` - Form-specific components
+- `components/` - Business logic components
+
+## HOOKS PATTERN
+
+### Custom Hooks (CREATE SPARINGLY):
+```tsx
+import { useState, useEffect } from 'react';
+import { User } from '@/types';
+
+export function useUsers() {
+    const [users, setUsers] = useState<User[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        // Fetch logic
+    }, []);
+
+    return { users, loading, refetch: () => {} };
+}
+```
+
+## PERFORMANCE PATTERNS
+
+### Memoization (USE WHEN NEEDED):
+```tsx
+import { memo, useMemo, useCallback } from 'react';
+
+const ExpensiveComponent = memo(function ExpensiveComponent({ data }: Props) {
+    const processedData = useMemo(() => {
+        return data.map(/* expensive operation */);
+    }, [data]);
+
+    const handleClick = useCallback((id: string) => {
+        // Handle click
+    }, []);
+
+    return (
+        // Component JSX
+    );
+});
+```
+
+## FORBIDDEN PATTERNS
+
+### DON'T DO THESE:
+- ❌ Creating new layout components when existing ones exist
+- ❌ Using class components (use functional components)
+- ❌ Importing entire libraries (import { Button } from '@/components/ui/button')
+- ❌ Inline styles (use Tailwind classes)
+- ❌ Creating custom state management (use Inertia's page props)
+- ❌ Fetching data in components (use Inertia's server-side data fetching)
+
+#######
+-Dont create new database file to edit exiting database file, just edit the exiting databse file and
+-Always follow the image Design ui attached dont design anything diffirent or similler, designt the exact thing
+
+### REQUIRED PATTERNS:
+- ✅ Use existing UI components from `@/components/ui/`
+- ✅ Follow the established file structure
+- ✅ Use TypeScript interfaces for all props
+- ✅ Handle errors with Inertia's error system
+- ✅ Use Inertia forms for server communication
+- ✅ Follow the project's Tailwind theme

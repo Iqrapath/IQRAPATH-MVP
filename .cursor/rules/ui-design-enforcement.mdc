@@ -1,0 +1,351 @@
+---
+alwaysApply: true
+---
+
+type: ui-design
+description: Strict UI design enforcement with reference images
+globs: ["**/*.tsx", "**/*.ts", "**/*.jsx", "**/*.js", "**/*.css"]
+
+# UI Design Enforcement - Image-Driven Development
+
+## CRITICAL RULE: EXACT DESIGN MATCHING
+- **NEVER** create variations or "improvements" on provided designs
+- **NEVER** suggest alternative layouts or color schemes  
+- **ALWAYS** implement the EXACT design shown in reference images
+- **ALWAYS** match spacing, colors, typography, and component positioning precisely
+
+## Figma Integration
+
+### Primary Source: Figma Files
+The IQRAPATH design system should be maintained in Figma with the following structure:
+
+**Figma File Organization:**
+- **Design System File**: Colors, typography, components, spacing tokens
+- **UI Kit File**: Reusable component library
+- **Page Designs File**: Complete page layouts and flows
+- **Mobile Designs File**: Responsive/mobile-specific designs
+
+### Figma Export Guidelines:
+
+#### 1. Export Settings for Development:
+- **Format**: PNG (for mockups), SVG (for icons/illustrations)
+- **Scale**: 2x for high-DPI displays
+- **Include**: Annotations, measurements, spacing indicators
+
+#### 2. Required Figma Information:
+For each component/page, include:
+- **Figma URL**: Direct link to the specific frame/component
+- **Component Specs**: Spacing, colors, typography from Figma inspect
+- **Responsive Behavior**: Breakpoint specifications
+- **Interactive States**: Hover, focus, disabled, loading, error
+
+#### 3. Figma Tokens Integration:
+```figma-tokens
+// Extract these from Figma design tokens:
+Colors: 
+  - Primary: #14B8A6 (from Figma color styles)
+  - Secondary: #64748B
+  - Success: #10B981
+  - Error: #EF4444
+  - Warning: #F59E0B
+
+Spacing:
+  - xs: 4px
+  - sm: 8px  
+  - md: 16px
+  - lg: 24px
+  - xl: 32px
+  - 2xl: 48px
+
+Typography:
+  - H1: Nunito, 32px, 700 weight
+  - H2: Nunito, 24px, 600 weight
+  - Body: Inter, 16px, 400 weight
+  - Caption: Inter, 14px, 400 weight
+```
+
+## Image Reference Structure
+
+### Store Design Images Here:
+```
+.cursor/design-references/
+├── figma-links.md              # Master list of all Figma URLs
+├── design-tokens.json          # Exported design tokens from Figma
+├── admin/
+│   ├── dashboard/
+│   │   ├── overview.png        # Exported from Figma
+│   │   ├── overview-figma.md   # Figma URL + specs
+│   │   ├── users-list.png
+│   │   └── user-detail.png
+│   ├── notifications/
+│   │   ├── create-notification.png
+│   │   └── notifications-list.png
+│   └── settings/
+├── student/
+│   ├── dashboard.png
+│   ├── booking-flow.png
+│   └── profile.png
+├── teacher/
+│   ├── dashboard.png
+│   ├── availability.png
+│   └── earnings.png
+├── guardian/
+│   ├── dashboard.png
+│   └── children-management.png
+└── components/
+    ├── forms/
+    ├── modals/
+    ├── cards/
+    └── navigation/
+```
+
+## Design Reference Usage
+
+### 1. When Creating New Components:
+```tsx
+// ALWAYS reference the design image first
+// Image: .cursor/design-references/admin/users-list.png
+// This component MUST match the exact layout, spacing, and styling shown
+
+export default function UsersList({ users }: Props) {
+    // Implementation MUST follow the image exactly
+    return (
+        <div className="space-y-6">
+            {/* Header section - match image spacing */}
+            <div className="flex items-center justify-between">
+                <h1 className="text-2xl font-semibold">Users Management</h1>
+                <Button>Add User</Button>
+            </div>
+            
+            {/* Table section - match image styling */}
+            <Card className="p-0">
+                {/* Exact implementation from design */}
+            </Card>
+        </div>
+    );
+}
+```
+
+### 2. When Modifying Existing UI:
+```tsx
+// BEFORE modifying, check if there's a design reference
+// If image exists at .cursor/design-references/[path]/[component].png
+// MUST match that design exactly
+// NO creative liberties, NO "improvements"
+```
+
+## Color Enforcement
+
+### Reference Design Colors ONLY:
+```tsx
+// These are the ONLY colors allowed (from design system):
+const APPROVED_COLORS = {
+    primary: "hsl(var(--primary))",
+    secondary: "hsl(var(--secondary))",
+    muted: "hsl(var(--muted))",
+    accent: "hsl(var(--accent))",
+    destructive: "hsl(var(--destructive))",
+    // Custom project colors (if specified in designs):
+    teal: "#14B8A6",
+    midnight: "#1E293B",
+    // etc.
+} as const;
+
+// FORBIDDEN: Creating new color variants
+// FORBIDDEN: Using arbitrary Tailwind colors not in design
+// FORBIDDEN: "bg-blue-500" unless specified in design image
+```
+
+## Spacing Enforcement
+
+### Match Design Spacing Exactly:
+```tsx
+// Reference the design image for exact spacing values
+// Common design system spacing (verify against images):
+className="p-6"        // Standard card padding
+className="space-y-4"  // Standard vertical spacing
+className="gap-6"      // Standard grid gaps
+className="mt-8"       // Standard section spacing
+
+// FORBIDDEN: Arbitrary spacing like "p-3", "mt-7", "gap-5"
+// MUST use design system values shown in reference images
+```
+
+## Typography Enforcement
+
+### Use Exact Typography from Designs:
+```tsx
+// Headings (match font size, weight, color from image)
+className="text-2xl font-semibold text-foreground"  // H1
+className="text-xl font-medium text-foreground"     // H2
+className="text-lg font-medium text-foreground"     // H3
+
+// Body text (match exactly)
+className="text-sm text-muted-foreground"           // Secondary text
+className="text-base text-foreground"               // Primary text
+
+// FORBIDDEN: Custom font sizes not shown in design
+// FORBIDDEN: Random font weights like "font-bold" unless in design
+```
+
+## Component Structure Enforcement
+
+### Layout Patterns from Designs:
+```tsx
+// Admin Dashboard Layout (reference: admin/dashboard/overview.png)
+<div className="min-h-screen bg-background">
+    <Header /> {/* Must match header design exactly */}
+    <div className="flex">
+        <Sidebar /> {/* Must match sidebar design exactly */}
+        <main className="flex-1 p-8">
+            {/* Content area - match design spacing and layout */}
+        </main>
+    </div>
+</div>
+
+// Card Components (reference: components/cards/[type].png)
+<Card className="p-6 space-y-4">
+    <div className="flex items-center justify-between">
+        <h3 className="text-lg font-medium">Title</h3>
+        <Badge variant="secondary">Status</Badge>
+    </div>
+    <div className="space-y-2">
+        {/* Content exactly as shown in design */}
+    </div>
+</Card>
+```
+
+## Form Design Enforcement
+
+### Forms Must Match Reference Images:
+```tsx
+// Reference: components/forms/[form-name].png
+<form className="space-y-6">
+    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+        <div className="space-y-2">
+            <Label htmlFor="name">Name</Label>
+            <Input
+                id="name"
+                placeholder="Enter full name"
+                className="w-full"
+            />
+        </div>
+        {/* Continue exact pattern from design */}
+    </div>
+    
+    <div className="flex justify-end space-x-3">
+        <Button variant="outline">Cancel</Button>
+        <Button>Save</Button>
+    </div>
+</form>
+```
+
+## Modal/Dialog Enforcement
+
+### Modals Must Match Design Images:
+```tsx
+// Reference: components/modals/[modal-name].png
+<Dialog>
+    <DialogContent className="max-w-md">
+        <DialogHeader>
+            <DialogTitle>Title from Design</DialogTitle>
+            <DialogDescription>
+                Description text exactly as shown
+            </DialogDescription>
+        </DialogHeader>
+        
+        <div className="py-6">
+            {/* Content area matching design */}
+        </div>
+        
+        <DialogFooter>
+            {/* Buttons exactly as positioned in design */}
+        </DialogFooter>
+    </DialogContent>
+</Dialog>
+```
+
+## Table Design Enforcement
+
+### Tables Must Match Reference Images:
+```tsx
+// Reference: components/tables/[table-name].png
+<Table>
+    <TableHeader>
+        <TableRow>
+            {/* Headers exactly as shown in design */}
+            <TableHead className="w-[100px]">ID</TableHead>
+            <TableHead>Name</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+        </TableRow>
+    </TableHeader>
+    <TableBody>
+        {/* Rows styled exactly as design shows */}
+    </TableBody>
+</Table>
+```
+
+## Design Verification Checklist
+
+Before submitting any UI code, verify:
+- [ ] Referenced the correct design image
+- [ ] Matched all spacing values exactly
+- [ ] Used only approved colors from design system
+- [ ] Typography matches font sizes, weights, and colors
+- [ ] Component positioning matches layout exactly
+- [ ] No creative interpretations or "improvements"
+- [ ] Responsive behavior follows design breakpoints
+- [ ] Interactive states match design specifications
+
+## FORBIDDEN UI PRACTICES
+
+### NEVER DO THESE:
+- ❌ "I think this would look better with..."
+- ❌ Adding animations not specified in design
+- ❌ Changing color schemes for "better contrast"
+- ❌ Rearranging component layouts for "better UX"
+- ❌ Using different spacing because it "feels right"
+- ❌ Substituting similar components for exact ones
+- ❌ Adding features not shown in the design
+
+### ALWAYS DO THESE:
+- ✅ Match design pixel-perfectly
+- ✅ Use exact colors, spacing, typography
+- ✅ Reference the image file for every UI decision
+- ✅ Ask for clarification if design is ambiguous
+- ✅ Implement responsive behavior as specified
+- ✅ Test on multiple screen sizes if design shows breakpoints
+
+## Image Organization Best Practices
+
+### Naming Convention:
+```
+[section]/[page]/[component]-[state].png
+
+Examples:
+admin/users/list-default.png
+admin/users/list-loading.png
+admin/users/create-modal.png
+student/dashboard/overview-mobile.png
+components/cards/stat-card-success.png
+```
+
+### Required Images for New Features:
+1. Desktop layout (1440px width)
+2. Mobile layout (375px width) 
+3. Loading states
+4. Error states
+5. Empty states
+6. Interactive states (hover, focus, active)
+
+## Implementation Workflow
+
+1. **Locate design image** in `.cursor/design-references/`
+2. **Analyze spacing, colors, typography** from image
+3. **Implement exactly** as shown
+4. **Test on multiple screen sizes**
+5. **Compare final result** with reference image
+6. **Adjust until pixel-perfect match**
+
+Remember: The design image is the source of truth. Code must serve the design, not the other way around.

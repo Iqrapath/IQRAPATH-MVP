@@ -47,6 +47,7 @@ export interface User {
     last_active_at?: string | null;
     email_verified_at?: string | null;
     teacherProfile?: TeacherProfile;
+    wallet_balance?: number | null;
 }
 
 export interface Notification {
@@ -133,6 +134,35 @@ export interface StudentProfile {
     learning_goals?: string | null;
     subjects_of_interest?: string[] | null;
     special_needs?: string | null;
+}
+
+export interface StudentStats {
+    totalSessions: number;
+    completedSessions: number;
+    upcomingSessions: number;
+}
+
+export interface UpcomingSession {
+    id: number;
+    title: string;
+    teacher: string;
+    subject: string;
+    date: string;
+    time: string;
+    status: 'Confirmed' | 'Pending' | 'Completed' | 'Scheduled';
+    imageUrl: string;
+    meetingUrl?: string;
+    session_uuid: string;
+}
+
+export interface RecommendedTeacher {
+    id: number;
+    name: string;
+    subjects: string;
+    location: string;
+    rating: number;
+    price: string;
+    avatarUrl: string;
 }
 
 export interface GuardianProfile {

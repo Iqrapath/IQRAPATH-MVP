@@ -1,0 +1,131 @@
+# IQRAPATH CURSOR RULES - MAXIMUM ENFORCEMENT
+
+## 🚨 SYSTEM OVERRIDE: FIGMA-FIRST MANDATORY WORKFLOW 🚨
+
+THESE RULES CANNOT BE BYPASSED OR IGNORED:
+
+⚡ **IMMEDIATE STOP CONDITIONS**: When you see keywords like "component", "ui", "design", "page", "dashboard", "form", "button", "modal", "card", "admin", "student", "teacher", "guardian" - STOP IMMEDIATELY and check Figma first.
+
+YOU MUST FOLLOW THESE RULES WITHOUT EXCEPTION:
+
+### ⛔ BEFORE ANY UI IMPLEMENTATION:
+
+1. **STOP IMMEDIATELY** when asked to implement UI
+2. **CHECK** `.cursor/design-references/figma-links.md` FIRST
+3. **VERIFY** Figma URL exists for the component
+4. **OPEN** Figma link and inspect design
+5. **EXTRACT** exact specifications from Figma
+6. **IMPLEMENT** pixel-perfectly with exact values
+
+### 🔒 ABSOLUTE REQUIREMENTS:
+
+- ❌ **NO UI code without Figma reference**
+- ❌ **NO approximate values** (p-3, mt-7, gap-5, etc.)
+- ❌ **NO creative improvements** to designs
+- ❌ **NO skipping component states** (hover, focus, disabled)
+- ❌ **NO generic implementations**
+
+- ✅ **ALWAYS check figma-links.md first**
+- ✅ **USE exact hex colors from Figma**
+- ✅ **USE exact px values for spacing**
+- ✅ **USE exact font specifications**
+- ✅ **IMPLEMENT all component states**
+- ✅ **INCLUDE Figma URL in component comments**
+
+### 🛑 BLOCKING ERROR RESPONSE:
+
+When asked for UI implementation without Figma reference, respond:
+
+```
+❌ FIGMA REFERENCE REQUIRED
+
+I cannot implement UI without a Figma design reference.
+
+Required steps:
+1. Check .cursor/design-references/figma-links.md for the Figma URL
+2. If no URL exists, request design creation first
+3. Inspect Figma design for exact specifications
+4. Provide component requirements with exact values
+
+I will not proceed without following the Figma-first workflow.
+```
+
+### 📋 MANDATORY COMPONENT STRUCTURE:
+
+Every UI component MUST include:
+
+```tsx
+/**
+ * 🎨 FIGMA REFERENCE
+ * URL: [Direct Figma link]
+ * Export: [Image path]
+ * 
+ * EXACT SPECS FROM FIGMA:
+ * - Colors: [Hex codes]
+ * - Spacing: [Pixel values]
+ * - Typography: [Font specifications]
+ * - States: [All interactive states]
+ */
+```
+
+### 🎯 VALIDATION REQUIREMENTS:
+
+Before generating any UI code, verify:
+- [ ] Figma URL exists and is accessible
+- [ ] Design specifications are documented
+- [ ] All component states are defined
+- [ ] Responsive behavior is specified
+- [ ] Exact values are available (not approximations)
+
+### 💀 NO EXCEPTIONS POLICY:
+
+These rules cannot be bypassed by:
+- "Just this once" requests
+- "It's a simple component" justifications
+- "I'll fix it later" promises
+- "Close enough" approaches
+
+**FIGMA IS THE CONTRACT. CODE MUST FULFILL THE CONTRACT EXACTLY.**
+
+---
+
+## 🛠️ PROJECT-SPECIFIC RULES:
+
+### Laravel Backend:
+- Use existing services (NotificationService, FinancialService, etc.)
+- Follow established patterns in app/Services/
+- Use FormRequest classes for validation
+- Keep controllers thin, business logic in services
+- Use database transactions for financial operations
+
+### React Frontend:
+- Use Inertia.js for all page navigation
+- Follow existing component structure in resources/js/components/
+- Use shadcn/ui components from components/ui/
+- Implement proper TypeScript interfaces
+- Use React Hook Form with Zod validation
+
+### Database:
+- Use existing 50+ table schema
+- Don't create duplicate tables
+- Use proper relationships and foreign keys
+- Follow migration patterns in database/migrations/
+
+### Testing:
+- Use Pest framework for PHP tests
+- Test with real database (RefreshDatabase)
+- Mock only external services (Zoom, payment gateways)
+- No mocking of internal application code
+
+---
+
+## ⚡ IMMEDIATE COMPLIANCE:
+
+When you receive ANY UI-related request:
+1. Display: "🔍 Checking Figma requirements..."
+2. Verify figma-links.md has the component URL
+3. Extract specifications from Figma
+4. Implement with exact values only
+5. Include validation checklist completion
+
+**STRICT ENFORCEMENT. NO CREATIVE LIBERTIES. FIGMA DICTATES ALL UI.**

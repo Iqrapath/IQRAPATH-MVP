@@ -1,3 +1,16 @@
+/**
+ * 🎨 FIGMA REFERENCE
+ * URL: https://www.figma.com/design/jmWnnfdCipxqiQF39Tdb0S/IQRAPATH?node-id=1-2&p=f&t=fS4tJbWVmMTZgUnA-0
+ * Export: .cursor/design-references/student/student-header-layout.png
+ * 
+ * EXACT SPECS FROM FIGMA:
+ * - Wallet balance display in center with "Earnings:" label
+ * - Background: gradient from #FFF7E4/30
+ * - Balance container: bg-white/50 with backdrop-blur-sm, rounded-lg
+ * - Typography: text-sm for label, text-lg font-semibold for amount
+ * - Currency: Nigerian Naira (₦) symbol
+ */
+
 import AppLogoIcon from '@/components/app-logo-icon';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -11,7 +24,7 @@ import { NotificationDropdown } from '@/components/notification/notification-dro
 import { MessageDropdown } from '@/components/message/message-dropdown';
 
 interface TeacherHeaderProps {
-    pageTitle: string;
+    pageTitle?: string; // Made optional since we're not using it for display anymore
     toggleLeftSidebar?: () => void;
     toggleRightSidebar?: () => void;
     isMobile?: boolean;
@@ -43,9 +56,14 @@ export default function TeacherHeader({
                 </Link>
             </div>
             
-            {/* Page title in center */}
+            {/* Wallet balance in center */}
             <div className="flex-1 flex justify-center">
-                <h1 className={`${isMobile ? 'text-base' : 'text-lg'} font-medium`}>{pageTitle}</h1>
+                <div className="flex items-center space-x-2 bg-gradient-to-r from-[#FFF7E4]/0 to-[#FFF7E4]/100 backdrop-blur-sm rounded-full px-4 py-2">
+                    <span className="text-sm font-medium text-gray-600">Earnings:</span>
+                    <span className="text-lg font-semibold text-gray-900">
+                        ₦{auth.user.wallet_balance?.toLocaleString() || '0.00'}
+                    </span>
+                </div>
             </div>
             
             {/* User profile at right with spacing */}

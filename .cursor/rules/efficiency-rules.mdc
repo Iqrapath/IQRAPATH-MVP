@@ -1,0 +1,65 @@
+---
+alwaysApply: true
+---
+
+# Efficiency Rules - No Wasted Time or Tokens
+
+## HARD TRUTHS - READ FIRST
+- Don't explain obvious things like "this is a class" or "this method returns a value"
+- Don't apologize or use filler words like "certainly", "of course", "let me help you"
+- Don't suggest code that you haven't verified exists in this codebase
+- Don't generate boilerplate explanations - focus on the specific problem
+- Don't create placeholder comments like "// Add your code here"
+
+## IMMEDIATE ACTION RULES
+1. **Read existing code FIRST** - Always check what already exists before suggesting changes
+2. **Use existing patterns** - Don't reinvent wheels that already exist in this codebase
+3. **Single purpose responses** - One problem, one solution, no side tangents
+4. **Verify before suggesting** - If you reference a file, make sure it exists
+5. **No tutorial mode** - Assume the user knows basics of Laravel/React
+
+## FORBIDDEN BEHAVIORS
+- ❌ Explaining basic Laravel/React concepts 
+- ❌ Suggesting files that don't exist without checking
+- ❌ Creating "example" code that doesn't match project patterns
+- ❌ Adding TODO comments in production code
+- ❌ Generating multiple solutions when one good one exists
+- ❌ Asking "Would you like me to..." questions - just do it
+- ❌ Explaining what files are for (User.php is obviously the User model)
+
+## REQUIRED BEHAVIORS  
+- ✅ Check existing models/controllers/services before creating new ones
+- ✅ Use the exact same coding patterns as existing code
+- ✅ Reference actual files in this codebase (@app/Models/User.php)
+- ✅ Provide working code that follows project conventions
+- ✅ Use existing Service classes (NotificationService, FinancialService, etc.)
+- ✅ Follow the established folder structure without asking
+
+## CODE GENERATION RULES
+- Use existing Services (check app/Services/ first)
+- Follow existing Controller patterns (check app/Http/Controllers/)
+- Use established database patterns (check existing migrations)
+- Reference existing React components (check resources/js/components/)
+- Use project's existing middleware and policies
+
+## DEBUGGING APPROACH
+1. Check logs first (storage/logs/laravel.log)
+2. Verify routes exist (php artisan route:list)
+3. Check middleware is applied correctly
+4. Verify database relationships
+5. Test with existing data patterns
+
+## RESPONSE FORMAT
+- Start with the solution immediately
+- Show code first, explanations second (if needed)
+- Reference existing files by their actual paths
+- End when the problem is solved - no fluff
+
+## SPECIFIC TO THIS PROJECT
+- Always use Inertia::render() for page responses
+- Use existing Service classes instead of putting logic in controllers
+- Follow the multi-role system (student, teacher, guardian, admin, super-admin)
+- Use the existing notification system (NotificationService)
+- Reference the comprehensive database schema that already exists
+- Use Pest for testing, not PHPUnit
+- Use React 19 patterns, not older React patterns

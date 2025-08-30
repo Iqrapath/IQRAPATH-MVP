@@ -1,0 +1,336 @@
+---
+alwaysApply: true
+---
+
+type: database
+description: Database operations and migration discipline
+globs: ["**/*.php", "database/**/*.php"]
+
+# Database Discipline Rules
+
+## EXISTING SCHEMA (58 MIGRATIONS ALREADY EXIST)
+
+### Don't Create New Tables for Existing Concepts:
+- ❌ NEVER create parallel user tables
+- ❌ NEVER create duplicate wallet/payment tables
+- ❌ NEVER create new notification tables
+- ❌ NEVER create alternative booking/session tables
+
+### Core Tables Already Exist (USE THESE):
+```php
+// User System
+users, student_profiles, teacher_profiles, guardian_profiles, admin_profiles
+
+// Financial System  
+student_wallets, teacher_wallets, guardian_wallets
+transactions, wallet_transactions, payout_requests, teacher_earnings
+
+// Booking System
+teacher_availabilities, bookings, teaching_sessions
+session_materials, session_progress
+
+// Subscription System
+subscription_plans, subscriptions, subscription_transactions
+
+// Notification System
+notifications, notification_recipients, notification_templates, notification_triggers
+
+// Verification System
+verification_requests, verification_calls, verification_audit_logs
+```
+
+## QUERY OPTIMIZATION RULES
+
+### ALWAYS Use Eager Loading:
+```php
+// ✅ Good - prevents N+1 queries
+$users = User::with(['studentProfile', 'wallet'])->get();
+$bookings = Booking::with(['student', 'teacher', 'subject'])->get();
+
+// ❌ Bad - causes N+1 queries
+$users = User::all();
+foreach ($users as $user) {
+    $profile = $user->studentProfile; // Each iteration hits DB
+}
+```
+
+### Use Scopes for Common Queries:
+```php
+// ✅ Use existing scopes
+$students = User::students()->active()->get();
+$teachers = User::teachers()->verified()->get();
+$upcomingBookings = Booking::upcoming()->with('teacher')->get();
+
+// ❌ Don't write raw where clauses repeatedly
+$students = User::where('role', 'student')->where('status', 'active')->get();
+```
+
+### Chunking for Large Datasets:
+```php
+// ✅ For processing large datasets
+User::chunk(1000, function ($users) {
+    foreach ($users as $user) {
+        // Process user
+    }
+});
+
+// ❌ Don't load everything into memory
+$allUsers = User::all(); // Could crash with large datasets
+```
+
+## MIGRATION RULES
+
+### Modify Existing Tables (Don't Create New Ones):
+```php
+// ✅ Good - add column to existing table
+Schema::table('users', function (Blueprint $table) {
+    $table->string('new_field')->nullable();
+});
+
+// ❌ Bad - creating parallel table
+Schema::create('user_extensions', function (Blueprint $table) {
+    // This belongs in the users table
+});
+```
+
+### Migration Pattern (FOLLOW THIS):
+```php
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('existing_table', function (Blueprint $table) {
+            $table->string('new_column')->nullable();
+            $table->index('indexed_column');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('existing_table', function (Blueprint $table) {
+            $table->dropColumn('new_column');
+            $table->dropIndex(['indexed_column']);
+        });
+    }
+};
+```
+
+## RELATIONSHIP RULES
+
+### Use Existing Relationship Patterns:
+```php
+// ✅ Standard patterns already established
+public function studentProfile(): HasOne
+{
+    return $this->hasOne(StudentProfile::class);
+}
+
+public function wallet(): HasOne
+{
+    return $this->hasOne(StudentWallet::class);
+}
+
+public function bookings(): HasMany
+{
+    return $this->hasMany(Booking::class, 'student_id');
+}
+
+// ❌ Don't create custom relationship methods for existing patterns
+```
+
+## TRANSACTION RULES
+
+### Financial Operations (ALWAYS USE TRANSACTIONS):
+```php
+DB::transaction(function () use ($student, $teacher, $amount) {
+    // 1. Debit student wallet
+    $studentWallet = $student->wallet;
+    $studentWallet->decrement('balance', $amount);
+    
+    // 2. Credit teacher earnings
+    $teacherEarning = $teacher->earnings;
+    $teacherEarning->increment('available_balance', $amount);
+    
+    // 3. Create transaction records
+    WalletTransaction::create([...]);
+    Transaction::create([...]);
+});
+```
+
+### Booking Operations (ALWAYS USE TRANSACTIONS):
+```php
+DB::transaction(function () use ($booking) {
+    // 1. Update booking status
+    $booking->update(['status' => 'approved']);
+    
+    // 2. Create teaching session
+    $session = TeachingSession::create([...]);
+    
+    // 3. Create Zoom meeting
+    $zoomData = $this->zoomService->createMeeting([...]);
+    $session->update($zoomData);
+    
+    // 4. Send notifications
+    event(new BookingApproved($booking));
+});
+```
+
+## INDEX RULES
+
+### Existing Indexes (DON'T DUPLICATE):
+```php
+// These indexes already exist - check migrations before adding:
+users: ['email', 'role', 'status']
+bookings: ['student_id', 'teacher_id', 'booking_date', 'status']
+teaching_sessions: ['session_date', 'status']
+notifications: ['scheduled_at', 'status']
+transactions: ['user_id', 'created_at', 'status']
+```
+
+### Add Indexes Only When Needed:
+```php
+// ✅ Add index for frequent queries
+$table->index(['user_id', 'created_at']); // For user transaction history
+
+// ❌ Don't add indexes speculatively
+$table->index('random_field'); // Not queried frequently
+```
+
+## FACTORY RULES
+
+### Use Existing Factories (DON'T CREATE DUPLICATES):
+```php
+// ✅ Existing factories - use these
+User::factory()->student()->create();
+User::factory()->teacher()->verified()->create();
+Booking::factory()->approved()->create();
+Subscription::factory()->active()->create();
+
+// ❌ Don't create new factories for existing models
+```
+
+### Factory States Pattern:
+```php
+// ✅ Add states to existing factories
+public function verified(): static
+{
+    return $this->state(fn (array $attributes) => [
+        'email_verified_at' => now(),
+        'status' => 'verified',
+    ]);
+}
+
+// ❌ Don't create separate factory classes
+```
+
+## SEEDER RULES
+
+### Use Existing Seeders:
+```php
+// ✅ Extend existing seeders
+class DatabaseSeeder extends Seeder
+{
+    public function run(): void
+    {
+        $this->call([
+            UserSeeder::class,
+            SubjectSeeder::class,
+            SubscriptionPlanSeeder::class,
+        ]);
+    }
+}
+
+// ❌ Don't create parallel seeding systems
+```
+
+## RAW QUERY RULES
+
+### Avoid Raw Queries (Use Eloquent):
+```php
+// ✅ Good - use Eloquent
+$earnings = TeacherEarning::where('teacher_id', $teacherId)
+    ->sum('amount');
+
+// ❌ Bad - raw queries without good reason
+$earnings = DB::select('SELECT SUM(amount) FROM teacher_earnings WHERE teacher_id = ?', [$teacherId]);
+```
+
+### When Raw Queries Are Acceptable:
+```php
+// ✅ Complex aggregations that Eloquent can't handle efficiently
+$stats = DB::select("
+    SELECT 
+        DATE(created_at) as date,
+        COUNT(*) as total_bookings,
+        COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_bookings
+    FROM bookings 
+    WHERE created_at >= ? 
+    GROUP BY DATE(created_at)
+", [now()->subDays(30)]);
+```
+
+## PERFORMANCE RULES
+
+### Query Optimization:
+```php
+// ✅ Use select() to limit columns
+User::select(['id', 'name', 'email'])->get();
+
+// ✅ Use exists() instead of count()
+if (Booking::where('teacher_id', $teacherId)->exists()) {
+    // Teacher has bookings
+}
+
+// ✅ Use whereHas() for relationship queries
+$studentsWithActiveSubscriptions = User::students()
+    ->whereHas('subscriptions', fn($q) => $q->active())
+    ->get();
+```
+
+## TESTING DATABASE RULES
+
+### Use RefreshDatabase:
+```php
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+uses(RefreshDatabase::class);
+
+it('creates booking with proper relationships', function () {
+    $student = User::factory()->student()->create();
+    $teacher = User::factory()->teacher()->verified()->create();
+    
+    $booking = Booking::factory()->create([
+        'student_id' => $student->id,
+        'teacher_id' => $teacher->id,
+    ]);
+    
+    expect($booking->student)->toBe($student);
+    expect($booking->teacher)->toBe($teacher);
+});
+```
+
+## CRITICAL DATABASE CONSTRAINTS
+
+### Foreign Key Constraints:
+- ALL foreign keys MUST have proper constraints
+- Use cascade deletion where appropriate
+- Use nullOnDelete where soft deletes are used
+
+### Data Integrity:
+- Wallet balances CANNOT be negative (check constraints)
+- Booking dates CANNOT be in the past
+- User emails MUST be unique
+- Session times CANNOT overlap for same teacher
+
+### Audit Trail Requirements:
+- All financial operations MUST be logged
+- All booking changes MUST be recorded in booking_history
+- All verification steps MUST be logged in verification_audit_logs
+
+Remember: The database schema is mature and comprehensive. Work within existing structures rather than creating new ones.

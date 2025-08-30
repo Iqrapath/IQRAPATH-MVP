@@ -1,0 +1,485 @@
+---
+alwaysApply: true
+---
+
+type: testing
+description: Testing discipline - real tests, minimal mocking
+globs: ["tests/**/*.php", "**/*Test.php"]
+
+# Testing Discipline - Real Tests, No Mocks
+
+## CORE PRINCIPLE: TEST REALITY, NOT MOCKS
+
+### FORBIDDEN Testing Practices:
+- ❌ Mocking Laravel framework methods (User::create(), etc.)
+- ❌ Mocking Eloquent relationships and queries
+- ❌ Mocking database operations that can be tested with real DB
+- ❌ Mocking internal application services (NotificationService, FinancialService)
+- ❌ Testing mocks instead of actual behavior
+- ❌ Using Mockery/PHPUnit mocks for internal code
+
+### ALLOWED Mocking (ONLY FOR EXTERNAL SERVICES):
+- ✅ External APIs (Zoom, payment gateways, email providers)
+- ✅ File system operations (when testing file upload logic)
+- ✅ Time-dependent operations (Carbon::now(), random IDs)
+- ✅ HTTP client calls to third-party services
+
+## PEST TESTING STRUCTURE
+
+### Test File Organization (USE EXISTING PATTERN):
+```php
+<?php
+
+use App\Models\User;
+use App\Services\NotificationService;
+use App\Services\FinancialService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+// ALWAYS use RefreshDatabase for real DB testing
+uses(RefreshDatabase::class);
+
+beforeEach(function () {
+    // Create real test data using factories
+    $this->user = User::factory()->create(['role' => 'admin']);
+    $this->student = User::factory()->student()->create();
+    $this->teacher = User::factory()->teacher()->verified()->create();
+    
+    // Authenticate for tests that need it
+    $this->actingAs($this->user);
+});
+
+// Group related tests
+describe('User Management', function () {
+    it('creates user with proper relationships', function () {
+        // Test actual database operations
+        $userData = [
+            'name' => 'John Doe',
+            'email' => 'john@example.com',
+            'role' => 'teacher'
+        ];
+        
+        $response = $this->post(route('admin.users.store'), $userData);
+        
+        $response->assertRedirect(route('admin.users.index'));
+        
+        // Verify actual database state
+        $user = User::where('email', 'john@example.com')->first();
+        expect($user)
+            ->toBeInstanceOf(User::class)
+            ->name->toBe('John Doe')
+            ->role->toBe('teacher');
+        
+        // Verify relationships were created
+        expect($user->teacherProfile)->toBeInstanceOf(TeacherProfile::class);
+        expect($user->wallet)->toBeInstanceOf(TeacherWallet::class);
+    });
+});
+```
+
+## SERVICE TESTING (NO INTERNAL MOCKS)
+
+### Test Services with Real Database:
+```php
+describe('NotificationService', function () {
+    it('creates notification and sends to recipients', function () {
+        $service = app(NotificationService::class);
+        
+        // Create real users to test with
+        $users = User::factory()->count(3)->create(['role' => 'student']);
+        
+        // Test actual service method
+        $notification = $service->createNotification([
+            'title' => 'Test Notification',
+            'body' => 'Test message',
+            'type' => 'system',
+            'sender_type' => 'admin',
+            'sender_id' => $this->user->id
+        ]);
+        
+        // Add real recipients
+        $service->addRecipients($notification, [
+            'user_ids' => $users->pluck('id')->toArray(),
+            'channels' => ['in-app', 'email']
+        ]);
+        
+        // Test actual sending (mock only external email service)
+        Mail::fake(); // This mocks external email sending, not our logic
+        
+        $service->sendNotification($notification);
+        
+        // Verify actual database state
+        expect($notification->recipients)->toHaveCount(6); // 3 users × 2 channels
+        expect($notification->status)->toBe('sent');
+        
+        // Verify external service was called correctly
+        Mail::assertSent(NotificationMail::class, 3);
+    });
+});
+```
+
+### Financial Service Testing (REAL MONEY OPERATIONS):
+```php
+describe('FinancialService', function () {
+    it('processes payment and updates wallets correctly', function () {
+        $service = app(FinancialService::class);
+        
+        // Create real wallet with balance
+        $student = User::factory()->student()->create();
+        $teacher = User::factory()->teacher()->verified()->create();
+        
+        $studentWallet = $student->studentWallet;
+        $teacherWallet = $teacher->teacherWallet;
+        
+        $studentWallet->update(['balance' => 100.00]);
+        $teacherWallet->update(['balance' => 0.00]);
+        
+        $paymentAmount = 50.00;
+        
+        // Test actual service method with real database
+        $transaction = $service->processSessionPayment($student, $teacher, $paymentAmount);
+        
+        // Verify real database changes
+        expect($studentWallet->fresh()->balance)->toBe(50.00);
+        expect($teacherWallet->fresh()->balance)->toBe(50.00);
+        
+        // Verify transaction records were created
+        expect($transaction)->toBeInstanceOf(Transaction::class);
+        expect($transaction->amount)->toBe($paymentAmount);
+        expect($transaction->status)->toBe('completed');
+        
+        // Verify wallet transaction records
+        $studentTransaction = WalletTransaction::where('wallet_id', $studentWallet->id)
+            ->where('transaction_type', 'debit')
+            ->first();
+        expect($studentTransaction->amount)->toBe($paymentAmount);
+        
+        $teacherTransaction = WalletTransaction::where('wallet_id', $teacherWallet->id)
+            ->where('transaction_type', 'credit')  
+            ->first();
+        expect($teacherTransaction->amount)->toBe($paymentAmount);
+    });
+    
+    it('prevents overdrafts in student wallets', function () {
+        $service = app(FinancialService::class);
+        
+        $student = User::factory()->student()->create();
+        $teacher = User::factory()->teacher()->verified()->create();
+        
+        $studentWallet = $student->studentWallet;
+        $studentWallet->update(['balance' => 25.00]);
+        
+        // Attempt to spend more than available balance
+        expect(function () use ($service, $student, $teacher) {
+            $service->processSessionPayment($student, $teacher, 50.00);
+        })->toThrow(InsufficientFundsException::class);
+        
+        // Verify wallet balance unchanged
+        expect($studentWallet->fresh()->balance)->toBe(25.00);
+    });
+});
+```
+
+## BOOKING SYSTEM TESTING (REAL WORKFLOW)
+
+### Test Complete Booking Flow:
+```php
+describe('Booking System', function () {
+    it('processes complete booking workflow', function () {
+        // Create real entities
+        $student = User::factory()->student()->create();
+        $teacher = User::factory()->teacher()->verified()->create();
+        $subject = Subject::factory()->create();
+        
+        // Set up teacher availability
+        $availability = TeacherAvailability::factory()->create([
+            'teacher_id' => $teacher->id,
+            'day_of_week' => 1, // Monday
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_active' => true
+        ]);
+        
+        $bookingDate = now()->next('Monday');
+        
+        // Test booking creation through actual controller
+        $this->actingAs($student);
+        
+        $response = $this->post(route('student.bookings.store'), [
+            'teacher_id' => $teacher->id,
+            'subject_id' => $subject->id,
+            'booking_date' => $bookingDate->toDateString(),
+            'start_time' => '10:00',
+            'end_time' => '11:00',
+            'notes' => 'Test booking'
+        ]);
+        
+        $response->assertRedirect();
+        
+        // Verify actual booking was created
+        $booking = Booking::where('student_id', $student->id)
+            ->where('teacher_id', $teacher->id)
+            ->first();
+            
+        expect($booking)
+            ->toBeInstanceOf(Booking::class)
+            ->status->toBe('pending');
+        
+        // Test booking approval
+        $this->actingAs($teacher);
+        
+        $this->patch(route('teacher.bookings.approve', $booking->id));
+        
+        // Verify booking status changed and session created
+        expect($booking->fresh()->status)->toBe('approved');
+        
+        $session = TeachingSession::where('booking_id', $booking->id)->first();
+        expect($session)->toBeInstanceOf(TeachingSession::class);
+        expect($session->status)->toBe('scheduled');
+    });
+});
+```
+
+## EXTERNAL SERVICE MOCKING (WHEN REQUIRED)
+
+### Mock External APIs Only:
+```php
+describe('Zoom Integration', function () {
+    it('creates zoom meeting for session', function () {
+        // Mock external Zoom API
+        Http::fake([
+            'api.zoom.us/v2/users/*/meetings' => Http::response([
+                'id' => 'test-meeting-id',
+                'host_id' => 'test-host-id',
+                'join_url' => 'https://zoom.us/j/test-meeting-id',
+                'start_url' => 'https://zoom.us/s/test-meeting-id',
+                'password' => 'test-password'
+            ], 201)
+        ]);
+        
+        $service = app(ZoomService::class);
+        
+        // Test with real session data
+        $session = TeachingSession::factory()->create([
+            'session_date' => today(),
+            'start_time' => '10:00:00',
+            'end_time' => '11:00:00'
+        ]);
+        
+        // Test actual service method
+        $result = $service->createMeeting($session);
+        
+        // Verify actual database update
+        $session = $session->fresh();
+        expect($session->zoom_meeting_id)->toBe('test-meeting-id');
+        expect($session->zoom_join_url)->toBe('https://zoom.us/j/test-meeting-id');
+        
+        // Verify external API was called correctly
+        Http::assertSent(function ($request) {
+            return $request->url() === 'https://api.zoom.us/v2/users/me/meetings' &&
+                   $request->data()['topic'] !== null &&
+                   $request->data()['start_time'] !== null;
+        });
+    });
+});
+```
+
+### Payment Gateway Mocking:
+```php
+describe('Payment Processing', function () {
+    it('processes subscription payment', function () {
+        // Mock external payment gateway
+        Http::fake([
+            'api.paystack.co/transaction/initialize' => Http::response([
+                'status' => true,
+                'data' => [
+                    'authorization_url' => 'https://checkout.paystack.com/test',
+                    'access_code' => 'test-access-code',
+                    'reference' => 'test-reference-123'
+                ]
+            ])
+        ]);
+        
+        $service = app(PaymentService::class);
+        $user = User::factory()->student()->create();
+        $plan = SubscriptionPlan::factory()->create(['price_naira' => 5000]);
+        
+        // Test actual payment initialization
+        $result = $service->initializePayment($user, $plan, 'paystack');
+        
+        // Verify actual database records
+        $paymentLog = PaymentGatewayLog::where('user_id', $user->id)
+            ->where('gateway', 'paystack')
+            ->first();
+            
+        expect($paymentLog)
+            ->toBeInstanceOf(PaymentGatewayLog::class)
+            ->status->toBe('pending')
+            ->amount->toBe(5000.00);
+        
+        // Verify external service called correctly
+        Http::assertSent(function ($request) use ($user, $plan) {
+            return str_contains($request->url(), 'paystack.co') &&
+                   $request->data()['email'] === $user->email &&
+                   $request->data()['amount'] === $plan->price_naira * 100;
+        });
+    });
+});
+```
+
+## FEATURE TESTING (FULL STACK)
+
+### Test Complete User Flows:
+```php
+describe('User Registration Flow', function () {
+    it('completes student registration and profile setup', function () {
+        // Test registration
+        $response = $this->post(route('register'), [
+            'name' => 'John Student',
+            'email' => 'john@student.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'role' => 'student'
+        ]);
+        
+        $response->assertRedirect(route('profile.complete'));
+        
+        // Verify user created with correct role
+        $user = User::where('email', 'john@student.com')->first();
+        expect($user)
+            ->toBeInstanceOf(User::class)
+            ->role->toBe('student')
+            ->email_verified_at->toBeNull();
+        
+        // Test profile completion
+        $this->actingAs($user);
+        
+        $this->post(route('student.profile.store'), [
+            'date_of_birth' => '2000-01-01',
+            'grade_level' => 'Grade 10',
+            'school_name' => 'Test School',
+            'learning_goals' => 'Learn Quran recitation',
+            'subjects_of_interest' => ['quran', 'arabic']
+        ]);
+        
+        // Verify profile created and wallet initialized
+        $profile = $user->fresh()->studentProfile;
+        expect($profile)
+            ->toBeInstanceOf(StudentProfile::class)
+            ->grade_level->toBe('Grade 10');
+        
+        $wallet = $user->studentWallet;
+        expect($wallet)
+            ->toBeInstanceOf(StudentWallet::class)
+            ->balance->toBe(0.00);
+    });
+});
+```
+
+## TESTING SCHEDULED TASKS
+
+### Test Real Cron Jobs:
+```php
+describe('Scheduled Tasks', function () {
+    it('sends session reminders correctly', function () {
+        // Create session scheduled for tomorrow
+        $session = TeachingSession::factory()->create([
+            'session_date' => tomorrow(),
+            'start_time' => '10:00:00',
+            'status' => 'scheduled'
+        ]);
+        
+        Mail::fake();
+        
+        // Run actual scheduled command
+        $this->artisan('app:send-session-reminders')
+             ->assertExitCode(0);
+        
+        // Verify emails sent to actual recipients
+        Mail::assertSent(SessionReminderMail::class, function ($mail) use ($session) {
+            return $mail->session->id === $session->id;
+        });
+        
+        // Verify reminder was logged
+        $log = ScheduledNotification::where('type', 'session_reminder')
+            ->where('scheduled_at', '<=', now())
+            ->where('status', 'sent')
+            ->first();
+            
+        expect($log)->toBeInstanceOf(ScheduledNotification::class);
+    });
+});
+```
+
+## DEBUGGING FAILED TESTS
+
+### When Tests Fail:
+1. **Check actual database state** - Use `dd()` to inspect records
+2. **Verify relationships** - Ensure foreign keys and relationships exist
+3. **Check business logic** - Services should work with real data
+4. **Validate test data** - Factories should create valid, complete records
+5. **Review logs** - Check `storage/logs/laravel.log` for actual errors
+
+### Debug Pattern:
+```php
+it('debugs complex operation', function () {
+    $user = User::factory()->student()->create();
+    
+    // Debug actual state
+    ray($user->toArray()); // Use Ray for debugging
+    ray($user->studentProfile?->toArray());
+    ray($user->wallet?->toArray());
+    
+    // Test operation
+    $result = $this->performOperation($user);
+    
+    // Debug result
+    ray($result);
+    ray($user->fresh()->toArray());
+    
+    expect($result)->toBe(expectedValue);
+});
+```
+
+## PERFORMANCE TESTING
+
+### Test Query Performance:
+```php
+it('performs efficiently with large datasets', function () {
+    // Create realistic data volume
+    $students = User::factory()->students()->count(100)->create();
+    $teachers = User::factory()->teachers()->verified()->count(20)->create();
+    
+    // Test query performance
+    $queryCount = 0;
+    DB::listen(function ($query) use (&$queryCount) {
+        $queryCount++;
+    });
+    
+    // Perform operation
+    $result = app(BookingService::class)->getAvailableTeachers($students->first());
+    
+    // Verify reasonable query count (no N+1)
+    expect($queryCount)->toBeLessThan(10);
+    expect($result)->toHaveCount(20);
+});
+```
+
+## CRITICAL TESTING RULES
+
+### ALWAYS Test:
+- ✅ Actual database operations and state changes
+- ✅ Complete user workflows end-to-end
+- ✅ Business rule enforcement
+- ✅ Financial transaction accuracy
+- ✅ Role-based access control
+- ✅ Data validation and error handling
+
+### NEVER Mock:
+- ❌ Laravel framework methods
+- ❌ Eloquent models and relationships
+- ❌ Internal application services
+- ❌ Database operations
+- ❌ Authentication and authorization
+- ❌ Business logic validation
+
+Remember: If you can test it with a real database and real objects, do that. Mocks lie. Real code doesn't.
