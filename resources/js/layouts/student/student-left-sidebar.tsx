@@ -78,18 +78,18 @@ export default function StudentLeftSidebar({ className, isMobile = false, onClos
             icon: LayoutDashboard,
         },
         {
-            title: 'Schedule',
-            href: '/student/schedule',
+            title: 'Browse Teachers',
+            href: '/student/browse-teachers',
             icon: Calendar,
         },
         {
-            title: 'Requests',
-            href: '/student/requests',
+            title: 'My Bookings',
+            href: '/student/bookings',
             icon: FileText,
         },
         {
-            title: 'Earnings',
-            href: '/student/earnings',
+            title: 'Payment',
+            href: '/student/payment',
             icon: CreditCard,
         },
         {

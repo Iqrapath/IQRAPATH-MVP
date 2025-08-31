@@ -81,9 +81,11 @@ export default function UpcomingClasses({ classes }: UpcomingClassesProps) {
                     </div>
                     <h4 className="text-lg font-medium text-gray-900 mb-2">No Classes Scheduled</h4>
                     <p className="text-gray-500 mb-4">You don't have any scheduled classes at the moment.</p>
-                    <button className="bg-[#2c7870] hover:bg-[#236158] text-white rounded-full py-2 px-6">
-                        Find Teachers
-                    </button>
+                    <Link href="/student/browse-teachers">
+                        <button className="bg-[#2c7870] hover:bg-[#236158] text-white rounded-full py-2 px-6">
+                            Find Teachers
+                        </button>
+                    </Link>
                 </div>
             )}
         </div>

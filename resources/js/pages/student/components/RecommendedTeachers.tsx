@@ -15,7 +15,12 @@ export default function RecommendedTeachers({ teachers }: RecommendedTeachersPro
             </div>
 
             {teachers.length > 0 ? (
-                <div className="overflow-x-auto pb-4">
+                <div className="overflow-x-auto pb-4"
+                    style={{
+                        scrollbarWidth: 'none',
+                        msOverflowStyle: 'none',
+                    }}
+                >
                     <div className="flex gap-6 min-w-max">
                         {teachers.map(t => (
                             <div key={t.id} className="flex-shrink-0 w-80">

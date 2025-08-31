@@ -1,17 +1,20 @@
 import React from 'react';
 import { MapPin, Star } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import TeacherProfileModal from '@/components/common/TeacherProfileModal';
 
 interface TeacherCardProps {
+    id: number;
     name: string;
     subjects: string;
     location: string;
     rating: number; // 0-5
-    price: string; // e.g. "$35 / session"
+    price: string; // e.g. "₦5,000 / session" from teacher_profiles.hourly_rate_ngn
     avatarUrl: string;
 }
 
-export default function TeacherCard({ name, subjects, location, rating, price, avatarUrl }: TeacherCardProps) {
+export default function TeacherCard({ id, name, subjects, location, rating, price, avatarUrl }: TeacherCardProps) {
     return (
         <div className="bg-white border border-gray-100 rounded-3xl shadow-sm p-4 flex gap-4 items-center">
             <Avatar className="w-20 h-20 rounded-2xl">
@@ -36,7 +39,25 @@ export default function TeacherCard({ name, subjects, location, rating, price, a
                     <div>
                         <span className="bg-[#f4faf9] text-[#2c7870] rounded-full px-3 py-1 text-xs">{price}</span>
                     </div>
-                    <div className="text-[#2c7870] text-xs font-medium cursor-pointer">View Profile</div>
+                    <TeacherProfileModal
+                        teacher={{
+                            id: id,
+                            name: name,
+                            subjects: subjects,
+                            location: location,
+                            rating: rating,
+                            hourly_rate_ngn: price,
+                            avatar: avatarUrl
+                        }}
+                        trigger={
+                            <Button
+                                variant="link"
+                                className="text-teal-600 hover:text-teal-700 p-0 h-auto"
+                            >
+                                View Profile
+                            </Button>
+                        }
+                    />
                 </div>
             </div>
         </div>

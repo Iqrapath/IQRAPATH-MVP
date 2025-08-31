@@ -86,7 +86,11 @@ export default function AdminLayout({
                     </div>
 
                     {/* Main Content */}
-                    <main className="flex-1 p-6 overflow-y-auto">
+                    <main className="flex-1 p-6 overflow-y-auto"
+                    style={{
+                        scrollbarWidth: 'none', /* Firefox */
+                        msOverflowStyle: 'none', /* IE and Edge */
+                    }}>
                         {children}
                     </main>
 

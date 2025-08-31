@@ -55,6 +55,11 @@ Route::middleware(['auth', 'verified', 'role:student'])->prefix('student')->name
     
     // Session routes
     Route::get('/sessions', [App\Http\Controllers\Student\SessionController::class, 'index'])->name('sessions.index');
+    
+    // Teacher browsing routes
+    Route::get('/browse-teachers', [App\Http\Controllers\Student\TeacherController::class, 'index'])->name('browse-teachers');
+    Route::get('/teachers/{teacher}', [App\Http\Controllers\Student\TeacherController::class, 'show'])->name('teachers.show');
+    Route::get('/teachers/{teacher}/profile-data', [App\Http\Controllers\Student\TeacherController::class, 'profileData'])->name('teachers.profile-data');
 });
 
 // Guardian routes

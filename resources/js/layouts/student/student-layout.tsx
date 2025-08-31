@@ -86,7 +86,11 @@ export default function StudentLayout({
                     </div>
 
                     {/* Main Content */}
-                    <main className="flex-1 p-6 overflow-y-auto scrollbar-hide scrollbar-thin scrollbar-thumb-teal-600 scrollbar-track-transparent">
+                    <main className="flex-1 p-6 overflow-y-auto scrollbar-hide scrollbar-thin scrollbar-thumb-teal-600"
+                    style={{
+                        scrollbarWidth: 'none', /* Firefox */
+                        msOverflowStyle: 'none', /* IE and Edge */
+                    }}>
                         {children}
                     </main>
 

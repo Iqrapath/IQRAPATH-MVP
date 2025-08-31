@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\User;
+// use Database\Seeders\TeacherWalletSeeder;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -19,8 +20,11 @@ class DatabaseSeeder extends Seeder
             AdminSeeder::class,
             SubjectTemplatesSeeder::class, // Must run before TeacherSeeder
             TeacherSeeder::class,
-            StudentSeeder::class,
+            StudentSeeder::class, // Must run before TeacherReviewSeeder
             GuardianSeeder::class,
+            TeacherAvailabilitySeeder::class,
+            TeacherWalletSeeder::class,
+            TeacherReviewSeeder::class, // Now students exist
             UnassignedUserSeeder::class, // Create unassigned users for testing
             UserSeeder::class, // This should run last to handle relationships
             TeachingSessionSeeder::class,

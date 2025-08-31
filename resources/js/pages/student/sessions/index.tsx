@@ -277,7 +277,7 @@ export default function SessionsIndex({ sessions, filter, stats }: SessionsIndex
                                     ? "You don't have any upcoming sessions."
                                     : "You don't have any sessions yet."}
                             </p>
-                            <Link href="/find-teachers">
+                            <Link href="/student/browse-teachers">
                                 <Button className="bg-[#2C7870] hover:bg-[#236158]">
                                     Find Teachers
                                 </Button>

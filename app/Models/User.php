@@ -241,6 +241,22 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Get the teacher availabilities associated with the user.
+     */
+    public function teacherAvailabilities(): HasMany
+    {
+        return $this->hasMany(TeacherAvailability::class, 'teacher_id');
+    }
+
+    /**
+     * Get the reviews for this teacher.
+     */
+    public function teacherReviews(): HasMany
+    {
+        return $this->hasMany(TeacherReview::class, 'teacher_id');
+    }
+
+    /**
      * Get the student profile associated with the user.
      */
     public function studentProfile(): HasOne
