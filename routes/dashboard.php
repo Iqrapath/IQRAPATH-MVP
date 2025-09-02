@@ -60,6 +60,25 @@ Route::middleware(['auth', 'verified', 'role:student'])->prefix('student')->name
     Route::get('/browse-teachers', [App\Http\Controllers\Student\TeacherController::class, 'index'])->name('browse-teachers');
     Route::get('/teachers/{teacher}', [App\Http\Controllers\Student\TeacherController::class, 'show'])->name('teachers.show');
     Route::get('/teachers/{teacher}/profile-data', [App\Http\Controllers\Student\TeacherController::class, 'profileData'])->name('teachers.profile-data');
+    
+    // Booking routes
+    Route::get('/book-class', [App\Http\Controllers\Student\BookingController::class, 'create'])->name('book-class');
+    Route::get('/booking/session-details', [App\Http\Controllers\Student\BookingController::class, 'sessionDetailsGet'])->name('booking.session-details.get');
+    Route::post('/booking/session-details', [App\Http\Controllers\Student\BookingController::class, 'sessionDetails'])->name('booking.session-details');
+    Route::get('/booking/pricing-payment', [App\Http\Controllers\Student\BookingController::class, 'pricingPaymentGet'])->name('booking.pricing-payment.get');
+    Route::post('/booking/pricing-payment', [App\Http\Controllers\Student\BookingController::class, 'pricingPayment'])->name('booking.pricing-payment');
+    Route::post('/booking/payment', [App\Http\Controllers\Student\BookingController::class, 'processPayment'])->name('booking.payment');
+    
+    // Wallet API routes (for modals only)
+    Route::post('/wallet/fund', [App\Http\Controllers\Student\WalletController::class, 'processFunding'])->name('wallet.fund.process');
+    Route::get('/wallet/balance', [App\Http\Controllers\Student\WalletController::class, 'getBalance'])->name('wallet.balance');
+    Route::get('/wallet/funding-config', [App\Http\Controllers\Student\WalletController::class, 'getFundingConfig'])->name('wallet.funding-config');
+    
+    // Payment Methods routes
+    Route::get('/payment-methods', [App\Http\Controllers\Student\WalletController::class, 'getPaymentMethods'])->name('payment-methods.index');
+    Route::post('/payment-methods', [App\Http\Controllers\Student\WalletController::class, 'storePaymentMethod'])->name('payment-methods.store');
+    Route::patch('/payment-methods/{paymentMethod}', [App\Http\Controllers\Student\WalletController::class, 'updatePaymentMethod'])->name('payment-methods.update');
+    Route::delete('/payment-methods/{paymentMethod}', [App\Http\Controllers\Student\WalletController::class, 'deletePaymentMethod'])->name('payment-methods.delete');
 });
 
 // Guardian routes

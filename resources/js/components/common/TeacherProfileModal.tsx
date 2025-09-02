@@ -16,6 +16,7 @@ import TeacherTabCalendar from './teacher-tabs/TeacherTabCalendar';
 import TeacherTabPricing from './teacher-tabs/TeacherTabPricing';
 import TeacherTabReviews from './teacher-tabs/TeacherTabReviews';
 import { VerifiedIcon } from '../icons/verified-icon';
+import { router } from '@inertiajs/react';
 
 
 interface TeacherProfileModalProps {
@@ -106,7 +107,7 @@ export default function TeacherProfileModal({ teacher, trigger }: TeacherProfile
             display: none;
         }
     `;
-    
+
     const renderStars = (rating: number) => {
         const full = Math.floor(rating);
         const partial = rating % 1;
@@ -132,9 +133,9 @@ export default function TeacherProfileModal({ teacher, trigger }: TeacherProfile
     };
 
     const currentTeacher = isLoading ? teacher : detailedTeacher;
-    const subjectsLine = normalizeSubjects(currentTeacher.subjects).slice(0, 5).join(', ') || 'Hifz, Tajweed, Hadith, Fiqh, Taoheed';
-    const availability = currentTeacher.availability || 'Mon-Fri, 5-8 PM';
-    const location = currentTeacher.location || 'Quwait';
+    const subjectsLine = normalizeSubjects(currentTeacher.subjects).slice(0, 5).join(', ');
+    const availability = currentTeacher.availability;
+    const location = currentTeacher.location;
     const reviews = currentTeacher.reviews_count ?? 120;
 
     return (
@@ -148,120 +149,122 @@ export default function TeacherProfileModal({ teacher, trigger }: TeacherProfile
                 open={modalOpen}
                 onOpenChange={setModalOpen}
             >
-                <div 
+                <div
                     className="bg-white rounded-3xl p-8 space-y-6 max-h-[80vh] overflow-y-auto scroll-smooth hide-scrollbar"
                     style={{
                         scrollbarWidth: 'none', /* Firefox */
                         msOverflowStyle: 'none', /* IE and Edge */
                     }}
                 >
-                {/* Header */}
-                <div className="flex items-start gap-6">
-                    <div className="flex flex-col items-start">
-                        <Avatar className="w-24 h-24 rounded-2xl p-2 border-2 border-gray-200">
-                            <AvatarImage src={currentTeacher.avatar} alt={currentTeacher.name} className="rounded-2xl p-2" />
-                            <AvatarFallback className="bg-[#2C7870] text-white font-semibold rounded-2xl text-lg p-2">
-                                {currentTeacher.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2)}
-                            </AvatarFallback>
-                        </Avatar>
-                        <div className="flex items-center gap-2 mt-2 text-sm text-gray-700 p-1">
-                            <VerifiedIcon className="w-4 h-4 text-[#2C7870]" />
-                            <span className="text-sm">{currentTeacher.verified ? 'Verified' : 'Not Verified'}</span>
+                    {/* Header */}
+                    <div className="flex items-start gap-6">
+                        <div className="flex flex-col items-start">
+                            <Avatar className="w-24 h-24 rounded-2xl p-2 border-2 border-gray-200">
+                                <AvatarImage src={currentTeacher.avatar} alt={currentTeacher.name} className="rounded-2xl p-2" />
+                                <AvatarFallback className="bg-[#2C7870] text-white font-semibold rounded-2xl text-lg p-2">
+                                    {currentTeacher.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2)}
+                                </AvatarFallback>
+                            </Avatar>
+                            <div className="flex items-center gap-2 mt-2 text-sm text-gray-700 p-1">
+                                <VerifiedIcon className="w-4 h-4 text-[#2C7870]" />
+                                <span className="text-sm">{currentTeacher.is_verified ? 'Verified' : 'Not Verified'}</span>
+                            </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <h1 className="text-2xl font-bold text-gray-900 leading-tight mb-2">{currentTeacher.name}</h1>
+                            <div className="flex items-center gap-2 text-gray-600 mb-3">
+                                <UserLocationIcon className="w-4 h-4" />
+                                <span className="text-sm">{location}</span>
+                            </div>
+                            <div className="flex items-center gap-2 mb-4">
+                                {renderStars(currentTeacher.rating)}
+                                <span className="text-sm text-gray-500">{Number(currentTeacher.rating).toFixed(1)}/5 from {reviews} Students</span>
+                            </div>
+                            <div className="mb-3">
+                                <div className="text-sm text-gray-500 mb-1">Subjects Taught</div>
+                                <div className="text-lg font-medium text-gray-900">{subjectsLine}</div>
+                            </div>
+                            <div>
+                                <div className="text-sm text-gray-500 mb-1">Availability</div>
+                                <div className="text-lg font-medium text-gray-900">{availability}</div>
+                            </div>
                         </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                        <h1 className="text-2xl font-bold text-gray-900 leading-tight mb-2">{currentTeacher.name}</h1>
-                        <div className="flex items-center gap-2 text-gray-600 mb-3">
-                            <UserLocationIcon className="w-4 h-4" />
-                            <span className="text-sm">{location}</span>
-                        </div>
-                        <div className="flex items-center gap-2 mb-4">
-                            {renderStars(currentTeacher.rating)}
-                            <span className="text-sm text-gray-500">{Number(currentTeacher.rating).toFixed(1)}/5 from {reviews} Students</span>
-                        </div>
-                        <div className="mb-3">
-                            <div className="text-sm text-gray-500 mb-1">Subjects Taught</div>
-                            <div className="text-lg font-medium text-gray-900">{subjectsLine}</div>
-                        </div>
-                        <div>
-                            <div className="text-sm text-gray-500 mb-1">Availability</div>
-                            <div className="text-lg font-medium text-gray-900">{availability}</div>
-                        </div>
+
+                    {/* Tabs */}
+                    <Tabs defaultValue="bio" className="w-full">
+                        <TabsList className="grid w-full grid-cols-4 bg-transparent gap-8 h-auto p-0 border-0">
+                            <TabsTrigger
+                                value="bio"
+                                className="relative pb-2 px-0 bg-transparent border-0 shadow-none text-gray-400 data-[state=active]:text-[#2C7870] data-[state=active]:bg-transparent font-medium"
+                            >
+                                Bio & Experience
+                                <span className="absolute bottom-0 left-0 h-[3px] w-full bg-[#2C7870] rounded-full scale-x-0 data-[state=active]:scale-x-100 transition-transform duration-200"></span>
+                            </TabsTrigger>
+                            <TabsTrigger
+                                value="calendar"
+                                className="relative pb-2 px-0 bg-transparent border-0 shadow-none text-gray-400 data-[state=active]:text-[#2C7870] data-[state=active]:bg-transparent font-medium"
+                            >
+                                Availability Calendar
+                                <span className="absolute bottom-0 left-0 h-[3px] w-full bg-[#2C7870] rounded-full scale-x-0 data-[state=active]:scale-x-100 transition-transform duration-200"></span>
+                            </TabsTrigger>
+                            <TabsTrigger
+                                value="pricing"
+                                className="relative pb-2 px-0 bg-transparent border-0 shadow-none text-gray-400 data-[state=active]:text-[#2C7870] data-[state=active]:bg-transparent font-medium"
+                            >
+                                Pricing
+                                <span className="absolute bottom-0 left-0 h-[3px] w-full bg-[#2C7870] rounded-full scale-x-0 data-[state=active]:scale-x-100 transition-transform duration-200"></span>
+                            </TabsTrigger>
+                            <TabsTrigger
+                                value="reviews"
+                                className="relative pb-2 px-0 bg-transparent border-0 shadow-none text-gray-400 data-[state=active]:text-[#2C7870] data-[state=active]:bg-transparent font-medium"
+                            >
+                                Ratings & Reviews
+                                <span className="absolute bottom-0 left-0 h-[3px] w-full bg-[#2C7870] rounded-full scale-x-0 data-[state=active]:scale-x-100 transition-transform duration-200"></span>
+                            </TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="bio" className="mt-6">
+                            <TeacherTabBio teacher={currentTeacher} />
+                        </TabsContent>
+
+                        <TabsContent value="calendar" className="mt-6">
+                            <TeacherTabCalendar
+                                teacherId={currentTeacher.id}
+                                availabilityData={currentTeacher.availability_data}
+                            />
+                        </TabsContent>
+
+                        <TabsContent value="pricing" className="mt-6">
+                            <TeacherTabPricing
+                                usd={currentTeacher.hourly_rate_usd}
+                                ngn={currentTeacher.hourly_rate_ngn}
+                                teacher={currentTeacher}
+                            />
+                        </TabsContent>
+
+                        <TabsContent value="reviews" className="mt-6">
+                            <TeacherTabReviews
+                                teacherId={currentTeacher.id}
+                                teacher={currentTeacher}
+                            />
+                        </TabsContent>
+                    </Tabs>
+
+                    <div className="flex items-center gap-3 pt-4 mb-4">
+                        <Button
+                            onClick={() => router.visit(`/student/book-class?teacherId=${currentTeacher.id}`)}
+                            className="bg-[#2C7870] hover:bg-[#236158] text-white px-6 py-2 rounded-full font-medium">
+                            Book Now
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            className="text-[#2C7870] hover:text-[#236158] hover:bg-transparent px-6 py-2 rounded-full font-medium border-b-3 border-[#2C7870] flex items-center gap-2"
+                        >
+                            <MessageCircleStudentIcon className="w-4 h-4" />
+                            Send Message
+                        </Button>
                     </div>
-                </div>
-
-                {/* Tabs */}
-                <Tabs defaultValue="bio" className="w-full">
-                    <TabsList className="grid w-full grid-cols-4 bg-transparent gap-8 h-auto p-0 border-0">
-                        <TabsTrigger
-                            value="bio"
-                            className="relative pb-2 px-0 bg-transparent border-0 shadow-none text-gray-400 data-[state=active]:text-[#2C7870] data-[state=active]:bg-transparent font-medium"
-                        >
-                            Bio & Experience
-                            <span className="absolute bottom-0 left-0 h-[3px] w-full bg-[#2C7870] rounded-full scale-x-0 data-[state=active]:scale-x-100 transition-transform duration-200"></span>
-                        </TabsTrigger>
-                        <TabsTrigger
-                            value="calendar"
-                            className="relative pb-2 px-0 bg-transparent border-0 shadow-none text-gray-400 data-[state=active]:text-[#2C7870] data-[state=active]:bg-transparent font-medium"
-                        >
-                            Availability Calendar
-                            <span className="absolute bottom-0 left-0 h-[3px] w-full bg-[#2C7870] rounded-full scale-x-0 data-[state=active]:scale-x-100 transition-transform duration-200"></span>
-                        </TabsTrigger>
-                        <TabsTrigger
-                            value="pricing"
-                            className="relative pb-2 px-0 bg-transparent border-0 shadow-none text-gray-400 data-[state=active]:text-[#2C7870] data-[state=active]:bg-transparent font-medium"
-                        >
-                            Pricing
-                            <span className="absolute bottom-0 left-0 h-[3px] w-full bg-[#2C7870] rounded-full scale-x-0 data-[state=active]:scale-x-100 transition-transform duration-200"></span>
-                        </TabsTrigger>
-                        <TabsTrigger
-                            value="reviews"
-                            className="relative pb-2 px-0 bg-transparent border-0 shadow-none text-gray-400 data-[state=active]:text-[#2C7870] data-[state=active]:bg-transparent font-medium"
-                        >
-                            Ratings & Reviews
-                            <span className="absolute bottom-0 left-0 h-[3px] w-full bg-[#2C7870] rounded-full scale-x-0 data-[state=active]:scale-x-100 transition-transform duration-200"></span>
-                        </TabsTrigger>
-                    </TabsList>
-                    
-                                        <TabsContent value="bio" className="mt-6">
-                        <TeacherTabBio teacher={currentTeacher} />
-                    </TabsContent>
-
-                    <TabsContent value="calendar" className="mt-6">
-                        <TeacherTabCalendar 
-                            teacherId={currentTeacher.id} 
-                            availabilityData={currentTeacher.availability_data}
-                        />
-                    </TabsContent>
-
-                    <TabsContent value="pricing" className="mt-6">
-                        <TeacherTabPricing 
-                            usd={currentTeacher.hourly_rate_usd}
-                            ngn={currentTeacher.hourly_rate_ngn}
-                            teacher={currentTeacher}
-                        />
-                    </TabsContent>
-
-                    <TabsContent value="reviews" className="mt-6">
-                        <TeacherTabReviews 
-                            teacherId={currentTeacher.id} 
-                            teacher={currentTeacher}
-                        />
-                    </TabsContent>
-                </Tabs>
-
-                <div className="flex items-center gap-3 pt-4 mb-4">
-                    <Button className="bg-[#2C7870] hover:bg-[#236158] text-white px-6 py-2 rounded-full font-medium">
-                        Book Now
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        className="text-[#2C7870] hover:text-[#236158] hover:bg-transparent px-6 py-2 rounded-full font-medium border border-[#2C7870] flex items-center gap-2"
-                    >
-                        <MessageCircleStudentIcon className="w-4 h-4" />
-                        Send Message
-                    </Button>
-                </div>
                 </div>
             </AppModal>
         </>

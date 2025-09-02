@@ -17,8 +17,7 @@ return new class extends Migration
             $table->decimal('balance', 10, 2)->default(0);
             $table->decimal('total_spent_on_children', 10, 2)->default(0);
             $table->decimal('total_refunded', 10, 2)->default(0);
-            $table->json('payment_methods')->nullable();
-            $table->string('default_payment_method')->nullable();
+            $table->foreignId('default_payment_method_id')->nullable()->constrained('payment_methods')->onDelete('set null');
             $table->boolean('auto_fund_children')->default(false);
             $table->decimal('auto_fund_threshold', 10, 2)->nullable();
             $table->json('family_spending_limits')->nullable();

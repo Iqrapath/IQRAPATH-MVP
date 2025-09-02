@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use App\Models\PaymentMethod;
 use Exception;
 
 class GuardianWallet extends Model
@@ -24,8 +25,7 @@ class GuardianWallet extends Model
         'balance',
         'total_spent_on_children',
         'total_refunded',
-        'payment_methods',
-        'default_payment_method',
+        'default_payment_method_id',
         'auto_fund_children',
         'auto_fund_threshold',
         'family_spending_limits',
@@ -42,7 +42,6 @@ class GuardianWallet extends Model
         'total_spent_on_children' => 'decimal:2',
         'total_refunded' => 'decimal:2',
         'auto_fund_threshold' => 'decimal:2',
-        'payment_methods' => 'array',
         'family_spending_limits' => 'array',
         'child_allowances' => 'array',
         'auto_fund_children' => 'boolean',
@@ -54,6 +53,14 @@ class GuardianWallet extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Get the default payment method for this wallet.
+     */
+    public function defaultPaymentMethod(): BelongsTo
+    {
+        return $this->belongsTo(PaymentMethod::class, 'default_payment_method_id');
     }
 
     /**

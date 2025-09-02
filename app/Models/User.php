@@ -13,6 +13,7 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Carbon\Carbon;
 use App\Models\Subscription;
+use App\Models\PaymentMethod;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -508,6 +509,30 @@ class User extends Authenticatable implements MustVerifyEmail
     public function guardianWallet(): HasOne
     {
         return $this->hasOne(GuardianWallet::class);
+    }
+
+    /**
+     * Get the user's payment methods.
+     */
+    public function paymentMethods(): HasMany
+    {
+        return $this->hasMany(PaymentMethod::class);
+    }
+
+    /**
+     * Get the user's active payment methods.
+     */
+    public function activePaymentMethods(): HasMany
+    {
+        return $this->hasMany(PaymentMethod::class)->active();
+    }
+
+    /**
+     * Get the user's default payment method.
+     */
+    public function defaultPaymentMethod(): HasOne
+    {
+        return $this->hasOne(PaymentMethod::class)->where('is_default', true)->where('is_active', true);
     }
 
     /**

@@ -17,8 +17,7 @@ return new class extends Migration
             $table->decimal('balance', 10, 2)->default(0);
             $table->decimal('total_spent', 10, 2)->default(0);
             $table->decimal('total_refunded', 10, 2)->default(0);
-            $table->json('payment_methods')->nullable();
-            $table->string('default_payment_method')->nullable();
+            $table->foreignId('default_payment_method_id')->nullable()->constrained('payment_methods')->onDelete('set null');
             $table->boolean('auto_renew_enabled')->default(false);
             $table->timestamps();
         });

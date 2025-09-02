@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use App\Models\PaymentMethod;
 use Exception;
 
 class TeacherWallet extends Model
@@ -26,8 +27,7 @@ class TeacherWallet extends Model
         'total_earned',
         'total_withdrawn',
         'pending_payouts',
-        'payment_methods',
-        'default_payment_method',
+        'default_payment_method_id',
         'auto_withdrawal_enabled',
         'auto_withdrawal_threshold',
         'withdrawal_settings',
@@ -45,7 +45,6 @@ class TeacherWallet extends Model
         'total_withdrawn' => 'decimal:2',
         'pending_payouts' => 'decimal:2',
         'auto_withdrawal_threshold' => 'decimal:2',
-        'payment_methods' => 'array',
         'withdrawal_settings' => 'array',
         'auto_withdrawal_enabled' => 'boolean',
         'last_sync_at' => 'datetime',
@@ -78,6 +77,14 @@ class TeacherWallet extends Model
     public function teacher(): BelongsTo
     {
         return $this->user();
+    }
+
+    /**
+     * Get the default payment method for this wallet.
+     */
+    public function defaultPaymentMethod(): BelongsTo
+    {
+        return $this->belongsTo(PaymentMethod::class, 'default_payment_method_id');
     }
 
     /**

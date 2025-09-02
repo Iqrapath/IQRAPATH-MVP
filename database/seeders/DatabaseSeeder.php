@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             SubjectTemplatesSeeder::class, // Must run before TeacherSeeder
             TeacherSeeder::class,
             StudentSeeder::class, // Must run before TeacherReviewSeeder
+            // StudentWalletSeeder::class,
             GuardianSeeder::class,
             TeacherAvailabilitySeeder::class,
             TeacherWalletSeeder::class,

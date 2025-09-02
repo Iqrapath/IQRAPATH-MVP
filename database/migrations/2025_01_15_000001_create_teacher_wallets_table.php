@@ -18,8 +18,7 @@ return new class extends Migration
             $table->decimal('total_earned', 10, 2)->default(0);
             $table->decimal('total_withdrawn', 10, 2)->default(0);
             $table->decimal('pending_payouts', 10, 2)->default(0);
-            $table->json('payment_methods')->nullable();
-            $table->string('default_payment_method')->nullable();
+            $table->foreignId('default_payment_method_id')->nullable()->constrained('payment_methods')->onDelete('set null');
             $table->boolean('auto_withdrawal_enabled')->default(false);
             $table->decimal('auto_withdrawal_threshold', 10, 2)->nullable();
             $table->json('withdrawal_settings')->nullable();

@@ -20,6 +20,12 @@ This file contains all Figma links and specifications for the IQRAPATH project.
 - **Contains**: Complete page layouts for admin user roles
 - **Last Updated**: 2025-01-30
 
+### Student Book Class Page
+- **File**: [IQRAPATH Book Class](https://www.figma.com/design/jmWnnfdCipxqiQF39Tdb0S/IQRAPATH?node-id=397-27039&t=O1w7ozri9pYud8IO-0)
+- **Contains**: Teacher profile display, calendar selection, time slot booking interface
+- **Last Updated**: 2025-01-30
+- **Components**: Teacher profile card, calendar with month navigation, time slot buttons (Morning/Afternoon/Evening), action buttons
+
 ## 📋 Usage Instructions
 
 ### For Developers:
