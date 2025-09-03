@@ -18,6 +18,7 @@ class Transaction extends Model
     protected $fillable = [
         'transaction_uuid',
         'teacher_id',
+        'user_id',
         'session_id',
         'transaction_type',
         'description',
@@ -25,6 +26,9 @@ class Transaction extends Model
         'status',
         'transaction_date',
         'created_by_id',
+        'gateway',
+        'gateway_reference',
+        'metadata',
     ];
 
     /**
@@ -35,6 +39,7 @@ class Transaction extends Model
     protected $casts = [
         'amount' => 'decimal:2',
         'transaction_date' => 'date',
+        'metadata' => 'array',
     ];
 
     /**
@@ -57,25 +62,28 @@ class Transaction extends Model
         });
 
         static::created(function ($transaction) {
-            // Update teacher earnings when a transaction is created
-            $teacherEarning = TeacherEarning::firstOrCreate(
-                ['teacher_id' => $transaction->teacher_id],
-                [
-                    'wallet_balance' => 0,
-                    'total_earned' => 0,
-                    'total_withdrawn' => 0,
-                    'pending_payouts' => 0,
-                ]
-            );
+            // Update teacher earnings when a transaction is created (only for teacher transactions)
+            if ($transaction->teacher_id && $transaction->transaction_type !== 'wallet_funding') {
+                $teacherEarning = TeacherEarning::firstOrCreate(
+                    ['teacher_id' => $transaction->teacher_id],
+                    [
+                        'wallet_balance' => 0,
+                        'total_earned' => 0,
+                        'total_withdrawn' => 0,
+                        'pending_payouts' => 0,
+                    ]
+                );
 
-            if ($transaction->status === 'completed') {
-                $teacherEarning->updateBalance($transaction);
+                if ($transaction->status === 'completed') {
+                    $teacherEarning->updateBalance($transaction);
+                }
             }
         });
 
         static::updated(function ($transaction) {
-            // If transaction status changed to completed, update teacher earnings
-            if ($transaction->isDirty('status') && $transaction->status === 'completed') {
+            // If transaction status changed to completed, update teacher earnings (only for teacher transactions)
+            if ($transaction->isDirty('status') && $transaction->status === 'completed' && 
+                $transaction->teacher_id && $transaction->transaction_type !== 'wallet_funding') {
                 $teacherEarning = TeacherEarning::where('teacher_id', $transaction->teacher_id)->first();
                 if ($teacherEarning) {
                     $teacherEarning->updateBalance($transaction);

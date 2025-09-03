@@ -155,6 +155,62 @@ export interface UpcomingSession {
     session_uuid: string;
 }
 
+export interface BookingData {
+    id: number;
+    booking_uuid: string;
+    title: string;
+    teacher: string;
+    teacher_avatar: string;
+    subject: string;
+    date: string;
+    time: string;
+    status: 'Pending' | 'Approved' | 'Confirmed' | 'Completed' | 'Cancelled';
+    imageUrl: string;
+    meetingUrl?: string;
+    session_uuid?: string;
+    can_join: boolean;
+    can_reschedule: boolean;
+    can_cancel: boolean;
+}
+
+export interface BookingsPageProps {
+    bookings: {
+        upcoming: BookingData[];
+        ongoing: BookingData[];
+        completed: BookingData[];
+    };
+    stats: {
+        total: number;
+        upcoming: number;
+        ongoing: number;
+        completed: number;
+    };
+}
+
+export interface ClassDetailsBookingData extends BookingData {
+    duration: number;
+    notes?: string;
+}
+
+export interface TeacherDetailsData {
+    id: number;
+    name: string;
+    avatar: string;
+    specialization: string;
+    location: string;
+    rating: number;
+    availability: string;
+    bio: string;
+    experience_years: number;
+    subjects: string[];
+    reviews_count: number;
+}
+
+export interface ClassDetailsPageProps {
+    booking: ClassDetailsBookingData;
+    teacher: TeacherDetailsData;
+}
+
 export interface RecommendedTeacher {
     id: number;
     name: string;

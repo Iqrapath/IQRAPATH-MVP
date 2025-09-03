@@ -62,6 +62,8 @@ Route::middleware(['auth', 'verified', 'role:student'])->prefix('student')->name
     Route::get('/teachers/{teacher}/profile-data', [App\Http\Controllers\Student\TeacherController::class, 'profileData'])->name('teachers.profile-data');
     
     // Booking routes
+    Route::get('/my-bookings', [App\Http\Controllers\Student\BookingController::class, 'index'])->name('my-bookings');
+    Route::get('/my-bookings/{booking}', [App\Http\Controllers\Student\BookingController::class, 'show'])->name('my-bookings.show');
     Route::get('/book-class', [App\Http\Controllers\Student\BookingController::class, 'create'])->name('book-class');
     Route::get('/booking/session-details', [App\Http\Controllers\Student\BookingController::class, 'sessionDetailsGet'])->name('booking.session-details.get');
     Route::post('/booking/session-details', [App\Http\Controllers\Student\BookingController::class, 'sessionDetails'])->name('booking.session-details');
@@ -79,6 +81,12 @@ Route::middleware(['auth', 'verified', 'role:student'])->prefix('student')->name
     Route::post('/payment-methods', [App\Http\Controllers\Student\WalletController::class, 'storePaymentMethod'])->name('payment-methods.store');
     Route::patch('/payment-methods/{paymentMethod}', [App\Http\Controllers\Student\WalletController::class, 'updatePaymentMethod'])->name('payment-methods.update');
     Route::delete('/payment-methods/{paymentMethod}', [App\Http\Controllers\Student\WalletController::class, 'deletePaymentMethod'])->name('payment-methods.delete');
+    
+    // Payment routes
+    Route::post('/payment/fund-wallet', [App\Http\Controllers\Student\PaymentController::class, 'fundWallet'])->name('payment.fund-wallet');
+    Route::get('/payment/publishable-key', [App\Http\Controllers\Student\PaymentController::class, 'getPublishableKey'])->name('payment.publishable-key');
+    Route::get('/payment/paystack-public-key', [App\Http\Controllers\Student\PaymentController::class, 'getPaystackPublicKey'])->name('payment.paystack-public-key');
+    Route::post('/payment/verify-paystack', [App\Http\Controllers\Student\PaymentController::class, 'verifyPaystackPayment'])->name('payment.verify-paystack');
 });
 
 // Guardian routes

@@ -14,20 +14,25 @@ return new class extends Migration
         Schema::create('transactions', function (Blueprint $table) {
             $table->id();
             $table->string('transaction_uuid')->unique();
-            $table->foreignId('teacher_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('teacher_id')->nullable()->constrained('users')->onDelete('cascade');
+            $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('cascade');
             $table->foreignId('session_id')->nullable()->constrained('teaching_sessions')->nullOnDelete();
             $table->enum('transaction_type', [
                 'session_payment', 
                 'referral_bonus', 
                 'withdrawal',
                 'system_adjustment',
-                'refund'
+                'refund',
+                'wallet_funding'
             ]);
             $table->string('description');
             $table->decimal('amount', 10, 2);
             $table->enum('status', ['completed', 'in_progress', 'canceled', 'failed'])->default('in_progress');
             $table->date('transaction_date');
             $table->foreignId('created_by_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->string('gateway')->nullable();
+            $table->string('gateway_reference')->nullable();
+            $table->json('metadata')->nullable();
             $table->timestamps();
         });
     }

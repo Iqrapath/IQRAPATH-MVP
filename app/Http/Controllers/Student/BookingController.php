@@ -18,10 +18,185 @@ use Illuminate\Support\Facades\DB;
 class BookingController extends Controller
 {
     /**
+     * Display student's bookings
+     */
+    public function index(Request $request)
+    {
+        $student = auth()->user();
+        
+        // Get bookings with related data
+        $bookings = Booking::where('student_id', $student->id)
+            ->with([
+                'teacher.teacherProfile',
+                'subject.template', 
+                'teachingSession',
+                'history' => function($query) {
+                    $query->latest()->take(1);
+                }
+            ])
+            ->orderBy('booking_date', 'desc')
+            ->orderBy('start_time', 'desc')
+            ->get()
+            ->map(function ($booking) {
+                $teacher = $booking->teacher;
+                $subject = $booking->subject;
+                $session = $booking->teachingSession;
+                
+                $subjectTemplate = $subject?->template;
+                $teacherProfile = $teacher?->teacherProfile;
+                
+                return [
+                    'id' => $booking->id,
+                    'booking_uuid' => $booking->booking_uuid,
+                    'title' => $subjectTemplate?->name ?? $subject?->name ?? 'Unknown Subject',
+                    'teacher' => $teacher?->name ?? 'Unknown Teacher',
+                    'teacher_avatar' => null, // Use initials instead of images
+                    'subject' => $subjectTemplate?->name ?? $subject?->name ?? 'Unknown Subject',
+                    'date' => $booking->booking_date->format('d M Y'),
+                    'time' => $booking->start_time->format('H:i') . ' - ' . $booking->end_time->format('H:i'),
+                    'status' => ucfirst($booking->status),
+                    'imageUrl' => null, // Use initials instead of images
+                    'meetingUrl' => $session?->zoom_join_url,
+                    'session_uuid' => $session?->session_uuid,
+                    'can_join' => $session && in_array($booking->status, ['approved', 'confirmed']) && 
+                                  $booking->booking_date->isToday() && 
+                                  $booking->start_time->subMinutes(15)->isPast(),
+                    'can_reschedule' => in_array($booking->status, ['pending', 'approved']) && 
+                                        $booking->booking_date->isFuture(),
+                    'can_cancel' => in_array($booking->status, ['pending', 'approved']) && 
+                                    $booking->booking_date->isFuture(),
+                    'booking_date_raw' => $booking->booking_date,
+                    'start_time_raw' => $booking->start_time,
+                ];
+            });
+
+        // Categorize bookings
+        $now = now();
+        $today = today();
+        
+        $upcomingBookings = $bookings->filter(function ($booking) use ($today) {
+            return $booking['booking_date_raw'] >= $today && 
+                   in_array($booking['status'], ['Pending', 'Approved', 'Confirmed']);
+        })->values();
+        
+        $ongoingBookings = $bookings->filter(function ($booking) use ($today, $now) {
+            return $booking['booking_date_raw']->isToday() && 
+                   $booking['start_time_raw'] <= $now && 
+                   $booking['status'] === 'Confirmed';
+        })->values();
+        
+        $completedBookings = $bookings->filter(function ($booking) use ($today) {
+            return $booking['status'] === 'Completed' || 
+                   ($booking['booking_date_raw'] < $today && 
+                    in_array($booking['status'], ['Approved', 'Confirmed']));
+        })->values();
+
+        return Inertia::render('student/my-bookings', [
+            'bookings' => [
+                'upcoming' => $upcomingBookings,
+                'ongoing' => $ongoingBookings,
+                'completed' => $completedBookings,
+            ],
+            'stats' => [
+                'total' => $bookings->count(),
+                'upcoming' => $upcomingBookings->count(),
+                'ongoing' => $ongoingBookings->count(),
+                'completed' => $completedBookings->count(),
+            ]
+        ]);
+    }
+
+    /**
+     * Show individual booking details
+     */
+    public function show(Request $request, $id)
+    {
+        $student = auth()->user();
+        
+        $booking = Booking::where('student_id', $student->id)
+            ->where('id', $id)
+            ->with([
+                'teacher.teacherProfile.subjects.template',
+                'teacher.teacherReviews',
+                'subject.template',
+                'teachingSession',
+                'history' => function($query) {
+                    $query->latest()->take(5);
+                }
+            ])
+            ->firstOrFail();
+
+        $teacher = $booking->teacher;
+        $subject = $booking->subject;
+        $session = $booking->teachingSession;
+        $subjectTemplate = $subject?->template;
+        $teacherProfile = $teacher?->teacherProfile;
+
+        // Format booking data
+        $bookingData = [
+            'id' => $booking->id,
+            'booking_uuid' => $booking->booking_uuid,
+            'title' => $subjectTemplate?->name ?? $subject?->name ?? 'Unknown Subject',
+            'teacher' => $teacher?->name ?? 'Unknown Teacher',
+            'teacher_avatar' => $teacherProfile?->profile_image_url ?? '/images/default-avatar.png',
+            'subject' => $subjectTemplate?->name ?? $subject?->name ?? 'Unknown Subject',
+            'date' => $booking->booking_date->format('d M Y'),
+            'time' => $booking->start_time->format('H:i') . ' - ' . $booking->end_time->format('H:i'),
+            'status' => ucfirst($booking->status),
+            'imageUrl' => $subjectTemplate?->image_url ?? '/images/subjects/default.png',
+            'meetingUrl' => $session?->zoom_join_url,
+            'session_uuid' => $session?->session_uuid,
+            'duration' => $booking->duration_minutes ?? 60,
+            'notes' => $booking->notes,
+            'can_join' => $session && in_array($booking->status, ['approved', 'confirmed']) && 
+                          $booking->booking_date->isToday() && 
+                          $booking->start_time->subMinutes(15)->isPast(),
+            'can_reschedule' => in_array($booking->status, ['pending', 'approved']) && 
+                                $booking->booking_date->isFuture(),
+            'can_cancel' => in_array($booking->status, ['pending', 'approved']) && 
+                            $booking->booking_date->isFuture(),
+            'booking_date_raw' => $booking->booking_date,
+            'start_time_raw' => $booking->start_time,
+        ];
+
+        // Get teacher subjects
+        $teacherSubjects = $teacherProfile?->subjects ?? collect([]);
+        $subjectNames = $teacherSubjects->map(function($subject) {
+            return $subject->template?->name ?? $subject->name ?? 'Unknown Subject';
+        })->toArray();
+
+        // Get reviews count
+        $reviewsCount = $teacher->teacherReviews?->count() ?? 0;
+
+        // Format teacher data
+        $teacherData = [
+            'id' => $teacher->id,
+            'name' => $teacher->name,
+            'avatar' => null, // Use initials instead of images
+            'specialization' => $teacherProfile?->qualification ?? 'Islamic Studies',
+            'location' => $teacherProfile?->education ?? 'Not specified',
+            'rating' => $teacherProfile?->rating ?? 4.5,
+            'availability' => $teacherProfile?->teaching_mode ?? 'Available on request',
+            'bio' => $teacherProfile?->bio ?? '',
+            'experience_years' => $teacherProfile?->experience_years ?? 0,
+            'subjects' => $subjectNames,
+            'reviews_count' => $reviewsCount,
+        ];
+
+        return Inertia::render('student/class-details', [
+            'booking' => $bookingData,
+            'teacher' => $teacherData,
+        ]);
+    }
+
+    /**
      * Show the book class page
      */
     public function create(Request $request)
     {
+        // Clear any existing booking session when starting fresh
+        $request->session()->forget('booking_session');
+        
         $teacherId = $request->query('teacherId');
         $teacher = null;
 
@@ -115,14 +290,14 @@ class BookingController extends Controller
                         'location' => $recommendedProfile->location,
                         'rating' => $recommendedProfile->rating ? (float)$recommendedProfile->rating : null,
                         'price' => $recommendedProfile->hourly_rate_usd ? '$' . (int)$recommendedProfile->hourly_rate_usd : 'Price not set',
-                        'avatarUrl' => $recommendedTeacher->avatar ?? "/assets/avatars/teacher-{$recommendedTeacher->id}.png",
+                        'avatarUrl' => null, // Use initials instead of images
                     ];
                 })->toArray();
 
             $formattedTeacher = [
                 'id' => $teacher->id,
                 'name' => $teacher->name,
-                'avatar' => $teacher->avatar,
+                'avatar' => null, // Use initials instead of images
                 'rating' => $profile->rating ? (float)$profile->rating : null,
                 'reviews_count' => (int)($profile->reviews_count ?? 0),
                 'subjects' => $subjects,
@@ -149,6 +324,13 @@ class BookingController extends Controller
      */
     public function sessionDetails(Request $request)
     {
+        // Store booking session data in session for page refresh support
+        $request->session()->put('booking_session', [
+            'teacher_id' => $request->input('teacher_id'),
+            'date' => $request->input('date'),
+            'availability_ids' => $request->input('availability_ids', []),
+        ]);
+        
         return $this->renderSessionDetails($request);
     }
 
@@ -157,14 +339,27 @@ class BookingController extends Controller
      */
     public function sessionDetailsGet(Request $request)
     {
-        // For GET requests, check if we have the required parameters
-        if (!$request->has(['teacher_id', 'date', 'availability_ids'])) {
+        // For GET requests, try to get data from session first, then from request
+        $sessionData = $request->session()->get('booking_session', []);
+        
+        $teacherId = $request->input('teacher_id') ?? $sessionData['teacher_id'] ?? null;
+        $date = $request->input('date') ?? $sessionData['date'] ?? null;
+        $availabilityIds = $request->input('availability_ids') ?? $sessionData['availability_ids'] ?? [];
+        
+        if (!$teacherId || !$date || empty($availabilityIds)) {
             // Redirect back to book class if missing required data
             return redirect()->route('student.book-class')
                 ->with('error', 'Please start the booking process from the beginning.');
         }
 
-        return $this->renderSessionDetails($request);
+        // Create a new request with the data
+        $newRequest = new Request([
+            'teacher_id' => $teacherId,
+            'date' => $date,
+            'availability_ids' => $availabilityIds,
+        ]);
+
+        return $this->renderSessionDetails($newRequest);
     }
 
     /**
@@ -223,7 +418,7 @@ class BookingController extends Controller
                         'location' => $recommendedProfile->location,
                         'rating' => $recommendedProfile->rating ? (float)$recommendedProfile->rating : null,
                         'price' => $recommendedProfile->hourly_rate_usd ? '$' . (int)$recommendedProfile->hourly_rate_usd : 'Price not set',
-                        'avatarUrl' => $recommendedTeacher->avatar ?? "/assets/avatars/teacher-{$recommendedTeacher->id}.png",
+                        'avatarUrl' => null, // Use initials instead of images
                     ];
                 })->toArray();
 
@@ -248,6 +443,15 @@ class BookingController extends Controller
      */
     public function pricingPayment(Request $request)
     {
+        // Store booking session data in session for page refresh support
+        $request->session()->put('booking_session', [
+            'teacher_id' => $request->input('teacher_id'),
+            'date' => $request->input('date'),
+            'availability_ids' => $request->input('availability_ids', []),
+            'subjects' => $request->input('subjects', []),
+            'note_to_teacher' => $request->input('note_to_teacher', ''),
+        ]);
+        
         return $this->renderPricingPayment($request);
     }
 
@@ -256,13 +460,30 @@ class BookingController extends Controller
      */
     public function pricingPaymentGet(Request $request)
     {
-        // For GET requests, check if we have the required parameters
-        if (!$request->has(['teacher_id', 'date', 'availability_ids', 'subjects'])) {
+        // For GET requests, try to get data from session first, then from request
+        $sessionData = $request->session()->get('booking_session', []);
+        
+        $teacherId = $request->input('teacher_id') ?? $sessionData['teacher_id'] ?? null;
+        $date = $request->input('date') ?? $sessionData['date'] ?? null;
+        $availabilityIds = $request->input('availability_ids') ?? $sessionData['availability_ids'] ?? [];
+        $subjects = $request->input('subjects') ?? $sessionData['subjects'] ?? [];
+        $noteToTeacher = $request->input('note_to_teacher') ?? $sessionData['note_to_teacher'] ?? '';
+        
+        if (!$teacherId || !$date || empty($availabilityIds) || empty($subjects)) {
             return redirect()->route('student.book-class')
                 ->with('error', 'Please start the booking process from the beginning.');
         }
 
-        return $this->renderPricingPayment($request);
+        // Create a new request with the data
+        $newRequest = new Request([
+            'teacher_id' => $teacherId,
+            'date' => $date,
+            'availability_ids' => $availabilityIds,
+            'subjects' => $subjects,
+            'note_to_teacher' => $noteToTeacher,
+        ]);
+
+        return $this->renderPricingPayment($newRequest);
     }
 
     /**
@@ -318,6 +539,12 @@ class BookingController extends Controller
             'teacher' => $formattedTeacher,
             'wallet_balance_usd' => $walletBalanceUSD,
             'wallet_balance_ngn' => $walletBalanceNGN,
+            'user' => [
+                'id' => auth()->user()->id,
+                'name' => auth()->user()->name,
+                'email' => auth()->user()->email,
+                'country' => auth()->user()->country ?? 'NG', // Default to Nigeria if not set
+            ],
         ]);
     }
 
@@ -469,6 +696,9 @@ class BookingController extends Controller
             ]);
             
             DB::commit();
+            
+            // Clear booking session data after successful booking
+            $request->session()->forget('booking_session');
             
             return response()->json([
                 'success' => true,

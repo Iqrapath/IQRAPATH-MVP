@@ -36,17 +36,17 @@ export default function BookingSuccessModal({
 
     return (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl text-center">
+            <div className="bg-white rounded-3xl p-16 max-w-xl w-full shadow-2xl text-center">
                 {/* Congratulations Header */}
-                <div className="mb-6">
-                    <div className="text-4xl mb-4">🎉</div>
+                <div className="mb-10">
+                    <div className="text-4xl mb-8">🎉</div>
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">
                         Congratulations, Booking Successful!
                     </h2>
                 </div>
 
                 {/* Success Message */}
-                <div className="mb-8">
+                <div className="mb-10">
                     <p className="text-gray-600 text-base leading-relaxed">
                         Your session with <span className="font-semibold text-teal-600">{teacher.name}</span> is scheduled for{' '}
                         <span className="font-semibold text-gray-900">{sessionDate}, {sessionTime}</span>.

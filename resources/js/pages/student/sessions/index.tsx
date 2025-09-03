@@ -22,6 +22,9 @@ import {
     BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import { useState } from 'react';
+import CompletedClassCard from './components/CompletedClassCard';
+import OngoingClassCard from './components/OngoingClassCard';
+import UpcomingClassCard from './components/UpcomingClassCard';
 
 interface SessionListItem {
     id: number;
@@ -172,98 +175,59 @@ export default function SessionsIndex({ sessions, filter, stats }: SessionsIndex
                 {/* Sessions List */}
                 <div className="space-y-4">
                     {sessions.data && sessions.data.length > 0 ? (
-                        sessions.data.map((session) => (
-                            <div key={session.id} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                                <div className="flex items-center justify-between">
-                                    {/* Left Section - Subject Icon and Info */}
-                                    <div className="flex items-center space-x-4">
-                                        <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center overflow-hidden">
-                                            <img 
-                                                src={session.imageUrl || getSubjectIcon(session.subject)} 
-                                                alt={session.title}
-                                                className="w-12 h-12 object-cover"
-                                            />
+                        (() => {
+                            // Separate sessions by status
+                            const completedSessions = sessions.data.filter(s => s.status?.toLowerCase() === 'completed');
+                            const ongoingSessions = sessions.data.filter(s => s.status?.toLowerCase() === 'ongoing' || s.status?.toLowerCase() === 'in_progress');
+                            const upcomingSessions = sessions.data.filter(s => s.status?.toLowerCase() === 'upcoming' || s.status?.toLowerCase() === 'scheduled' || s.status?.toLowerCase() === 'pending');
+                            
+                            return (
+                                <>
+                                    {/* Completed Classes - Individual Cards */}
+                                    {completedSessions.map((session) => (
+                                        <CompletedClassCard
+                                            key={session.id}
+                                            session={session}
+                                            getSubjectIcon={getSubjectIcon}
+                                            getProgressColor={getProgressColor}
+                                            renderStars={renderStars}
+                                        />
+                                    ))}
+                                    
+                                    {/* Ongoing Classes - Individual Cards */}
+                                    {ongoingSessions.map((session) => (
+                                        <OngoingClassCard
+                                            key={session.id}
+                                            session={session}
+                                            getSubjectIcon={getSubjectIcon}
+                                            getProgressColor={getProgressColor}
+                                            renderStars={renderStars}
+                                        />
+                                    ))}
+                                    
+                                    {/* Upcoming Classes - Single Card with Multiple Entries */}
+                                    {upcomingSessions.length > 0 && (
+                                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <h2 className="text-lg font-bold text-gray-900">Upcoming Class</h2>
+                                                <Link href="/student/sessions?filter=upcoming" className="text-[#2C7870] hover:underline text-sm">
+                                                    View All Class
+                                                </Link>
+                                            </div>
+                                            {upcomingSessions.map((session) => (
+                                                <UpcomingClassCard
+                                                    key={session.id}
+                                                    session={session}
+                                                    getSubjectIcon={getSubjectIcon}
+                                                    getProgressColor={getProgressColor}
+                                                    renderStars={renderStars}
+                                                />
+                                            ))}
                                         </div>
-                                        <div className="flex-1">
-                                            <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                                                {session.title}
-                                            </h3>
-                                            <div className="flex items-center space-x-2 text-sm text-gray-600 mb-2">
-                                                <span className="w-2 h-2 bg-[#2C7870] rounded-full"></span>
-                                                <span>{session.teacher}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Center Section - Session Details */}
-                                    <div className="flex-1 px-6">
-                                        <div className="space-y-2">
-                                            <div className="flex items-center space-x-2 text-sm">
-                                                <span className="text-red-500">📅</span>
-                                                <span className="font-medium">{session.date}</span>
-                                            </div>
-                                            <div className="flex items-center space-x-2 text-sm">
-                                                <span className="text-red-500">🕐</span>
-                                                <span className="font-medium">{session.time}</span>
-                                            </div>
-                                            <div className="text-sm text-gray-600">
-                                                Progress
-                                            </div>
-                                            
-                                            {/* Progress Bar */}
-                                            <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-                                                <div 
-                                                    className="h-2 rounded-full transition-all duration-300"
-                                                    style={{ 
-                                                        width: `${session.progress || 0}%`,
-                                                        backgroundColor: getProgressColor(session.progress || 0)
-                                                    }}
-                                                ></div>
-                                            </div>
-
-                                            {/* Star Rating */}
-                                            <div className="flex items-center space-x-1">
-                                                {renderStars(session.rating || 0)}
-                                                <span className="text-sm text-gray-600 ml-2">
-                                                    {session.rating || 0}/5
-                                                </span>
-                                            </div>
-
-                                            <div className="text-xs text-gray-500">
-                                                Your Review - Great lesson, very knowledgeable teacher!
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Right Section - Action Buttons */}
-                                    <div className="flex items-center space-x-3">
-                                        {session.status === 'completed' ? (
-                                            <button className="flex items-center space-x-2 px-4 py-2 text-[#2C7870] border border-[#2C7870] rounded-lg hover:bg-[#2C7870] hover:text-white transition-colors">
-                                                <MessageCircle className="w-4 h-4" />
-                                                <span>Give Feedback</span>
-                                            </button>
-                                        ) : (
-                                            <button className="flex items-center space-x-2 px-4 py-2 text-[#2C7870] border border-[#2C7870] rounded-lg hover:bg-[#2C7870] hover:text-white transition-colors">
-                                                <span>Book Another Class</span>
-                                            </button>
-                                        )}
-                                        
-                                        {session.meeting_link && session.status !== 'completed' && (
-                                            <button 
-                                                onClick={() => window.open(session.meeting_link, '_blank')}
-                                                className="flex items-center space-x-2 px-4 py-2 bg-[#2C7870] text-white rounded-lg hover:bg-[#236158] transition-colors"
-                                            >
-                                                <Video className="w-4 h-4" />
-                                            </button>
-                                        )}
-
-                                        <button className="flex items-center space-x-2 px-4 py-2 bg-[#2C7870] text-white rounded-lg hover:bg-[#236158] transition-colors">
-                                            <MessageCircle className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        ))
+                                    )}
+                                </>
+                            );
+                        })()
                     ) : (
                         <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-gray-100">
                             <div className="text-gray-400 mb-4">

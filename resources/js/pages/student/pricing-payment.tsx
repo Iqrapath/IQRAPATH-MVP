@@ -32,6 +32,12 @@ interface PricingPaymentPageProps {
     };
     wallet_balance_usd?: number;
     wallet_balance_ngn?: number;
+    user?: {
+        id: number;
+        name: string;
+        email: string;
+        country: string;
+    };
 }
 
 export default function PricingPaymentPage({ 
@@ -42,7 +48,8 @@ export default function PricingPaymentPage({
     note_to_teacher,
     teacher,
     wallet_balance_usd = 0,
-    wallet_balance_ngn = 0
+    wallet_balance_ngn = 0,
+    user
 }: PricingPaymentPageProps) {
     const [selectedCurrency, setSelectedCurrency] = useState<'USD' | 'NGN'>('NGN');
     const [selectedPaymentMethods, setSelectedPaymentMethods] = useState<string[]>(['wallet']);
@@ -53,10 +60,19 @@ export default function PricingPaymentPage({
     const [currentWalletBalanceUSD, setCurrentWalletBalanceUSD] = useState(wallet_balance_usd);
     const [currentWalletBalanceNGN, setCurrentWalletBalanceNGN] = useState(wallet_balance_ngn);
 
-    // Redirect if missing required data
+    // Show loading state while redirecting if missing required data
     if (!teacher_id || !date || !availability_ids || availability_ids.length === 0 || !subjects || subjects.length === 0) {
-        router.visit('/student/browse-teachers');
-        return null;
+        return (
+            <StudentLayout pageTitle="Pricing & Payment">
+                <Head title="Pricing & Payment" />
+                <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                    <div className="text-center">
+                        <p className="text-gray-600 mb-4">Redirecting to browse teachers...</p>
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2C7870] mx-auto"></div>
+                    </div>
+                </div>
+            </StudentLayout>
+        );
     }
 
     // Check if teacher has pricing set
@@ -376,6 +392,7 @@ export default function PricingPaymentPage({
                 currentBalance={selectedCurrency === 'USD' ? currentWalletBalanceUSD : currentWalletBalanceNGN}
                 requiredAmount={selectedCurrency === 'USD' ? totalUSD : totalNGN}
                 currency={selectedCurrency}
+                user={user}
             />
 
             {/* Booking Summary Modal */}

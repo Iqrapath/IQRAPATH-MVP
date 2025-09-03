@@ -80,8 +80,8 @@ class HandleInertiaRequests extends Middleware
 
         switch ($user->role) {
             case 'student':
-                $wallet = $user->studentWallet;
-                return $wallet ? (float) $wallet->balance : 0.0;
+                $wallet = $user->getOrCreateWallet();
+                return (float) $wallet->balance;
             
             case 'teacher':
                 $wallet = $user->teacherWallet;

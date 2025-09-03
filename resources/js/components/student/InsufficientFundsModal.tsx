@@ -24,6 +24,12 @@ interface InsufficientFundsModalProps {
     currentBalance: number;
     requiredAmount: number;
     currency: 'USD' | 'NGN';
+    user?: {
+        id: number;
+        name: string;
+        email: string;
+        country: string;
+    };
 }
 
 export default function InsufficientFundsModal({
@@ -34,7 +40,8 @@ export default function InsufficientFundsModal({
     onProceedToPayment,
     currentBalance,
     requiredAmount,
-    currency
+    currency,
+    user
 }: InsufficientFundsModalProps) {
     const [showFundModal, setShowFundModal] = useState(false);
     const [fundingConfig, setFundingConfig] = useState<FundingConfig | null>(null);
@@ -66,16 +73,16 @@ export default function InsufficientFundsModal({
         setShowFundModal(false);
     };
 
-    const handleFund = (amount: number) => {
+    const handleFund = (paymentData: any) => {
         // Handle the funding logic here
-        console.log('Funding amount:', amount);
+        console.log('Payment successful:', paymentData);
         setShowFundModal(false);
         
         // Update balance if callback provided
-        if (onBalanceUpdated) {
+        if (onBalanceUpdated && paymentData.success) {
             const newBalance = currency === 'USD' 
-                ? (currentBalance + (amount / 1500)) // Convert NGN to USD
-                : (currentBalance + amount); // NGN amount
+                ? (currentBalance + (paymentData.amount / 1500)) // Convert NGN to USD
+                : (currentBalance + paymentData.amount); // NGN amount
             onBalanceUpdated(newBalance);
         }
         
@@ -125,11 +132,10 @@ export default function InsufficientFundsModal({
             <FundAccountModal
                 isOpen={showFundModal}
                 onClose={handleFundModalClose}
-                onFund={handleFund}
-                onProceedToPayment={onProceedToPayment}
-                minAmount={fundingConfig?.min_amount}
-                maxAmount={fundingConfig?.max_amount}
-                currency={fundingConfig?.currency}
+                onPayment={handleFund}
+                amount={shortfall}
+                currency={currencySymbol}
+                user={user}
             />
         </div>
     );

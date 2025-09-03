@@ -44,10 +44,19 @@ export default function SessionDetailsPage({
     const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
     const [noteToTeacher, setNoteToTeacher] = useState('');
 
-    // Redirect if missing required data
+    // Show loading state while redirecting if missing required data
     if (!teacher_id || !date || !availability_ids || availability_ids.length === 0) {
-        router.visit('/student/browse-teachers');
-        return null;
+        return (
+            <StudentLayout pageTitle="Session Details">
+                <Head title="Session Details" />
+                <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                    <div className="text-center">
+                        <p className="text-gray-600 mb-4">Redirecting to browse teachers...</p>
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2C7870] mx-auto"></div>
+                    </div>
+                </div>
+            </StudentLayout>
+        );
     }
 
     // Available subjects - only from teacher's subjects

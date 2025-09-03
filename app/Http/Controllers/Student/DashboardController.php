@@ -103,7 +103,7 @@ class DashboardController extends Controller
                 'date' => $session->session_date->format('l, F j, Y'),
                 'time' => $session->start_time->format('g:i A') . ' - ' . $session->end_time->format('g:i A'),
                 'status' => ucfirst($session->status),
-                'imageUrl' => '/assets/images/default-subject.jpg', // Default for now
+                'imageUrl' => null, // Use initials instead of image
                 'meetingUrl' => $session->zoom_join_url ?? $session->meeting_link,
                 'session_uuid' => $session->session_uuid,
             ];
@@ -144,7 +144,7 @@ class DashboardController extends Controller
                 'price' => $profile->hourly_rate_ngn 
                     ? '₦' . number_format($profile->hourly_rate_ngn) . ' / session'
                     : '₦5,000 / session',
-                'avatarUrl' => $teacher->avatar ?? '/assets/images/default-avatar.jpg',
+                'avatarUrl' => null, // Use initials instead of images
             ];
         })->toArray();
     }

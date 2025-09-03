@@ -1,794 +1,397 @@
 <?php
+declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Models\PaymentGatewayLog;
-use App\Models\Subscription;
-use App\Models\SubscriptionPlan;
-use App\Models\SubscriptionTransaction;
 use App\Models\User;
-use Exception;
-use Illuminate\Support\Facades\Http;
+use App\Models\Transaction;
+use App\Models\WalletTransaction;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
-use App\Models\StudentWallet;
+use Stripe\StripeClient;
+use Stripe\Exception\CardException;
+use Stripe\Exception\RateLimitException;
+use Stripe\Exception\InvalidRequestException;
+use Stripe\Exception\AuthenticationException;
+use Stripe\Exception\ApiConnectionException;
+use Stripe\Exception\ApiErrorException;
+use Illuminate\Support\Facades\Http;
 
 class PaymentService
 {
-    protected $subscriptionService;
+    private StripeClient $stripe;
 
-    public function __construct(SubscriptionService $subscriptionService)
+    public function __construct()
     {
-        $this->subscriptionService = $subscriptionService;
+        $this->stripe = new StripeClient(config('services.stripe.secret_key'));
     }
 
     /**
-     * Initialize a payment with Paystack.
-     *
-     * @param User $user
-     * @param SubscriptionPlan $plan
-     * @param array $data
-     * @return array
-     * @throws Exception
+     * Process a payment to fund user wallet
      */
-    public function initializePaystackPayment(User $user, SubscriptionPlan $plan, array $data): array
+    public function processWalletFunding(User $user, array $paymentData): array
     {
-        $currency = $data['currency'] ?? 'naira';
-        $amount = $plan->getPriceForCurrency($currency);
-        
-        // Convert to kobo/cents (Paystack expects amount in smallest currency unit)
-        $amountInKobo = $amount * 100;
-        
-        // Generate a unique reference
-        $reference = 'IQRA_' . time() . '_' . Str::random(5);
-        
-        // Create a pending subscription
-        $subscription = $this->subscriptionService->createSubscription($user, $plan, array_merge($data, [
-            'payment_reference' => $reference,
-        ]));
-        
-        // Get the latest transaction for this subscription
-        $transaction = $subscription->transactions()->latest()->first();
-        
-        // Prepare request data
-        $requestData = [
-            'email' => $user->email,
-            'amount' => $amountInKobo,
-            'currency' => $currency === 'dollar' ? 'USD' : 'NGN',
-            'reference' => $reference,
-            'callback_url' => route('payments.verify', ['gateway' => 'paystack', 'reference' => $reference]),
-            'metadata' => [
-                'subscription_id' => $subscription->id,
-                'transaction_id' => $transaction->id,
-                'plan_id' => $plan->id,
-                'plan_name' => $plan->name,
-                'user_id' => $user->id,
-                'user_name' => $user->name,
-            ],
-        ];
-        
-        // Log the payment attempt
-        $gatewayLog = PaymentGatewayLog::create([
-            'gateway' => 'paystack',
-            'reference' => $reference,
-            'user_id' => $user->id,
-            'subscription_transaction_id' => $transaction->id,
-            'status' => 'pending',
-            'amount' => $amount,
-            'currency' => $currency === 'dollar' ? 'USD' : 'NGN',
-            'request_data' => $requestData,
-        ]);
-        
-        try {
-            // Make API request to Paystack
-            $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . config('services.paystack.secret_key'),
-                'Content-Type' => 'application/json',
-                'Accept' => 'application/json',
-            ])->post('https://api.paystack.co/transaction/initialize', $requestData);
-            
-            $responseData = $response->json();
-            
-            // Update gateway log with response
-            $gatewayLog->update([
-                'response_data' => $responseData,
-            ]);
-            
-            if (!$response->successful() || !isset($responseData['status']) || $responseData['status'] !== true) {
-                throw new Exception($responseData['message'] ?? 'Failed to initialize payment');
-            }
-            
-            return [
-                'success' => true,
-                'authorization_url' => $responseData['data']['authorization_url'],
-                'reference' => $reference,
-                'subscription' => $subscription,
-            ];
-        } catch (Exception $e) {
-            // Mark the gateway log as failed
-            $gatewayLog->markAsFailed(['error' => $e->getMessage()]);
-            
-            Log::error('Paystack payment initialization failed', [
-                'error' => $e->getMessage(),
-                'user_id' => $user->id,
-                'plan_id' => $plan->id,
-            ]);
-            
-            throw new Exception('Payment initialization failed: ' . $e->getMessage());
-        }
-    }
+        return DB::transaction(function () use ($user, $paymentData) {
+            try {
+                // Validate payment data
+                $this->validatePaymentData($paymentData);
 
-    /**
-     * Initialize Paystack payment for wallet funding.
-     *
-     * @param User $user
-     * @param float $amount
-     * @param string $currency
-     * @return array
-     * @throws Exception
-     */
-    public function initializePaystackWalletFunding(User $user, float $amount, string $currency): array
-    {
-        $paystackKey = config('services.paystack.secret_key');
-        if (!$paystackKey) {
-            throw new Exception('Paystack API key not configured');
-        }
-
-        // Convert amount to kobo (smallest currency unit)
-        $amountInKobo = $amount * 100;
-        
-        // Generate a unique reference
-        $reference = 'IQRA_FUND_' . time() . '_' . $user->id;
-        
-        // Create payment log
-        $paymentLog = PaymentGatewayLog::create([
-            'user_id' => $user->id,
-            'gateway' => 'paystack',
-            'reference' => $reference,
-            'amount' => $amount,
-            'currency' => $currency,
-            'status' => 'pending',
-            'payload' => [
-                'type' => 'wallet_funding',
-                'amount' => $amount,
-                'currency' => $currency,
-            ],
-        ]);
-        
-        // Make API request to Paystack
-        $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $paystackKey,
-            'Content-Type' => 'application/json',
-        ])->post('https://api.paystack.co/transaction/initialize', [
-            'email' => $user->email,
-            'amount' => $amountInKobo,
-            'reference' => $reference,
-            'callback_url' => route('payment.verify', ['gateway' => 'paystack', 'reference' => $reference]),
-            'metadata' => [
-                'type' => 'wallet_funding',
-                'user_id' => $user->id,
-                'currency' => $currency,
-            ],
-        ]);
-        
-        if (!$response->successful()) {
-            $paymentLog->update([
-                'status' => 'failed',
-                'response' => $response->json(),
-            ]);
-            
-            throw new Exception('Failed to initialize Paystack payment: ' . ($response->json()['message'] ?? 'Unknown error'));
-        }
-        
-        $responseData = $response->json();
-        
-        // Update payment log with response
-        $paymentLog->update([
-            'status' => 'initialized',
-            'response' => $responseData,
-        ]);
-        
-        return $responseData['data'];
-    }
-    
-    /**
-     * Verify a Paystack payment.
-     *
-     * @param string $reference
-     * @return array
-     * @throws Exception
-     */
-    public function verifyPaystackPayment(string $reference): array
-    {
-        // Find the payment log
-        $gatewayLog = PaymentGatewayLog::where('gateway', 'paystack')
-            ->where('reference', $reference)
-            ->first();
-            
-        if (!$gatewayLog) {
-            throw new Exception('Payment reference not found');
-        }
-        
-        try {
-            // Make API request to Paystack
-            $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . config('services.paystack.secret_key'),
-                'Content-Type' => 'application/json',
-                'Accept' => 'application/json',
-            ])->get("https://api.paystack.co/transaction/verify/{$reference}");
-            
-            $responseData = $response->json();
-            
-            // Update gateway log with verification response
-            $gatewayLog->update([
-                'response_data' => array_merge($gatewayLog->response_data ?? [], [
-                    'verification' => $responseData,
-                ]),
-            ]);
-            
-            if (!$response->successful() || !isset($responseData['status']) || $responseData['status'] !== true) {
-                throw new Exception($responseData['message'] ?? 'Failed to verify payment');
-            }
-            
-            $paymentData = $responseData['data'];
-            
-            // Check if payment was successful
-            if ($paymentData['status'] === 'success') {
-                // Mark the payment as verified
-                $gatewayLog->markAsVerified();
+                $gateway = $paymentData['gateway'] ?? 'stripe';
                 
-                // Update the transaction and subscription
-                if ($gatewayLog->subscription_transaction_id) {
-                    $transaction = SubscriptionTransaction::find($gatewayLog->subscription_transaction_id);
-                    
-                    if ($transaction) {
-                        $subscription = $transaction->subscription;
-                        
-                        if ($subscription) {
-                            // Activate the subscription
-                            $this->subscriptionService->activateSubscription($subscription, [
-                                'payment_reference' => $reference,
-                                'payment_details' => [
-                                    'gateway' => 'paystack',
-                                    'transaction_id' => $paymentData['id'],
-                                    'authorization_code' => $paymentData['authorization']['authorization_code'] ?? null,
-                                    'card_type' => $paymentData['authorization']['card_type'] ?? null,
-                                    'last4' => $paymentData['authorization']['last4'] ?? null,
-                                    'exp_month' => $paymentData['authorization']['exp_month'] ?? null,
-                                    'exp_year' => $paymentData['authorization']['exp_year'] ?? null,
-                                    'payment_date' => now()->toDateTimeString(),
-                                ],
-                            ]);
-                            
-                            // Save payment method to wallet if authorization is provided
-                            if (isset($paymentData['authorization']) && $paymentData['authorization']['reusable']) {
-                                $user = User::find($gatewayLog->user_id);
-                                
-                                if ($user) {
-                                    $wallet = $user->getOrCreateWallet();
-                                    
-                                    $wallet->addPaymentMethod([
-                                        'gateway' => 'paystack',
-                                        'type' => $paymentData['authorization']['card_type'],
-                                        'last4' => $paymentData['authorization']['last4'],
-                                        'exp_month' => $paymentData['authorization']['exp_month'],
-                                        'exp_year' => $paymentData['authorization']['exp_year'],
-                                        'authorization_code' => $paymentData['authorization']['authorization_code'],
-                                        'bin' => $paymentData['authorization']['bin'],
-                                        'bank' => $paymentData['authorization']['bank'],
-                                        'signature' => $paymentData['authorization']['signature'],
-                                        'reusable' => $paymentData['authorization']['reusable'],
-                                        'country_code' => $paymentData['authorization']['country_code'],
-                                    ], true);
-                                }
-                            }
-                        }
-                    }
+                // Process payment based on gateway
+                if ($gateway === 'paystack') {
+                    return $this->processPaystackPayment($user, $paymentData);
+                } else {
+                    return $this->processStripePayment($user, $paymentData);
                 }
-                
-                return [
-                    'success' => true,
-                    'message' => 'Payment verified successfully',
-                    'data' => $paymentData,
-                ];
-            } else {
-                // Mark the payment as failed
-                $gatewayLog->markAsFailed(['status' => $paymentData['status']]);
+
+            } catch (\Exception $e) {
+                Log::error('Payment Processing Error', [
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage(),
+                    'gateway' => $paymentData['gateway'] ?? 'stripe'
+                ]);
                 
                 return [
                     'success' => false,
-                    'message' => 'Payment was not successful',
-                    'data' => $paymentData,
+                    'error' => 'processing_error',
+                    'message' => 'An error occurred while processing your payment. Please try again.'
                 ];
             }
-        } catch (Exception $e) {
-            // Mark the gateway log as failed
-            $gatewayLog->markAsFailed(['error' => $e->getMessage()]);
-            
-            Log::error('Paystack payment verification failed', [
-                'error' => $e->getMessage(),
-                'reference' => $reference,
-            ]);
-            
-            throw new Exception('Payment verification failed: ' . $e->getMessage());
-        }
+        });
     }
-    
+
     /**
-     * Handle Paystack webhook.
-     *
-     * @param array $payload
-     * @return bool
+     * Process Stripe payment
      */
-    public function handlePaystackWebhook(array $payload): bool
+    private function processStripePayment(User $user, array $paymentData): array
     {
         try {
-            // Verify webhook signature
-            if (!$this->verifyPaystackWebhookSignature($payload)) {
-                Log::warning('Invalid Paystack webhook signature', ['payload' => $payload]);
-                return false;
-            }
-            
-            // Extract event data
-            $event = $payload['event'];
-            $data = $payload['data'];
-            $reference = $data['reference'] ?? null;
-            
-            if (!$reference) {
-                Log::warning('Paystack webhook missing reference', ['payload' => $payload]);
-                return false;
-            }
-            
-            // Find the payment log
-            $gatewayLog = PaymentGatewayLog::where('gateway', 'paystack')
-                ->where('reference', $reference)
-                ->first();
-                
-            if (!$gatewayLog) {
-                Log::warning('Paystack webhook for unknown reference', ['reference' => $reference]);
-                return false;
-            }
-            
-            // Update gateway log with webhook data
-            $gatewayLog->updateWithWebhookData($payload);
-            
-            // Process based on event type
-            switch ($event) {
-                case 'charge.success':
-                    return $this->processPaystackSuccessfulCharge($gatewayLog, $data);
-                    
-                case 'charge.failed':
-                    return $this->processPaystackFailedCharge($gatewayLog, $data);
-                    
-                default:
-                    // Just log the event
-                    Log::info('Unhandled Paystack webhook event', ['event' => $event, 'reference' => $reference]);
-                    return true;
-            }
-        } catch (Exception $e) {
-            Log::error('Error processing Paystack webhook', [
+            // Create Stripe payment intent
+            $paymentIntent = $this->createPaymentIntent($paymentData);
+
+            // Confirm the payment
+            $confirmedPayment = $this->confirmPayment($paymentIntent, $paymentData);
+
+            // Update user wallet
+            $this->updateUserWallet($user, $paymentData['amount']);
+
+            // Create transaction records
+            $transaction = $this->createTransactionRecords($user, $paymentData, $confirmedPayment, 'stripe');
+        
+            return [
+                'success' => true,
+                'transaction_id' => $transaction->id,
+                'payment_intent_id' => $confirmedPayment->id,
+                'amount' => $paymentData['amount'],
+                'message' => 'Payment processed successfully'
+            ];
+
+        } catch (CardException $e) {
+            Log::error('Stripe Card Error', [
+                'user_id' => $user->id,
                 'error' => $e->getMessage(),
-                'payload' => $payload,
-            ]);
-            
-            return false;
-        }
-    }
-    
-    /**
-     * Process a successful Paystack charge.
-     *
-     * @param PaymentGatewayLog $gatewayLog
-     * @param array $data
-     * @return bool
-     */
-    protected function processPaystackSuccessfulCharge(PaymentGatewayLog $gatewayLog, array $data): bool
-    {
-        // If already verified, no need to process again
-        if ($gatewayLog->verified_at) {
-            return true;
-        }
-        
-        try {
-            // Mark the payment as verified
-            $gatewayLog->markAsVerified();
-            
-            // Update the transaction and subscription
-            if ($gatewayLog->subscription_transaction_id) {
-                $transaction = SubscriptionTransaction::find($gatewayLog->subscription_transaction_id);
-                
-                if ($transaction) {
-                    $subscription = $transaction->subscription;
-                    
-                    if ($subscription) {
-                        // Activate the subscription
-                        $this->subscriptionService->activateSubscription($subscription, [
-                            'payment_reference' => $gatewayLog->reference,
-                            'payment_details' => [
-                                'gateway' => 'paystack',
-                                'transaction_id' => $data['id'],
-                                'authorization_code' => $data['authorization']['authorization_code'] ?? null,
-                                'card_type' => $data['authorization']['card_type'] ?? null,
-                                'last4' => $data['authorization']['last4'] ?? null,
-                                'exp_month' => $data['authorization']['exp_month'] ?? null,
-                                'exp_year' => $data['authorization']['exp_year'] ?? null,
-                                'payment_date' => now()->toDateTimeString(),
-                            ],
-                        ]);
-                        
-                        // Save payment method to wallet if authorization is provided
-                        if (isset($data['authorization']) && $data['authorization']['reusable']) {
-                            $user = User::find($gatewayLog->user_id);
-                            
-                            if ($user) {
-                                $wallet = $user->getOrCreateWallet();
-                                
-                                $wallet->addPaymentMethod([
-                                    'gateway' => 'paystack',
-                                    'type' => $data['authorization']['card_type'],
-                                    'last4' => $data['authorization']['last4'],
-                                    'exp_month' => $data['authorization']['exp_month'],
-                                    'exp_year' => $data['authorization']['exp_year'],
-                                    'authorization_code' => $data['authorization']['authorization_code'],
-                                    'bin' => $data['authorization']['bin'],
-                                    'bank' => $data['authorization']['bank'],
-                                    'signature' => $data['authorization']['signature'],
-                                    'reusable' => $data['authorization']['reusable'],
-                                    'country_code' => $data['authorization']['country_code'],
-                                ], true);
-                            }
-                        }
-                    }
-                }
-            }
-            
-            return true;
-        } catch (Exception $e) {
-            Log::error('Error processing successful Paystack charge', [
-                'error' => $e->getMessage(),
-                'gateway_log_id' => $gatewayLog->id,
-            ]);
-            
-            return false;
-        }
-    }
-    
-    /**
-     * Process a failed Paystack charge.
-     *
-     * @param PaymentGatewayLog $gatewayLog
-     * @param array $data
-     * @return bool
-     */
-    protected function processPaystackFailedCharge(PaymentGatewayLog $gatewayLog, array $data): bool
-    {
-        // Mark the payment as failed
-        $gatewayLog->markAsFailed([
-            'failure_data' => $data,
-        ]);
-        
-        // No need to do anything with the subscription - it will remain in pending state
-        
-        return true;
-    }
-    
-    /**
-     * Verify Paystack webhook signature.
-     *
-     * @param array $payload
-     * @return bool
-     */
-    protected function verifyPaystackWebhookSignature(array $payload): bool
-    {
-        // In production, implement proper signature verification
-        // using the Paystack Webhook Secret
-        
-        // For now, just return true for development
-        return true;
-    }
-    
-    /**
-     * Process payment with wallet.
-     *
-     * @param User $user
-     * @param SubscriptionPlan $plan
-     * @param array $data
-     * @return array
-     * @throws Exception
-     */
-    public function processWalletPayment(User $user, SubscriptionPlan $plan, array $data): array
-    {
-        $wallet = StudentWallet::where('user_id', $user->id)->first();
-        
-        if (!$wallet) {
-            throw new Exception('User does not have a wallet');
-        }
-        
-        $currency = $data['currency'] ?? 'naira';
-        $amount = $plan->getPriceForCurrency($currency);
-        
-        if ($wallet->balance < $amount) {
-            throw new Exception('Insufficient wallet balance');
-        }
-        
-        // Generate a unique reference
-        $reference = 'IQRA_WALLET_' . time() . '_' . $user->id;
-        
-        // Create a subscription
-        $subscription = $this->subscriptionService->createSubscription($user, $plan, array_merge($data, [
-            'payment_method' => 'wallet',
-            'payment_reference' => $reference,
-        ]));
-        
-        // Create payment log
-        $paymentLog = PaymentGatewayLog::create([
-            'user_id' => $user->id,
-            'gateway' => 'wallet',
-            'reference' => $reference,
-            'amount' => $amount,
-            'currency' => $currency,
-            'status' => 'pending',
-            'payload' => [
-                'type' => 'subscription_payment',
-                'plan_id' => $plan->id,
-                'subscription_id' => $subscription->id,
-            ],
-        ]);
-        
-        try {
-            // Deduct from wallet
-            $wallet->deductFunds($amount, "Payment for {$plan->name} subscription");
-            
-            // Update payment log
-            $paymentLog->update([
-                'status' => 'completed',
-                'response' => [
-                    'status' => 'success',
-                    'message' => 'Payment processed successfully',
-                    'transaction_id' => $reference,
-                    'payment_date' => now()->toDateTimeString(),
-                ],
-            ]);
-            
-            // Activate the subscription
-            $this->subscriptionService->activateSubscription($subscription, [
-                'payment_reference' => $reference,
-                'payment_details' => [
-                    'status' => 'success',
-                    'transaction_id' => $reference,
-                    'payment_date' => now()->toDateTimeString(),
-                    'payment_method' => 'wallet',
-                ],
+                'decline_code' => $e->getDeclineCode()
             ]);
             
             return [
-                'success' => true,
-                'message' => 'Payment processed successfully',
-                'subscription_id' => $subscription->id,
-                'reference' => $reference,
+                'success' => false,
+                'error' => 'Card declined: ' . $e->getDeclineCode(),
+                'message' => $this->getCardErrorMessage($e->getDeclineCode())
             ];
-        } catch (Exception $e) {
-            // Update payment log
-            $paymentLog->update([
-                'status' => 'failed',
-                'response' => [
-                    'status' => 'error',
-                    'message' => $e->getMessage(),
-                ],
-            ]);
-            
-            throw $e;
         }
     }
-    
+
     /**
-     * Process subscription renewal.
-     *
-     * @param Subscription $subscription
-     * @return bool
+     * Process Paystack payment
      */
-    public function processSubscriptionRenewal(Subscription $subscription): bool
+    private function processPaystackPayment(User $user, array $paymentData): array
     {
-        $user = $subscription->user;
-        $plan = $subscription->plan;
-        
-        if (!$user || !$plan) {
-            Log::error('Cannot renew subscription - missing user or plan', [
-                'subscription_id' => $subscription->id,
-            ]);
-            return false;
-        }
-        
-        // Check if auto-renew is enabled
-        if (!$subscription->auto_renew) {
-            return false;
-        }
-        
         try {
-            $wallet = StudentWallet::where('user_id', $user->id)->first();
-            
-            // If user has a wallet with sufficient balance, use that
-            if ($wallet && $wallet->balance >= $subscription->amount_paid) {
-                return $this->renewWithWallet($subscription);
+            // Initialize Paystack transaction
+            $paystackResponse = $this->initializePaystackTransaction($user, $paymentData);
+
+            if (!$paystackResponse['status']) {
+                return [
+                    'success' => false,
+                    'error' => 'paystack_error',
+                    'message' => $paystackResponse['message'] ?? 'Failed to initialize payment'
+                ];
             }
+
+            // Update user wallet
+            $this->updateUserWallet($user, $paymentData['amount']);
+
+            // Create transaction records
+            $transaction = $this->createPaystackTransactionRecords($user, $paymentData, $paystackResponse);
+        
+            return [
+                'success' => true,
+                'transaction_id' => $transaction->id,
+                'paystack_reference' => $paystackResponse['data']['reference'],
+                'authorization_url' => $paystackResponse['data']['authorization_url'],
+                'amount' => $paymentData['amount'],
+                'message' => 'Payment initialized successfully'
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Paystack Payment Error', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage()
+            ]);
             
-            // Otherwise, try to use saved payment method
-            if ($wallet && $wallet->default_payment_method) {
-                $paymentMethod = $wallet->getDefaultPaymentMethod();
-                
-                if ($paymentMethod && isset($paymentMethod['gateway'])) {
-                    if ($paymentMethod['gateway'] === 'paystack') {
-                        return $this->renewWithPaystack($subscription, $paymentMethod);
-                    }
-                    // Add other payment gateways as needed
-                }
+            return [
+                'success' => false,
+                'error' => 'paystack_error',
+                'message' => 'An error occurred while processing your payment. Please try again.'
+            ];
+        }
+    }
+
+    /**
+     * Validate payment data
+     */
+    private function validatePaymentData(array $paymentData): void
+    {
+        $requiredFields = ['amount'];
+        
+        foreach ($requiredFields as $field) {
+            if (!isset($paymentData[$field]) || empty($paymentData[$field])) {
+                throw new \InvalidArgumentException("Missing required field: {$field}");
             }
-            
-            // No valid payment method found
-            Log::info('No valid payment method for renewal', [
-                'subscription_id' => $subscription->id,
-                'user_id' => $user->id,
-            ]);
-            
-            return false;
-        } catch (Exception $e) {
-            Log::error('Error processing subscription renewal', [
-                'error' => $e->getMessage(),
-                'subscription_id' => $subscription->id,
-            ]);
-            
-            return false;
+        }
+
+        // Validate amount
+        if ($paymentData['amount'] <= 0) {
+            throw new \InvalidArgumentException('Amount must be greater than 0');
+        }
+
+        // Validate payment method ID for Stripe
+        if (($paymentData['gateway'] ?? 'stripe') === 'stripe') {
+            if (!isset($paymentData['payment_method_id']) || !preg_match('/^pm_/', $paymentData['payment_method_id'])) {
+                throw new \InvalidArgumentException('Invalid payment method ID for Stripe');
+            }
         }
     }
     
     /**
-     * Renew subscription using wallet balance.
-     *
-     * @param Subscription $subscription
-     * @return bool
+     * Create Stripe payment intent
      */
-    protected function renewWithWallet(Subscription $subscription): bool
+    private function createPaymentIntent(array $paymentData): \Stripe\PaymentIntent
     {
-        $user = $subscription->user;
-        $wallet = StudentWallet::where('user_id', $user->id)->first();
-        
-        if (!$wallet || $wallet->balance < $subscription->amount_paid) {
-            return false;
-        }
-        
-        try {
-            // Generate a unique reference
-            $reference = 'IQRA_RENEWAL_' . time() . '_' . Str::random(5);
-            
-            // Create renewal transaction
-            $transaction = $this->subscriptionService->renewSubscription($subscription, [
-                'payment_method' => 'wallet',
-                'payment_reference' => $reference,
-            ]);
-            
-            // Log the payment
-            $gatewayLog = PaymentGatewayLog::create([
-                'gateway' => 'wallet',
-                'reference' => $reference,
-                'user_id' => $user->id,
-                'subscription_transaction_id' => $transaction->id,
-                'status' => 'pending',
-                'amount' => $subscription->amount_paid,
-                'currency' => $subscription->currency,
-                'request_data' => [
-                    'subscription_id' => $subscription->id,
-                    'transaction_id' => $transaction->id,
-                    'renewal' => true,
-                ],
-            ]);
-            
-            // Deduct from wallet
-            $wallet->deductFunds($subscription->amount_paid);
-            
-            // Mark the payment as verified
-            $gatewayLog->markAsVerified();
-            
-            // Renew the subscription
-            $subscription->renew();
-            
-            return true;
-        } catch (Exception $e) {
-            Log::error('Error renewing subscription with wallet', [
-                'error' => $e->getMessage(),
-                'subscription_id' => $subscription->id,
-            ]);
-            
-            return false;
-        }
+        return $this->stripe->paymentIntents->create([
+            'amount' => $paymentData['amount'] * 100, // Convert to cents
+            'currency' => 'ngn', // Nigerian Naira
+            'payment_method_types' => ['card'],
+            'metadata' => [
+                'user_id' => $paymentData['user_id'] ?? null,
+                'funding_type' => 'wallet_funding'
+            ]
+        ]);
     }
-    
+
     /**
-     * Renew subscription using Paystack.
-     *
-     * @param Subscription $subscription
-     * @param array $paymentMethod
-     * @return bool
+     * Confirm payment with payment method ID
      */
-    protected function renewWithPaystack(Subscription $subscription, array $paymentMethod): bool
+    private function confirmPayment(\Stripe\PaymentIntent $paymentIntent, array $paymentData): \Stripe\PaymentIntent
     {
-        $user = $subscription->user;
-        
-        try {
-            // Generate a unique reference
-            $reference = 'IQRA_RENEWAL_' . time() . '_' . Str::random(5);
-            
-            // Create renewal transaction
-            $transaction = $this->subscriptionService->renewSubscription($subscription, [
+        // Confirm payment intent using the provided payment method ID
+        return $this->stripe->paymentIntents->confirm($paymentIntent->id, [
+            'payment_method' => $paymentData['payment_method_id'],
+        ]);
+    }
+
+    /**
+     * Update user wallet balance
+     */
+    private function updateUserWallet(User $user, float $amount): void
+    {
+        $wallet = $user->getOrCreateWallet();
+        $wallet->increment('balance', $amount);
+    }
+
+    /**
+     * Create transaction records for Stripe
+     */
+    private function createTransactionRecords(User $user, array $paymentData, \Stripe\PaymentIntent $paymentIntent, string $gateway = 'stripe'): Transaction
+    {
+        // Create main transaction record
+        $transaction = Transaction::create([
+            'transaction_uuid' => \Illuminate\Support\Str::uuid(),
+            'user_id' => $user->id,
+            'transaction_type' => 'wallet_funding',
+            'amount' => $paymentData['amount'],
+            'status' => 'completed',
+            'description' => 'Wallet funding via credit card',
+            'transaction_date' => now()->toDateString(),
+            'gateway' => $gateway,
+            'gateway_reference' => $paymentIntent->id,
+            'metadata' => [
+                'payment_method' => 'credit_card',
+                'payment_method_id' => $paymentData['payment_method_id'],
+                'remember_card' => $paymentData['rememberCard'] ?? false
+            ]
+        ]);
+
+        // Create wallet transaction record
+        $wallet = $user->getOrCreateWallet();
+        WalletTransaction::create([
+            'wallet_id' => $wallet->id,
+            'transaction_id' => $transaction->id,
+            'type' => 'credit',
+            'amount' => $paymentData['amount'],
+            'balance_before' => $wallet->balance - $paymentData['amount'],
+            'balance_after' => $wallet->balance,
+            'description' => 'Wallet funding via credit card',
+            'status' => 'completed'
+        ]);
+
+        return $transaction;
+    }
+
+    /**
+     * Initialize Paystack transaction
+     */
+    private function initializePaystackTransaction(User $user, array $paymentData): array
+    {
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . config('services.paystack.secret_key'),
+            'Content-Type' => 'application/json',
+        ])->post(config('services.paystack.base_url') . '/transaction/initialize', [
+            'email' => $user->email,
+            'amount' => $paymentData['amount'] * 100, // Convert to kobo
+            'currency' => 'NGN',
+            'reference' => 'WALLET_' . time() . '_' . $user->id,
+            'callback_url' => url('/payment/paystack/callback'),
+            'metadata' => [
+                'user_id' => $user->id,
+                'funding_type' => 'wallet_funding',
+                'amount_original' => $paymentData['amount']
+            ]
+        ]);
+
+        return $response->json();
+    }
+
+    /**
+     * Create transaction records for Paystack
+     */
+    private function createPaystackTransactionRecords(User $user, array $paymentData, array $paystackResponse): Transaction
+    {
+        // Create main transaction record
+        $transaction = Transaction::create([
+            'transaction_uuid' => \Illuminate\Support\Str::uuid(),
+            'user_id' => $user->id,
+            'transaction_type' => 'wallet_funding',
+            'amount' => $paymentData['amount'],
+            'status' => 'pending',
+            'description' => 'Wallet funding via Paystack',
+            'transaction_date' => now()->toDateString(),
+            'gateway' => 'paystack',
+            'gateway_reference' => $paystackResponse['data']['reference'],
+            'metadata' => [
                 'payment_method' => 'paystack',
-                'payment_reference' => $reference,
-            ]);
-            
-            // Log the payment attempt
-            $gatewayLog = PaymentGatewayLog::create([
-                'gateway' => 'paystack',
-                'reference' => $reference,
-                'user_id' => $user->id,
-                'subscription_transaction_id' => $transaction->id,
-                'status' => 'pending',
-                'amount' => $subscription->amount_paid,
-                'currency' => $subscription->currency === 'naira' ? 'NGN' : 'USD',
-                'request_data' => [
-                    'subscription_id' => $subscription->id,
-                    'transaction_id' => $transaction->id,
-                    'renewal' => true,
-                    'authorization_code' => $paymentMethod['authorization_code'],
-                ],
-            ]);
-            
-            // Make API request to Paystack for recurring charge
+                'authorization_url' => $paystackResponse['data']['authorization_url'],
+                'access_code' => $paystackResponse['data']['access_code']
+            ]
+        ]);
+
+        // Create wallet transaction record
+        $wallet = $user->getOrCreateWallet();
+        WalletTransaction::create([
+            'wallet_id' => $wallet->id,
+            'transaction_id' => $transaction->id,
+            'type' => 'credit',
+            'amount' => $paymentData['amount'],
+            'balance_before' => $wallet->balance - $paymentData['amount'],
+            'balance_after' => $wallet->balance,
+            'description' => 'Wallet funding via Paystack',
+            'status' => 'pending'
+        ]);
+
+        return $transaction;
+    }
+
+    /**
+     * Get user-friendly card error messages
+     */
+    private function getCardErrorMessage(?string $declineCode): string
+    {
+        return match ($declineCode) {
+            'card_declined' => 'Your card was declined. Please try a different card.',
+            'expired_card' => 'Your card has expired. Please use a different card.',
+            'incorrect_cvc' => 'The security code you entered is incorrect.',
+            'processing_error' => 'An error occurred while processing your card. Please try again.',
+            'insufficient_funds' => 'Your card has insufficient funds.',
+            'withdrawal_count_limit_exceeded' => 'You have exceeded the maximum number of attempts. Please try again later.',
+            default => 'Your card was declined. Please try a different card or contact your bank.'
+        };
+    }
+
+    /**
+     * Get Stripe publishable key for frontend
+     */
+    public function getPublishableKey(): string
+    {
+        return config('services.stripe.publishable_key');
+    }
+
+    /**
+     * Get Paystack public key for frontend
+     */
+    public function getPaystackPublicKey(): string
+    {
+        return config('services.paystack.public_key');
+    }
+
+    /**
+     * Verify Paystack payment
+     */
+    public function verifyPaystackPayment(string $reference): array
+    {
+        try {
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . config('services.paystack.secret_key'),
                 'Content-Type' => 'application/json',
-                'Accept' => 'application/json',
-            ])->post('https://api.paystack.co/transaction/charge_authorization', [
-                'authorization_code' => $paymentMethod['authorization_code'],
-                'email' => $user->email,
-                'amount' => $subscription->amount_paid * 100, // Convert to kobo/cents
-                'currency' => $subscription->currency === 'naira' ? 'NGN' : 'USD',
+            ])->get(config('services.paystack.base_url') . '/transaction/verify/' . $reference);
+
+            $result = $response->json();
+
+            if ($result['status'] && $result['data']['status'] === 'success') {
+                // Update transaction status
+                $transaction = Transaction::where('gateway_reference', $reference)->first();
+                if ($transaction) {
+                    $transaction->update(['status' => 'completed']);
+                    
+                    // Update wallet transaction status
+                    $walletTransaction = WalletTransaction::where('transaction_id', $transaction->id)->first();
+                    if ($walletTransaction) {
+                        $walletTransaction->update(['status' => 'completed']);
+                    }
+                }
+
+                return [
+                    'success' => true,
+                    'data' => $result['data'],
+                    'message' => 'Payment verified successfully'
+                ];
+            }
+
+            return [
+                'success' => false,
+                'message' => 'Payment verification failed'
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Paystack Verification Error', [
                 'reference' => $reference,
-                'metadata' => [
-                    'subscription_id' => $subscription->id,
-                    'transaction_id' => $transaction->id,
-                    'renewal' => true,
-                ],
+                'error' => $e->getMessage()
             ]);
-            
-            $responseData = $response->json();
-            
-            // Update gateway log with response
-            $gatewayLog->update([
-                'response_data' => $responseData,
-            ]);
-            
-            if (!$response->successful() || !isset($responseData['status']) || $responseData['status'] !== true) {
-                throw new Exception($responseData['message'] ?? 'Failed to charge card');
-            }
-            
-            // If payment was successful
-            if ($responseData['data']['status'] === 'success') {
-                // Mark the payment as verified
-                $gatewayLog->markAsVerified();
-                
-                // Renew the subscription
-                $subscription->renew();
-                
-                return true;
-            } else {
-                // Payment is pending, will be updated by webhook
-                return true;
-            }
-        } catch (Exception $e) {
-            Log::error('Error renewing subscription with Paystack', [
-                'error' => $e->getMessage(),
-                'subscription_id' => $subscription->id,
-            ]);
-            
-            return false;
+
+            return [
+                'success' => false,
+                'message' => 'Error verifying payment'
+            ];
         }
     }
 } 

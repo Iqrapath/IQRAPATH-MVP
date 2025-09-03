@@ -48,4 +48,17 @@ return [
         'account_id' => env('ZOOM_ACCOUNT_ID'),
         ],
 
+    'stripe' => [
+        'publishable_key' => env('STRIPE_PUBLISHABLE_KEY'),
+        'secret_key' => env('STRIPE_SECRET_KEY'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+    ],
+
+    'paystack' => [
+        'public_key' => env('PAYSTACK_PUBLIC_KEY'),
+        'secret_key' => env('PAYSTACK_SECRET_KEY'),
+        'merchant_email' => env('PAYSTACK_MERCHANT_EMAIL'),
+        'base_url' => env('PAYSTACK_BASE_URL', 'https://api.paystack.co'),
+    ],
+
 ];

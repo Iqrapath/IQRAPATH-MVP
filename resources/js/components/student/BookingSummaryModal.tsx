@@ -2,20 +2,19 @@
  * 🎨 FIGMA REFERENCE
  * Booking Summary Modal
  * 
- * EXACT SPECS FROM FIGMA:
- * - Teacher profile with avatar and name
- * - Subject details
- * - Date & Time information
- * - Total fee display
- * - Notes section
- * - Cancellation policy
- * - Cancel and Confirm & Pay buttons
+ * EXACT SPECS FROM IMAGE:
+ * - Large title "Booking Summary" at top left
+ * - Teacher and subject info with book image (Quran on wooden surface)
+ * - Date & Time with calendar icon and green rounded boxes
+ * - Total Fee with money bag icon and green rounded box showing "$20 / ₦15,000"
+ * - Notes section with light green text
+ * - Red cancellation policy note
+ * - "Go Back" and "Confirm & Pay" buttons at bottom
  */
 
 import React from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Calendar, Clock, BookOpen, DollarSign, FileText, AlertCircle } from 'lucide-react';
+import { Calendar, DollarSign } from 'lucide-react';
 
 interface Teacher {
     id: number;
@@ -67,115 +66,100 @@ export default function BookingSummaryModal({
 
     return (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl">
+            <div className="bg-white rounded-4xl p-6 max-w-xl w-full shadow-2xl">
                 {/* Header */}
                 <div className="mb-6">
-                    <h2 className="text-xl font-semibold text-gray-900">
+                    <h2 className="text-2xl font-bold text-gray-900">
                         Booking Summary
                     </h2>
                 </div>
 
-                {/* Teacher Info */}
-                <div className="flex items-center gap-3 mb-6">
-                    <Avatar className="w-12 h-12">
-                        <AvatarImage src={teacher.avatar} alt={teacher.name} />
-                        <AvatarFallback className="bg-teal-100 text-teal-700 font-medium">
-                            {getTeacherInitials(teacher.name)}
-                        </AvatarFallback>
-                    </Avatar>
-                    <div>
-                        <p className="text-sm text-gray-500">Teacher:</p>
-                        <p className="font-medium text-gray-900">{teacher.name}</p>
+                {/* Upper Section - Image Left, Details Right */}
+                <div className="flex items-start gap-4 mb-6">
+                    {/* Subject Image */}
+                    <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-amber-100 to-amber-200 flex items-center justify-center flex-shrink-0">
+                        <div className="text-2xl">📖</div>
                     </div>
-                </div>
 
-                {/* Subject */}
-                <div className="flex items-center gap-3 mb-4">
-                    <BookOpen className="w-5 h-5 text-gray-400" />
-                    <div>
-                        <p className="text-sm text-gray-500">Subject:</p>
-                        <p className="font-medium text-gray-900">{subject.name}</p>
-                    </div>
-                </div>
-
-                {/* Date & Time */}
-                <div className="flex items-center gap-6 mb-4">
-                    <div className="flex items-center gap-2">
-                        <Calendar className="w-5 h-5 text-gray-400" />
+                    {/* Right Side Details */}
+                    <div className="flex-1 space-y-3">
+                        {/* Teacher */}
                         <div>
-                            <p className="text-sm text-gray-500">Date & Time</p>
-                            <p className="font-medium text-gray-900">{date}</p>
+                            <span className="text-gray-500 text-sm">Teacher: </span>
+                            <span className="font-medium text-gray-900">{teacher.name}</span>
                         </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Clock className="w-5 h-5 text-gray-400" />
+
+                        {/* Subject */}
                         <div>
-                            <p className="font-medium text-gray-900">{time}</p>
+                            <span className="text-gray-500 text-sm">Subject </span>
+                            <span className="font-medium text-gray-900">{subject.name}</span>
                         </div>
-                    </div>
-                </div>
 
-                {/* Total Fee */}
-                <div className="flex items-center justify-between py-4 border-t border-gray-100 mb-4">
-                    <div className="flex items-center gap-2">
-                        <DollarSign className="w-5 h-5 text-amber-500" />
-                        <span className="font-medium text-gray-900">Total Fee</span>
-                    </div>
-                    <div className="text-right">
-                        <p className="text-lg font-bold text-gray-900">
-                            {currency}{formatAmount(totalFee)}
-                        </p>
-                        {currency === '₦' && (
-                            <p className="text-sm text-gray-500">
-                                / {currency}{formatAmount(Math.round(totalFee * 0.8))}
-                            </p>
-                        )}
-                    </div>
-                </div>
+                        {/* Date & Time */}
+                        <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-gray-500" />
+                            <span className="text-gray-500 text-sm">Date & Time:</span>
+                            <div className="flex items-center gap-2 bg-[#FFF9E9]">
+                                <div className="bg-[#FFF9E9] text-[#338078] px-2 py-1 rounded text-xs">
+                                    {date}
+                                </div>
+                                <div className="bg-[#FFF9E9] text-[#338078] px-2 py-1 rounded text-xs">
+                                    {time}
+                                </div>
+                            </div>
+                        </div>
 
-                {/* Notes */}
-                {notes && (
-                    <div className="mb-4">
-                        <div className="flex items-start gap-2">
-                            <FileText className="w-5 h-5 text-gray-400 mt-0.5" />
-                            <div className="flex-1">
-                                <p className="text-sm text-gray-500 mb-1">Notes from you:</p>
-                                <p className="text-gray-700 text-sm">{notes}</p>
+                        {/* Total Fee */}
+                        <div className="flex items-center gap-2">
+                            <DollarSign className="w-4 h-4 text-amber-500" />
+                            <span className="text-gray-500 text-sm">Total Fee:</span>
+                            <div className="bg-[#FFF9E9] text-[#338078] px-2 py-1 rounded text-xs font-medium">
+                                <span className="font-bold">${Math.round(totalFee / 750)}</span> / {currency}{formatAmount(totalFee)}
                             </div>
                         </div>
                     </div>
-                )}
-
-                {/* Cancellation Policy */}
-                <div className="bg-red-50 rounded-lg p-3 mb-6">
-                    <div className="flex items-start gap-2">
-                        <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
-                        <div>
-                            <p className="text-xs text-red-600 font-medium">Note:</p>
-                            <p className="text-xs text-red-600">
-                                Cancellation allowed 12 hours before session.
-                            </p>
-                        </div>
-                    </div>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex gap-3">
-                    <Button
-                        onClick={onClose}
-                        variant="outline"
-                        className="flex-1 py-3 rounded-full border-gray-300 text-gray-700 hover:bg-gray-50"
-                        disabled={isProcessing}
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        onClick={onConfirmPayment}
-                        className="flex-1 bg-teal-600 hover:bg-teal-700 text-white py-3 rounded-full"
-                        disabled={isProcessing}
-                    >
-                        {isProcessing ? 'Processing...' : 'Confirm & Pay'}
-                    </Button>
+                {/* Bottom Section */}
+                <div className="space-y-4">
+                    {/* Notes - Left Aligned */}
+                    {notes && (
+                        <div className="text-left">
+                            <p className="text-sm">
+                                <span className="text-green-600">Notes from you: </span>
+                                <span className="text-gray-700">{notes}</span>
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Cancellation Policy - Middle Aligned */}
+                    <div className="text-center">
+                        <p className="text-sm">
+                            <span className="text-red-600 font-medium">Note: </span>
+                            <span className="text-red-600">Cancellation allowed 12 hours before session.</span>
+                        </p>
+                    </div>
+
+                    {/* Action Buttons - Middle Aligned */}
+                    <div className="flex gap-3 justify-center">
+                        <Button
+                            onClick={onClose}
+                            variant="outline"
+                            className="px-6 py-2 rounded-full border-[#338078] text-[#338078] hover:bg-green-50"
+                            disabled={isProcessing}
+                            size="lg"
+                        >
+                            Go Back
+                        </Button>
+                        <Button
+                            onClick={onConfirmPayment}
+                            className="px-6 py-2 bg-[#338078] hover:bg-[#236158] text-white rounded-full"
+                            disabled={isProcessing}
+                            size="lg"
+                        >
+                            {isProcessing ? 'Processing...' : 'Confirm & Pay'}
+                        </Button>
+                    </div>
                 </div>
             </div>
         </div>

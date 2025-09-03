@@ -16,6 +16,7 @@
         "laravel/reverb": "^1.5",
         "laravel/sanctum": "^4.1",
         "laravel/tinker": "^2.10.1",
+        "stripe/stripe-php": "^17.6",
         "tightenco/ziggy": "^2.4"
     },
     "require-dev": {

@@ -84,7 +84,7 @@ export default function StudentLeftSidebar({ className, isMobile = false, onClos
         },
         {
             title: 'My Bookings',
-            href: '/student/bookings',
+            href: '/student/my-bookings',
             icon: FileText,
         },
         {

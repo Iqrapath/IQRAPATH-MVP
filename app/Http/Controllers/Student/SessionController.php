@@ -35,7 +35,8 @@ class SessionController extends Controller
                 break;
             case 'all':
             default:
-                // No additional filter needed
+                // Total class tab should only show completed and ongoing classes (exclude upcoming)
+                $query->whereIn('status', ['completed', 'ongoing', 'in_progress']);
                 break;
         }
         
