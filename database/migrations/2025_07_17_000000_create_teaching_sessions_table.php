@@ -32,6 +32,11 @@ return new class extends Migration
             $table->string('zoom_start_url')->nullable();
             $table->string('zoom_password')->nullable();
             
+            // Google Meet fields
+            $table->string('google_meet_id')->nullable();
+            $table->string('google_meet_link')->nullable();
+            $table->string('google_calendar_event_id')->nullable();
+            
             // Attendance tracking
             $table->boolean('teacher_marked_present')->default(false);
             $table->boolean('student_marked_present')->default(false);

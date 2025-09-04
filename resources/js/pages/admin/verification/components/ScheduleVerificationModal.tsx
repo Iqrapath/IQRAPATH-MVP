@@ -48,37 +48,49 @@ export default function ScheduleVerificationModal({ isOpen, onOpenChange, verifi
 
   const generateProviderLink = async () => {
     if (!scheduledAt) {
-      alert('Please select date and time first.');
+      toast.error('Please select date and time first.');
       return;
     }
-    if (platform !== 'zoom') {
-      generateMeetLink();
-      return;
-    }
-    try {
-      setIsGenerating(true);
-      const res = await fetch(route('admin.verification.generate-meeting', verificationRequestId), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || ''
-        },
-        body: JSON.stringify({ scheduled_call_at: scheduledAt, video_platform: platform })
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.success && data.meeting_link) {
-        setMeetingLink(data.meeting_link);
-      } else if (res.status === 422) {
-        alert('Select a future date/time to generate a link.');
-      } else {
-        alert(data.message || 'Failed to generate meeting link. Enter manually.');
+    
+    // For platforms that support automatic generation (Zoom and Google Meet)
+    if (platform === 'zoom' || platform === 'google_meet') {
+      try {
+        setIsGenerating(true);
+        const res = await fetch(route('admin.verification.generate-meeting', verificationRequestId), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || ''
+          },
+          body: JSON.stringify({ 
+            scheduled_call_at: scheduledAt, 
+            video_platform: platform,
+            duration_minutes: 30 // Default duration for verification calls
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.success && data.meeting_link) {
+          setMeetingLink(data.meeting_link);
+          toast.success(`${platform === 'google_meet' ? 'Google Meet' : 'Zoom'} meeting created successfully!`);
+        } else if (res.status === 422) {
+          if (data.message && data.message.includes('not configured')) {
+            toast.error('Google Meet integration is not configured. Please use Zoom or enter a link manually.');
+          } else {
+            toast.error('Select a future date/time to generate a link.');
+          }
+        } else {
+          toast.error(data.message || 'Failed to generate meeting link. Enter manually.');
+        }
+      } catch (e) {
+        console.error(e);
+        toast.error('Failed to generate meeting link');
+      } finally {
+        setIsGenerating(false);
       }
-    } catch (e) {
-      console.error(e);
-      alert('Failed to generate meeting link');
-    } finally {
-      setIsGenerating(false);
+    } else {
+      // For 'other' platform, generate a simple placeholder
+      generateMeetLink();
     }
   };
 
@@ -127,26 +139,92 @@ export default function ScheduleVerificationModal({ isOpen, onOpenChange, verifi
 
         <div className="space-y-2 mt-2">
           <Label>Choose Video Platform</Label>
-          <Select value={platform} onValueChange={(v) => setPlatform(v as any)}>
+          <Select value={platform} onValueChange={(v) => {
+            setPlatform(v as any);
+            setMeetingLink(''); // Clear meeting link when platform changes
+          }}>
             <SelectTrigger>
               <SelectValue placeholder="Select platform" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="google_meet">Google Meet</SelectItem>
-              <SelectItem value="zoom">Zoom</SelectItem>
-              <SelectItem value="other">Other</SelectItem>
+              <SelectItem value="google_meet">
+                <div className="flex items-center gap-2">
+                  <span>Google Meet</span>
+                  <span className="text-xs text-green-600">(Recommended)</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="zoom">
+                <div className="flex items-center gap-2">
+                  <span>Zoom</span>
+                  <span className="text-xs text-blue-600">(Alternative)</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="other">Other Platform</SelectItem>
             </SelectContent>
           </Select>
+          {platform === 'google_meet' && (
+            <div className="text-xs text-green-600 bg-green-50 p-2 rounded">
+              ✓ Google Meet integration creates calendar events automatically
+              <br />
+              <span className="text-gray-500">Note: Requires Google Cloud Console setup</span>
+            </div>
+          )}
+          {platform === 'zoom' && (
+            <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
+              ✓ Zoom integration creates meetings with join links automatically
+            </div>
+          )}
+          {platform === 'other' && (
+            <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
+              ℹ You'll need to provide the meeting link manually
+            </div>
+          )}
         </div>
 
         <div className="space-y-2">
           <Label>Meeting Link</Label>
-          <Input placeholder="Meeting Link" value={meetingLink} onChange={(e) => setMeetingLink(e.target.value)} />
+          <Input 
+            placeholder={
+              platform === 'google_meet' 
+                ? 'Google Meet link will be generated automatically' 
+                : platform === 'zoom' 
+                ? 'Zoom meeting link will be generated automatically'
+                : 'Enter meeting link manually'
+            } 
+            value={meetingLink} 
+            onChange={(e) => setMeetingLink(e.target.value)} 
+          />
           <div className="text-xs text-gray-600">
-            <span className="mr-1">Meeting Link:</span>
-            <button type="button" className="text-green-600 hover:underline disabled:text-gray-400" onClick={generateProviderLink} disabled={!scheduledAt || isGenerating}>
-              {isGenerating ? 'Generating...' : 'Click Generate Meeting Link'}
-            </button>
+            {platform === 'google_meet' || platform === 'zoom' ? (
+              <>
+                <span className="mr-1">Auto-generate {platform === 'google_meet' ? 'Google Meet' : 'Zoom'} meeting:</span>
+                <button 
+                  type="button" 
+                  className="text-green-600 hover:underline disabled:text-gray-400" 
+                  onClick={generateProviderLink} 
+                  disabled={!scheduledAt || isGenerating}
+                >
+                  {isGenerating ? 'Generating...' : 'Generate Meeting Link'}
+                </button>
+                <div className="mt-1 text-gray-500">
+                  {platform === 'google_meet' 
+                    ? 'Creates a Google Calendar event with Google Meet link'
+                    : 'Creates a Zoom meeting with join link'
+                  }
+                </div>
+              </>
+            ) : (
+              <>
+                <span className="mr-1">Manual link:</span>
+                <button 
+                  type="button" 
+                  className="text-blue-600 hover:underline" 
+                  onClick={generateMeetLink}
+                >
+                  Generate placeholder link
+                </button>
+              </>
+            )}
           </div>
         </div>
 

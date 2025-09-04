@@ -7,6 +7,7 @@ use App\Http\Controllers\Teacher\DashboardController;
 use App\Http\Controllers\Teacher\FinancialController;
 use App\Http\Controllers\Teacher\ProfileController;
 use App\Http\Controllers\Teacher\TeacherReviewController;
+use App\Http\Controllers\Teacher\BookingController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -83,6 +84,13 @@ Route::middleware(['auth', 'verified', 'role:teacher', 'teacher.verified'])->pre
     Route::get('/requests', function () {
         return Inertia::render('teacher/requests/index');
     })->name('requests');
+
+    // Booking management
+    Route::get('/bookings', [BookingController::class, 'index'])->name('bookings.index');
+    Route::post('/bookings/{booking}/approve', [BookingController::class, 'approve'])->name('bookings.approve');
+    Route::post('/bookings/{booking}/reject', [BookingController::class, 'reject'])->name('bookings.reject');
+    Route::post('/bookings/{booking}/reschedule', [BookingController::class, 'reschedule'])->name('bookings.reschedule');
+    Route::post('/bookings/{booking}/cancel', [BookingController::class, 'cancel'])->name('bookings.cancel');
 
     // Teacher reviews (students and guardians can submit)
     Route::post('/reviews', [TeacherReviewController::class, 'store'])->middleware('role:student,guardian')->name('reviews.store');

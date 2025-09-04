@@ -33,7 +33,6 @@ class DatabaseSeeder extends Seeder
             NotificationTriggerSeeder::class,
             UrgentActionSeeder::class,
             ScheduledNotificationSeeder::class,
-            CompletedClassesSeeder::class,
         ]);
     }
 }

@@ -57,6 +57,8 @@ export function NotificationDropdown({ className, iconSize = 24 }: NotificationD
         return <Bell className="h-4 w-4 text-green-500" />;
       case 'App\\Notifications\\SessionRequestNotification':
         return <Bell className="h-4 w-4 text-amber-500" />;
+      case 'App\\Notifications\\BookingNotification':
+        return <Bell className="h-4 w-4 text-purple-500" />;
       case 'new_user_registration':
         return <Bell className="h-4 w-4 text-teal-500" />;
       default:
@@ -188,6 +190,29 @@ export function NotificationDropdown({ className, iconSize = 24 }: NotificationD
                             )}
                             {notification.data.remaining_attempts !== undefined && (
                               <p className="mt-1"><strong>Remaining Attempts:</strong> {notification.data.remaining_attempts}</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Special handling for booking notifications */}
+                      {notification.type === 'App\\Notifications\\BookingNotification' && (
+                        <div className="mt-2 p-2 bg-purple-50 rounded border border-purple-200">
+                          <div className="text-xs text-purple-800">
+                            {(notification.data as any).teacher_name && (
+                              <p><strong>Teacher:</strong> {(notification.data as any).teacher_name}</p>
+                            )}
+                            {(notification.data as any).student_name && (
+                              <p><strong>Student:</strong> {(notification.data as any).student_name}</p>
+                            )}
+                            {(notification.data as any).subject_name && (
+                              <p><strong>Subject:</strong> {(notification.data as any).subject_name}</p>
+                            )}
+                            {(notification.data as any).booking_date && (notification.data as any).start_time && (
+                              <p><strong>Date:</strong> {new Date((notification.data as any).booking_date).toLocaleDateString()} at {(notification.data as any).start_time}</p>
+                            )}
+                            {(notification.data as any).meeting_link && (
+                              <p><strong>Meeting Link:</strong> Available</p>
                             )}
                           </div>
                         </div>

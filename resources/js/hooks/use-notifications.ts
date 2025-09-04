@@ -139,6 +139,8 @@ export const useNotifications = ({
         return '💰';
       case 'App\\Notifications\\SessionRequestNotification':
         return '📅';
+      case 'App\\Notifications\\BookingNotification':
+        return '📚';
       default:
         return '🔔';
     }

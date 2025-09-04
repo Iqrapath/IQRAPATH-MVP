@@ -61,4 +61,13 @@ return [
         'base_url' => env('PAYSTACK_BASE_URL', 'https://api.paystack.co'),
     ],
 
+    'google_meet' => [
+        'client_id' => env('
+        '),
+        'client_secret' => env('GOOGLE_MEET_CLIENT_SECRET'),
+        'refresh_token' => env('GOOGLE_MEET_REFRESH_TOKEN'),
+        'webhook_secret' => env('GOOGLE_MEET_WEBHOOK_SECRET'),
+        'calendar_id' => env('GOOGLE_MEET_CALENDAR_ID', 'primary'),
+    ],
+
 ];

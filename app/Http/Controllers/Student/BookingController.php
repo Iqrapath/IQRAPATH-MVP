@@ -12,11 +12,16 @@ use App\Models\TeacherAvailability;
 use App\Models\Subject;
 use Inertia\Inertia;
 use App\Models\User;
+use App\Services\BookingNotificationService;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 
 class BookingController extends Controller
 {
+    public function __construct(
+        private BookingNotificationService $bookingNotificationService
+    ) {}
+
     /**
      * Display student's bookings
      */
@@ -674,38 +679,26 @@ class BookingController extends Controller
                 'start_time' => $firstAvailability->start_time,
                 'end_time' => $lastAvailability->end_time,
                 'duration_minutes' => $durationMinutes,
-                'status' => 'approved', // Auto-approve for wallet payments
+                'status' => 'pending', // Require teacher/admin approval
                 'notes' => $request->note_to_teacher,
                 'created_by_id' => $student->id,
-                'approved_by_id' => $student->id, // Auto-approval
-                'approved_at' => now(),
-            ]);
-            
-            // Create teaching session
-            $session = TeachingSession::create([
-                'session_uuid' => Str::uuid(),
-                'booking_id' => $booking->id,
-                'teacher_id' => $request->teacher_id,
-                'student_id' => $student->id,
-                'subject_id' => $subject->id,
-                'session_date' => $request->date,
-                'start_time' => $firstAvailability->start_time,
-                'end_time' => $lastAvailability->end_time,
-                'status' => 'scheduled',
-                'meeting_platform' => 'zoom', // Default to zoom
+                'total_fee' => $request->amount,
             ]);
             
             DB::commit();
+            
+            // Send booking created notifications (pending approval)
+            $this->bookingNotificationService->sendBookingCreatedNotifications($booking);
             
             // Clear booking session data after successful booking
             $request->session()->forget('booking_session');
             
             return response()->json([
                 'success' => true,
-                'message' => 'Booking successful! Your session has been scheduled.',
+                'message' => 'Booking request submitted successfully! Your teacher will review and approve it soon.',
                 'booking_id' => $booking->id,
-                'session_id' => $session->id,
-                'session_uuid' => $session->session_uuid,
+                'booking_uuid' => $booking->booking_uuid,
+                'status' => 'pending',
                 'new_wallet_balance' => $studentWallet ? $studentWallet->balance : 0
             ]);
             

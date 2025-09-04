@@ -16,7 +16,7 @@ return new class extends Migration
             $table->foreignId('wallet_id')->constrained('student_wallets')->onDelete('cascade');
             $table->enum('transaction_type', ['credit', 'debit']);
             $table->decimal('amount', 10, 2);
-            $table->string('description');
+            $table->text('description');
             $table->enum('status', ['pending', 'completed', 'failed'])->default('completed');
             $table->timestamp('transaction_date');
             $table->json('metadata')->nullable();

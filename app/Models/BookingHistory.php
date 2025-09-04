@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -17,12 +19,7 @@ class BookingHistory extends Model
      */
     protected $table = 'booking_history';
 
-    /**
-     * Indicates if the model should be timestamped.
-     *
-     * @var bool
-     */
-    public $timestamps = false;
+
 
     /**
      * The attributes that are mass assignable.
@@ -35,7 +32,9 @@ class BookingHistory extends Model
         'previous_data',
         'new_data',
         'performed_by_id',
-        'created_at',
+        'notes',
+        'ip_address',
+        'user_agent',
     ];
 
     /**
@@ -46,11 +45,10 @@ class BookingHistory extends Model
     protected $casts = [
         'previous_data' => 'array',
         'new_data' => 'array',
-        'created_at' => 'datetime',
     ];
 
     /**
-     * Get the booking associated with the history record.
+     * Get the booking that owns the history entry.
      */
     public function booking(): BelongsTo
     {
@@ -64,4 +62,20 @@ class BookingHistory extends Model
     {
         return $this->belongsTo(User::class, 'performed_by_id');
     }
-} 
+
+    /**
+     * Scope for specific actions.
+     */
+    public function scopeAction($query, string $action)
+    {
+        return $query->where('action', $action);
+    }
+
+    /**
+     * Scope for recent history.
+     */
+    public function scopeRecent($query, int $days = 30)
+    {
+        return $query->where('created_at', '>=', now()->subDays($days));
+    }
+}

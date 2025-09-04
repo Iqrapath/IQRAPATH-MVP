@@ -16,6 +16,12 @@ use Illuminate\Support\Facades\Route;
 Route::post('/api/zoom/webhook', [App\Http\Controllers\ZoomWebhookController::class, 'handle'])
     ->name('zoom.webhook');
 
+// Google Meet Webhooks (no auth required)
+Route::post('/api/google-meet/webhook', [App\Http\Controllers\GoogleMeetWebhookController::class, 'handle'])
+    ->name('google-meet.webhook');
+Route::post('/api/google-meet/push-notification', [App\Http\Controllers\GoogleMeetWebhookController::class, 'handlePushNotification'])
+    ->name('google-meet.push-notification');
+
 // Session Attendance Routes
 Route::middleware(['auth'])->group(function () {
     Route::post('/sessions/{session}/teacher-join', [App\Http\Controllers\SessionAttendanceController::class, 'teacherJoin'])

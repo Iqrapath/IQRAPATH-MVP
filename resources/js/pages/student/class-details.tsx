@@ -29,6 +29,8 @@ import {
 import { PageProps, ClassDetailsPageProps } from '@/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { UserLocationIcon } from '@/components/icons/user-location-icon';
+import { ZoomIcon } from '@/components/icons/zoom-icon';
+import { GoogleMeetIcon } from '@/components/icons/google-meet-icon';
 
 interface Props extends PageProps, ClassDetailsPageProps { }
 
@@ -54,12 +56,12 @@ function ClassDetailsCard({ booking }: { booking: Props['booking'] }) {
         <div className="bg-white rounded-[20px] border border-gray-100 p-6">
             {/* booking details */}
             <div className="flex items-start gap-6">
-                {/* Subject Image */}
-                <img
-                    src={booking.imageUrl}
-                    alt={booking.title}
-                    className="w-24 h-24 rounded-[16px] object-cover flex-shrink-0"
-                />
+                {/* Subject Initials */}
+                <div className="w-24 h-24 rounded-[16px] bg-gradient-to-br from-[#2c7870] to-[#236158] flex items-center justify-center flex-shrink-0">
+                    <span className="text-white font-bold text-2xl">
+                        {booking.title.split(' ').map(word => word[0]).join('').substring(0, 2).toUpperCase()}
+                    </span>
+                </div>
 
                 {/* Content */}
                 <div className="flex-1">
@@ -97,14 +99,14 @@ function ClassDetailsCard({ booking }: { booking: Props['booking'] }) {
                     {/* Mode Section */}
                     <div className="flex items-center gap-2">
                         <span className="text-sm text-gray-500">Mode:</span>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 bg-[#FFF9E9] rounded-full p-2">
                             <div className="flex items-center gap-1">
-                                <Video className="w-4 h-4 text-green-600" />
+                                <Video className="w-8 h-8 text-green-600" />
                                 <span className="text-sm text-green-700">Zoom</span>
                             </div>
                             <span className="text-gray-400">|</span>
                             <div className="flex items-center gap-1">
-                                <Users className="w-4 h-4 text-blue-600" />
+                                <GoogleMeetIcon className="w-4 h-4 text-blue-600" />
                                 <span className="text-sm text-green-700">Google Meet</span>
                             </div>
                         </div>

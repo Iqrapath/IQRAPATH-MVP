@@ -717,15 +717,37 @@ class TeacherVerificationController extends Controller
         ]);
 
         try {
+            $startAt = \Carbon\Carbon::parse($validated['scheduled_call_at']);
+            $topic = 'Teacher Verification Call: ' . ($verificationRequest->teacherProfile->user->name ?? 'Teacher');
+            $durationMinutes = $validated['duration_minutes'] ?? 30;
+            
             if ($validated['video_platform'] === 'zoom') {
                 $zoom = app(\App\Services\ZoomService::class);
-                $startAt = \Carbon\Carbon::parse($validated['scheduled_call_at']);
-                $topic = 'Teacher Verification Call: ' . ($verificationRequest->teacherProfile->user->name ?? 'Teacher');
-                $meeting = $zoom->createAdhocMeeting($topic, $startAt, $validated['duration_minutes'] ?? 30);
+                $meeting = $zoom->createAdhocMeeting($topic, $startAt, $durationMinutes);
                 return response()->json([
                     'success' => true,
                     'meeting_link' => $meeting['join_url'] ?? '',
                     'provider' => 'zoom',
+                    'meta' => $meeting,
+                ]);
+            }
+            
+            if ($validated['video_platform'] === 'google_meet') {
+                // Check if Google Meet credentials are configured
+                if (!config('services.google_meet.client_id') || !config('services.google_meet.client_secret') || !config('services.google_meet.refresh_token')) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Google Meet integration is not configured. Please contact the administrator or use a different platform.',
+                    ], 422);
+                }
+                
+                $googleMeet = app(\App\Services\GoogleMeetService::class);
+                $organizerEmail = $verificationRequest->teacherProfile->user->email ?? null;
+                $meeting = $googleMeet->createAdhocMeeting($topic, $startAt, $durationMinutes, $organizerEmail);
+                return response()->json([
+                    'success' => true,
+                    'meeting_link' => $meeting['meet_link'] ?? '',
+                    'provider' => 'google_meet',
                     'meta' => $meeting,
                 ]);
             }

@@ -215,4 +215,13 @@ class Booking extends Model
         $zoomService = app(\App\Services\ZoomService::class);
         return $zoomService->createMeeting($session, $session->teacher);
     }
+
+    /**
+     * Create a Google Meet event for the teaching session.
+     */
+    public function createGoogleMeetEvent(TeachingSession $session)
+    {
+        $googleMeetService = app(\App\Services\GoogleMeetService::class);
+        return $googleMeetService->createMeeting($session, $session->teacher);
+    }
 } 
