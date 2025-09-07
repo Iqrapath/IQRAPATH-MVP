@@ -10,11 +10,15 @@ use App\Models\Booking;
 use App\Models\TeachingSession;
 use App\Models\TeacherAvailability;
 use App\Models\Subject;
+use App\Models\TeacherReview;
+use App\Models\BookingNote;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Inertia\Inertia;
 use App\Models\User;
 use App\Services\BookingNotificationService;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class BookingController extends Controller
 {
@@ -34,7 +38,12 @@ class BookingController extends Controller
             ->with([
                 'teacher.teacherProfile',
                 'subject.template', 
-                'teachingSession',
+                'teachingSession.teacherReviews' => function($query) use ($student) {
+                    $query->where('student_id', $student->id);
+                },
+                'bookingNotes' => function($query) {
+                    $query->whereIn('note_type', ['teacher_note', 'student_note', 'student_review']);
+                },
                 'history' => function($query) {
                     $query->latest()->take(1);
                 }
@@ -42,7 +51,7 @@ class BookingController extends Controller
             ->orderBy('booking_date', 'desc')
             ->orderBy('start_time', 'desc')
             ->get()
-            ->map(function ($booking) {
+            ->map(function ($booking) use ($student) {
                 $teacher = $booking->teacher;
                 $subject = $booking->subject;
                 $session = $booking->teachingSession;
@@ -50,11 +59,20 @@ class BookingController extends Controller
                 $subjectTemplate = $subject?->template;
                 $teacherProfile = $teacher?->teacherProfile;
                 
+                // Get teacher and student notes from BookingNote
+                $teacherNotes = $booking->bookingNotes->where('note_type', 'teacher_note')->first();
+                $studentNotes = $booking->bookingNotes->where('note_type', 'student_note')->first();
+                $studentReviewNote = $booking->bookingNotes->where('note_type', 'student_review')->first();
+                
+                // Get student review for this session
+                $studentReview = $session?->teacherReviews->where('student_id', $student->id)->first();
+                
                 return [
                     'id' => $booking->id,
                     'booking_uuid' => $booking->booking_uuid,
                     'title' => $subjectTemplate?->name ?? $subject?->name ?? 'Unknown Subject',
                     'teacher' => $teacher?->name ?? 'Unknown Teacher',
+                    'teacher_id' => $teacher?->id,
                     'teacher_avatar' => null, // Use initials instead of images
                     'subject' => $subjectTemplate?->name ?? $subject?->name ?? 'Unknown Subject',
                     'date' => $booking->booking_date->format('d M Y'),
@@ -72,6 +90,33 @@ class BookingController extends Controller
                                     $booking->booking_date->isFuture(),
                     'booking_date_raw' => $booking->booking_date,
                     'start_time_raw' => $booking->start_time,
+                    // Database fields for modal
+                    'booking_date' => $booking->booking_date->format('Y-m-d'),
+                    'start_time' => $booking->start_time->format('H:i:s'),
+                    'end_time' => $booking->end_time->format('H:i:s'),
+                    'duration_minutes' => $booking->duration_minutes,
+                    'notes' => $booking->notes,
+                'bookingNotes' => $booking->bookingNotes,
+                    // TeachingSession data
+                    'teachingSession' => $session ? [
+                        'id' => $session->id,
+                        'teacher_notes' => $session->teacher_notes ?: $teacherNotes?->content,
+                        'student_notes' => $session->student_notes ?: $studentNotes?->content,
+                        'student_rating' => $studentReview?->rating ?: $session->student_rating,
+                        'teacher_rating' => $session->teacher_rating,
+                        'meeting_platform' => $session->meeting_platform,
+                        'recording_url' => $session->recording_url,
+                        'completion_date' => $session->completion_date?->format('Y-m-d H:i:s'),
+                        'zoom_join_url' => $session->zoom_join_url,
+                        'google_meet_link' => $session->google_meet_link,
+                        // Additional data from relationships
+                        'student_review' => $studentReview?->review,
+                        'booking_notes' => [
+                            'teacher_note' => $teacherNotes?->content,
+                            'student_note' => $studentNotes?->content,
+                            'student_review' => $studentReviewNote?->content,
+                        ],
+                    ] : null,
                 ];
             });
 
@@ -81,19 +126,19 @@ class BookingController extends Controller
         
         $upcomingBookings = $bookings->filter(function ($booking) use ($today) {
             return $booking['booking_date_raw'] >= $today && 
-                   in_array($booking['status'], ['Pending', 'Approved', 'Confirmed']);
+                   in_array($booking['status'], ['Pending', 'Approved', 'Upcoming']);
         })->values();
         
         $ongoingBookings = $bookings->filter(function ($booking) use ($today, $now) {
             return $booking['booking_date_raw']->isToday() && 
                    $booking['start_time_raw'] <= $now && 
-                   $booking['status'] === 'Confirmed';
+                   $booking['status'] === 'Upcoming';
         })->values();
         
         $completedBookings = $bookings->filter(function ($booking) use ($today) {
             return $booking['status'] === 'Completed' || 
                    ($booking['booking_date_raw'] < $today && 
-                    in_array($booking['status'], ['Approved', 'Confirmed']));
+                    in_array($booking['status'], ['Approved', 'Upcoming']));
         })->values();
 
         return Inertia::render('student/my-bookings', [
@@ -124,7 +169,12 @@ class BookingController extends Controller
                 'teacher.teacherProfile.subjects.template',
                 'teacher.teacherReviews',
                 'subject.template',
-                'teachingSession',
+                'teachingSession.teacherReviews' => function($query) use ($student) {
+                    $query->where('student_id', $student->id);
+                },
+                'bookingNotes' => function($query) {
+                    $query->whereIn('note_type', ['teacher_note', 'student_note', 'student_review']);
+                },
                 'history' => function($query) {
                     $query->latest()->take(5);
                 }
@@ -136,6 +186,14 @@ class BookingController extends Controller
         $session = $booking->teachingSession;
         $subjectTemplate = $subject?->template;
         $teacherProfile = $teacher?->teacherProfile;
+        
+        // Get teacher and student notes from BookingNote
+        $teacherNotes = $booking->bookingNotes->where('note_type', 'teacher_note')->first();
+        $studentNotes = $booking->bookingNotes->where('note_type', 'student_note')->first();
+        $studentReviewNote = $booking->bookingNotes->where('note_type', 'student_review')->first();
+        
+        // Get student review for this session
+        $studentReview = $session?->teacherReviews->where('student_id', $student->id)->first();
 
         // Format booking data
         $bookingData = [
@@ -143,6 +201,7 @@ class BookingController extends Controller
             'booking_uuid' => $booking->booking_uuid,
             'title' => $subjectTemplate?->name ?? $subject?->name ?? 'Unknown Subject',
             'teacher' => $teacher?->name ?? 'Unknown Teacher',
+            'teacher_id' => $teacher?->id,
             'teacher_avatar' => $teacherProfile?->profile_image_url ?? '/images/default-avatar.png',
             'subject' => $subjectTemplate?->name ?? $subject?->name ?? 'Unknown Subject',
             'date' => $booking->booking_date->format('d M Y'),
@@ -162,6 +221,31 @@ class BookingController extends Controller
                             $booking->booking_date->isFuture(),
             'booking_date_raw' => $booking->booking_date,
             'start_time_raw' => $booking->start_time,
+            // Database fields for modal
+            'booking_date' => $booking->booking_date->format('Y-m-d'),
+            'start_time' => $booking->start_time->format('H:i:s'),
+            'end_time' => $booking->end_time->format('H:i:s'),
+            'duration_minutes' => $booking->duration_minutes,
+            // TeachingSession data
+            'teachingSession' => $session ? [
+                'id' => $session->id,
+                'teacher_notes' => $session->teacher_notes ?: $teacherNotes?->content,
+                'student_notes' => $session->student_notes ?: $studentNotes?->content,
+                'student_rating' => $studentReview?->rating ?: $session->student_rating,
+                'teacher_rating' => $session->teacher_rating,
+                'meeting_platform' => $session->meeting_platform,
+                'recording_url' => $session->recording_url,
+                'completion_date' => $session->completion_date?->format('Y-m-d H:i:s'),
+                'zoom_join_url' => $session->zoom_join_url,
+                'google_meet_link' => $session->google_meet_link,
+                // Additional data from relationships
+                'student_review' => $studentReview?->review,
+                'booking_notes' => [
+                    'teacher_note' => $teacherNotes?->content,
+                    'student_note' => $studentNotes?->content,
+                    'student_review' => $studentReviewNote?->content,
+                ],
+            ] : null,
         ];
 
         // Get teacher subjects
@@ -745,5 +829,293 @@ class BookingController extends Controller
                 'message' => 'Booking failed: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Cancel a booking
+     */
+    public function cancel(Request $request, $id)
+    {
+        try {
+            $booking = Booking::findOrFail($id);
+            
+            // Check if the booking belongs to the authenticated student
+            if ($booking->student_id !== auth()->id()) {
+                return back()->withErrors(['error' => 'Unauthorized to cancel this booking.']);
+            }
+            
+            // Check if booking can be cancelled with specific reasons
+            if (!in_array($booking->status, ['pending', 'approved', 'confirmed', 'upcoming', 'Upcoming'])) {
+                $reason = $this->getCancellationNotAllowedReason($booking->status);
+                return back()->withErrors(['error' => $reason]);
+            }
+            
+            // Check timing restrictions based on booking status
+            // Handle different start_time formats (could be time string or datetime)
+            if ($booking->start_time instanceof \Carbon\Carbon) {
+                $startTime = $booking->start_time->format('H:i:s');
+            } else {
+                $startTime = $booking->start_time;
+            }
+            
+            $bookingDateTime = Carbon::parse($booking->booking_date->format('Y-m-d') . ' ' . $startTime);
+            $hoursUntilBooking = now()->diffInHours($bookingDateTime, false);
+            
+            // If booking has already started or passed
+            if ($hoursUntilBooking < 0) {
+                return back()->withErrors(['error' => 'Cannot cancel a booking that has already started or passed.']);
+            }
+            
+            // Pending bookings can always be cancelled (not even approved yet)
+            if ($booking->status === 'pending') {
+                // No time restrictions for pending bookings
+            } 
+            // Upcoming bookings can be cancelled with reasonable notice
+            elseif (in_array($booking->status, ['upcoming', 'Upcoming'])) {
+                if ($hoursUntilBooking < 2) {
+                    return back()->withErrors(['error' => 'Cannot cancel upcoming bookings less than 2 hours before the scheduled time. Please contact support for assistance.']);
+                }
+            }
+            // Approved/Confirmed bookings have a 2-hour minimum notice
+            elseif (in_array($booking->status, ['approved', 'confirmed'])) {
+                if ($hoursUntilBooking < 2) {
+                    return back()->withErrors(['error' => 'Cannot cancel confirmed bookings less than 2 hours before the scheduled time. Please contact support for assistance.']);
+                }
+            }
+            
+            DB::beginTransaction();
+            
+            // Update booking status to cancelled
+            $booking->update([
+                'status' => 'cancelled',
+                'cancelled_at' => now(),
+                'cancelled_by' => 'student'
+            ]);
+            
+            // If payment was made, process refund (optional - implement refund logic here)
+            // You might want to refund to student wallet or create a refund request
+            
+            // Send notification to teacher about cancellation
+            // Implement notification logic here if needed
+            
+            DB::commit();
+            
+            // Return success response for Inertia
+            return redirect()->route('student.my-bookings')->with('success', 'Booking cancelled successfully.');
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            return back()->withErrors(['error' => 'Failed to cancel booking: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Get specific reason why booking cannot be cancelled based on status
+     */
+    private function getCancellationNotAllowedReason(string $status): string
+    {
+        return match(strtolower($status)) {
+            'completed' => 'Cannot cancel a booking that has already been completed.',
+            'cancelled' => 'This booking has already been cancelled.',
+            'rejected' => 'Cannot cancel a booking that was rejected by the teacher.',
+            'in_progress', 'ongoing' => 'Cannot cancel a booking that is currently in progress.',
+            'expired' => 'Cannot cancel an expired booking.',
+            'no_show' => 'Cannot cancel a booking marked as no-show.',
+            default => 'This booking cannot be cancelled due to its current status: ' . $status . '.'
+        };
+    }
+
+    /**
+     * Save student review for a completed booking
+     */
+    public function saveReview(Request $request, Booking $booking)
+    {
+        $student = auth()->user();
+        
+        // Validate that the booking belongs to the student
+        if ($booking->student_id !== $student->id) {
+            return back()->withErrors(['error' => 'You can only review your own bookings.']);
+        }
+        
+        // Validate that the booking is completed
+        if (!in_array(strtolower($booking->status), ['completed', 'finished'])) {
+            return back()->withErrors(['error' => 'You can only review completed bookings.']);
+        }
+        
+        // Validate the request
+        $request->validate([
+            'rating' => 'required|integer|min:1|max:5',
+            'review' => 'nullable|string|max:1000',
+        ]);
+        
+        try {
+            DB::beginTransaction();
+            
+            $session = $booking->teachingSession;
+            
+            if ($session) {
+                // Update or create teacher review
+                $teacherReview = TeacherReview::updateOrCreate(
+                    [
+                        'session_id' => $session->id,
+                        'student_id' => $student->id,
+                        'teacher_id' => $booking->teacher_id,
+                    ],
+                    [
+                        'rating' => $request->rating,
+                        'review' => $request->review,
+                        'reviewed_at' => now(),
+                    ]
+                );
+                
+                // Also update the session with student rating and notes
+                $session->update([
+                    'student_rating' => $request->rating,
+                    'student_notes' => $request->review,
+                ]);
+            }
+            
+            // Create or update booking note for student review
+            BookingNote::updateOrCreate(
+                [
+                    'booking_id' => $booking->id,
+                    'user_id' => $student->id,
+                    'note_type' => 'student_review',
+                ],
+                [
+                    'content' => $request->review,
+                    'created_at' => now(),
+                ]
+            );
+            
+            DB::commit();
+            
+            return back()->with('success', 'Your review has been saved successfully!');
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            return back()->withErrors(['error' => 'Failed to save review: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Save student personal notes for a booking
+     */
+    public function savePersonalNotes(Request $request, Booking $booking)
+    {
+        $student = auth()->user();
+        
+        // Validate that the booking belongs to the student
+        if ($booking->student_id !== $student->id) {
+            return back()->withErrors(['error' => 'You can only add notes to your own bookings.']);
+        }
+        
+        // Validate the request
+        $request->validate([
+            'personal_notes' => 'nullable|string|max:1000',
+        ]);
+        
+        try {
+            DB::beginTransaction();
+            
+            $session = $booking->teachingSession;
+            
+            if ($session) {
+                // Update the session with student notes
+                $session->update([
+                    'student_notes' => $request->personal_notes,
+                ]);
+            }
+            
+            // Create or update booking note for student personal notes
+            BookingNote::updateOrCreate(
+                [
+                    'booking_id' => $booking->id,
+                    'user_id' => $student->id,
+                    'note_type' => 'student_note',
+                ],
+                [
+                    'content' => $request->personal_notes,
+                    'created_at' => now(),
+                ]
+            );
+            
+            DB::commit();
+            
+            return back()->with('success', 'Your personal notes have been saved successfully!');
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            return back()->withErrors(['error' => 'Failed to save personal notes: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Download booking summary as PDF
+     */
+    public function downloadSummaryPdf(Request $request, Booking $booking)
+    {
+        $student = $request->user();
+        
+        // Ensure the booking belongs to the student
+        if ($booking->student_id !== $student->id) {
+            abort(403, 'Unauthorized access to booking');
+        }
+
+        // Load all necessary relationships
+        $booking->load([
+            'teacher',
+            'subject',
+            'teachingSession.teacherReviews' => function($query) use ($student) {
+                $query->where('student_id', $student->id);
+            },
+            'bookingNotes' => function($query) {
+                $query->whereIn('note_type', ['teacher_note', 'student_note', 'student_review']);
+            }
+        ]);
+
+        // Get the teaching session
+        $session = $booking->teachingSession;
+        
+        // Get notes
+        $teacherNotes = $booking->bookingNotes->where('note_type', 'teacher_note')->first();
+        $studentNotes = $booking->bookingNotes->where('note_type', 'student_note')->first();
+        $studentReviewNote = $booking->bookingNotes->where('note_type', 'student_review')->first();
+        
+        // Get student review from teacher reviews
+        $studentReview = $session?->teacherReviews->where('student_id', $student->id)->first();
+
+        // Prepare data for PDF
+        $data = [
+            'booking' => $booking,
+            'session' => $session,
+            'teacher' => $booking->teacher,
+            'subject' => $booking->subject,
+            'student' => $student,
+            'teacherNotes' => $teacherNotes?->content,
+            'studentNotes' => $studentNotes?->content,
+            'studentReview' => $studentReviewNote?->content ?? $studentReview?->feedback,
+            'rating' => $studentReview?->rating ?? 0,
+            'sessionDate' => $session?->session_date ?? $booking->booking_date,
+            'startTime' => $session?->start_time ?? $booking->start_time,
+            'endTime' => $session?->end_time ?? $booking->end_time,
+            'duration' => $session?->duration_minutes ?? $booking->duration_minutes,
+            'meetingPlatform' => $session?->meeting_platform ?? 'Zoom',
+            'meetingUrl' => $session?->meeting_url ?? $session?->zoom_join_url,
+            'recordingUrl' => $session?->recording_url,
+            'materialsUrl' => $session?->materials_url,
+        ];
+
+        // Generate PDF
+        $pdf = Pdf::loadView('pdf.booking-summary', $data);
+        
+        // Set filename
+        $filename = 'Class_Summary_' . $booking->booking_uuid . '_' . now()->format('Y-m-d') . '.pdf';
+        
+        // Return PDF download
+        return $pdf->download($filename);
     }
 }

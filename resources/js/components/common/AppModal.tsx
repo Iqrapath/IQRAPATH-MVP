@@ -54,7 +54,7 @@ export default function AppModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
-      <DialogContent className={cn(sizeClass, 'max-h-[90vh] overflow-hidden flex flex-col', className)}>
+      <DialogContent className={cn(sizeClass, 'max-h-[80vh] overflow-auto flex flex-col ', className)}>
         {(title || description) && (
           <DialogHeader className="flex-shrink-0">
             {title ? <DialogTitle>{title}</DialogTitle> : null}

@@ -21,14 +21,17 @@ class DatabaseSeeder extends Seeder
             SubjectTemplatesSeeder::class, // Must run before TeacherSeeder
             TeacherSeeder::class,
             StudentSeeder::class, // Must run before TeacherReviewSeeder
-            // StudentWalletSeeder::class,
+            OngoingBookingSeeder::class,
+            TodayOngoingSeeder::class,
             GuardianSeeder::class,
             TeacherAvailabilitySeeder::class,
             TeacherWalletSeeder::class,
-            // TeacherReviewSeeder::class, // Now students exist
+            TeacherReviewSeeder::class, // Now students exist
             UnassignedUserSeeder::class, // Create unassigned users for testing
             UserSeeder::class, // This should run last to handle relationships
-            // TeachingSessionSeeder::class,
+            BookingSeeder::class, // Create bookings with sessions
+            TeachingSessionSeeder::class,
+        //    TodayOngoingSeeder::class,
             NotificationTemplateSeeder::class,
             NotificationTriggerSeeder::class,
             UrgentActionSeeder::class,

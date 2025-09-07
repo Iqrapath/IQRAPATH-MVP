@@ -64,6 +64,10 @@ Route::middleware(['auth', 'verified', 'role:student'])->prefix('student')->name
     // Booking routes
     Route::get('/my-bookings', [App\Http\Controllers\Student\BookingController::class, 'index'])->name('my-bookings');
     Route::get('/my-bookings/{booking}', [App\Http\Controllers\Student\BookingController::class, 'show'])->name('my-bookings.show');
+    Route::post('/my-bookings/{booking}/cancel', [App\Http\Controllers\Student\BookingController::class, 'cancel'])->name('my-bookings.cancel');
+    Route::post('/bookings/{booking}/review', [App\Http\Controllers\Student\BookingController::class, 'saveReview'])->name('bookings.review');
+    Route::post('/bookings/{booking}/personal-notes', [App\Http\Controllers\Student\BookingController::class, 'savePersonalNotes'])->name('bookings.personal-notes');
+    Route::get('/bookings/{booking}/summary-pdf', [App\Http\Controllers\Student\BookingController::class, 'downloadSummaryPdf'])->name('bookings.summary-pdf');
     Route::get('/book-class', [App\Http\Controllers\Student\BookingController::class, 'create'])->name('book-class');
     Route::get('/reschedule/{booking}', [App\Http\Controllers\Student\BookingController::class, 'reschedule'])->name('reschedule');
     Route::post('/reschedule/{booking}/update', [App\Http\Controllers\Student\BookingController::class, 'updateReschedule'])->name('reschedule.update');

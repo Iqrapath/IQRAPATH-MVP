@@ -54,33 +54,31 @@ class DashboardController extends Controller
     /**
      * Get student statistics.
      */
-    private function getStudentStats(int $studentId): array
+private function getStudentStats(int $studentId): array
     {
-        // Get total sessions count
-        $totalSessions = TeachingSession::where('student_id', $studentId)->count();
+        // Get all bookings for the student
+        $bookings = Booking::where('student_id', $studentId)->get();
         
-        // Get completed sessions count
-        $completedSessions = TeachingSession::where('student_id', $studentId)
-            ->where('status', 'completed')
-            ->count();
+        // Get total bookings count
+        $totalBookings = $bookings->count();
         
-        // Get upcoming sessions count (scheduled or confirmed teaching sessions)
-        $upcomingSessions = TeachingSession::where('student_id', $studentId)
-            ->whereIn('status', ['scheduled', 'confirmed'])
-            ->where('session_date', '>=', Carbon::today())
-            ->count();
+        // Get completed bookings count (same logic as my-bookings page)
+        $completedBookings = $bookings->filter(function ($booking) {
+            return $booking->status === 'completed' || 
+                   ($booking->booking_date < today() && 
+                    in_array($booking->status, ['approved', 'upcoming']));
+        })->count();
         
-        // Get pending bookings count (bookings without teaching sessions)
-        $pendingBookings = Booking::where('student_id', $studentId)
-            ->whereIn('status', ['pending', 'approved'])
-            ->where('booking_date', '>=', Carbon::today())
-            ->whereDoesntHave('teachingSession')
-            ->count();
+        // Get upcoming bookings count (same logic as my-bookings page)
+        $upcomingBookings = $bookings->filter(function ($booking) {
+            return $booking->booking_date >= today() && 
+                   in_array($booking->status, ['pending', 'approved', 'upcoming']);
+        })->count();
         
         return [
-            'totalSessions' => $totalSessions,
-            'completedSessions' => $completedSessions,
-            'upcomingSessions' => $upcomingSessions + $pendingBookings, // Include both sessions and pending bookings
+            'totalSessions' => $totalBookings,
+            'completedSessions' => $completedBookings,
+            'upcomingSessions' => $upcomingBookings,
         ];
     }
     

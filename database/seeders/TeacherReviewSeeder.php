@@ -70,33 +70,64 @@ class TeacherReviewSeeder extends Seeder
                     continue;
                 }
 
-                // Find or create a mock teaching session
-                $sessionDate = now()->subDays(rand(1, 60));
-                $session = TeachingSession::firstOrCreate([
+                // Create a proper booking first, then teaching session
+                // Mix of past and future dates for variety (50/50 split)
+                $sessionDate = $i % 2 === 0 ? now()->addDays(rand(1, 30)) : now()->subDays(rand(1, 60));
+                
+                // Determine status based on date
+                $status = $sessionDate > now() ? 'upcoming' : 'completed';
+                
+                // Create booking
+                $booking = \App\Models\Booking::firstOrCreate([
                     'teacher_id' => $teacher->id,
                     'student_id' => $student->id,
+                    'booking_date' => $sessionDate->format('Y-m-d'),
                 ], [
-                    'session_uuid' => \Str::uuid(),
-                    'subject_id' => $defaultSubjectId, // Use first available subject
-                    'session_date' => $sessionDate->format('Y-m-d'),
+                    'booking_uuid' => \Str::uuid(),
+                    'subject_id' => $defaultSubjectId,
                     'start_time' => '10:00:00',
                     'end_time' => '11:00:00',
-                    'status' => 'completed',
-                    'actual_duration_minutes' => 60,
-                    'completion_date' => $sessionDate,
-                    'teacher_marked_present' => true,
-                    'student_marked_present' => true,
+                    'duration_minutes' => 60,
+                    'status' => $status,
+                    'notes' => 'Review session',
+                    'created_by_id' => $student->id,
+                    'approved_by_id' => $status === 'completed' ? $teacher->id : null,
+                    'approved_at' => $status === 'completed' ? $sessionDate->subDays(1) : null,
                 ]);
+                
+                // Create teaching session only for completed bookings
+                $session = null;
+                if ($status === 'completed') {
+                    $session = TeachingSession::firstOrCreate([
+                        'booking_id' => $booking->id,
+                    ], [
+                        'session_uuid' => \Str::uuid(),
+                        'teacher_id' => $teacher->id,
+                        'student_id' => $student->id,
+                        'subject_id' => $defaultSubjectId,
+                        'session_date' => $sessionDate->format('Y-m-d'),
+                        'start_time' => '10:00:00',
+                        'end_time' => '11:00:00',
+                        'status' => 'completed',
+                        'actual_duration_minutes' => 60,
+                        'completion_date' => $sessionDate,
+                        'teacher_marked_present' => true,
+                        'student_marked_present' => true,
+                    ]);
+                }
 
-                TeacherReview::create([
-                    'teacher_id' => $teacher->id,
-                    'student_id' => $student->id,
-                    'session_id' => $session->id,
-                    'rating' => rand(4, 5), // Ratings between 4-5 stars
-                    'review' => $reviewTexts[array_rand($reviewTexts)],
-                    'created_at' => now()->subDays(rand(1, 60)),
-                    'updated_at' => now()->subDays(rand(1, 60)),
-                ]);
+                // Only create reviews for completed sessions
+                if ($session) {
+                    TeacherReview::create([
+                        'teacher_id' => $teacher->id,
+                        'student_id' => $student->id,
+                        'session_id' => $session->id,
+                        'rating' => rand(4, 5), // Ratings between 4-5 stars
+                        'review' => $reviewTexts[array_rand($reviewTexts)],
+                        'created_at' => now()->subDays(rand(1, 60)),
+                        'updated_at' => now()->subDays(rand(1, 60)),
+                    ]);
+                }
             }
 
             // Update teacher profile with aggregated rating and review count

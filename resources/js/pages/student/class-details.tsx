@@ -14,6 +14,7 @@
 import React from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import StudentLayout from '@/layouts/student/student-layout';
+import { toast } from 'sonner';
 import {
     Calendar,
     Clock,
@@ -79,7 +80,7 @@ function ClassDetailsCard({ booking }: { booking: Props['booking'] }) {
                     {/* Teacher Information */}
                     <div className="mb-3">
                         <span className="text-sm text-gray-500">Teacher: </span>
-                        <span className="text-sm text-gray-900">{booking.teacher}</span>
+                        <span className="text-sm text-gray-900">{typeof booking.teacher === 'object' ? booking.teacher.name : booking.teacher}</span>
                     </div>
 
                     {/* Class Duration */}
@@ -208,8 +209,24 @@ export default function ClassDetails({ auth, booking, teacher }: Props) {
 
 
     const handleCancelBooking = () => {
-        // TODO: Implement cancel booking functionality
-        console.log('Cancel booking:', booking.id);
+        if (confirm('Are you sure you want to cancel this booking?')) {
+            router.post(`/student/my-bookings/${booking.id}/cancel`, {}, {
+                onSuccess: () => {
+                    toast.success('Booking cancelled successfully!');
+                },
+                onError: (errors) => {
+                    if (errors.error) {
+                        toast.error(errors.error);
+                    } else {
+                        toast.error('Failed to cancel booking. Please try again.');
+                    }
+                }
+            });
+        }
+    };
+
+    const handleRescheduleBooking = () => {
+        router.visit(`/student/my-bookings/${booking.id}/reschedule`);
     };
 
     return (
@@ -240,16 +257,21 @@ export default function ClassDetails({ auth, booking, teacher }: Props) {
 
                 {/* Action Buttons */}
                 <div className="flex items-center gap-4 pt-6">
+                    {/* Reschedule Button */}
+                    <button
+                        onClick={handleRescheduleBooking}
+                        className="bg-[#2c7870] hover:bg-[#236158] text-white rounded-full px-8 py-3 font-medium transition-colors"
+                    >
+                        Reschedule
+                    </button>
 
-                    {/* Always show Cancel Booking button for confirmed/pending/approved bookings */}
-                    {(booking.can_cancel || ['confirmed', 'pending', 'approved'].includes(booking.status.toLowerCase())) && (
-                        <button
-                            onClick={handleCancelBooking}
-                            className="border border-[#2c7870] text-[#2c7870] hover:bg-[#2c7870] hover:text-white rounded-full px-8 py-3 font-medium transition-colors"
-                        >
-                            Cancel Booking
-                        </button>
-                    )}
+                    {/* Cancel Booking Button */}
+                    <button
+                        onClick={handleCancelBooking}
+                        className="border border-[#2c7870] text-[#2c7870] hover:bg-[#2c7870] hover:text-white rounded-full px-8 py-3 font-medium transition-colors"
+                    >
+                        Cancel Booking
+                    </button>
                 </div>
             </div>
         </StudentLayout>

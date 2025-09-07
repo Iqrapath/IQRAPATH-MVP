@@ -159,18 +159,57 @@ export interface BookingData {
     id: number;
     booking_uuid: string;
     title: string;
-    teacher: string;
+    teacher: string | {
+        id: number;
+        name: string;
+    };
+    teacher_id: number;
     teacher_avatar: string;
-    subject: string;
+    subject: string | {
+        name: string;
+    };
     date: string;
     time: string;
-    status: 'Pending' | 'Approved' | 'Confirmed' | 'Completed' | 'Cancelled';
+    status: 'Pending' | 'Approved' | 'Confirmed' | 'Completed' | 'Cancelled' | 'upcoming' | 'ongoing';
     imageUrl: string;
     meetingUrl?: string;
     session_uuid?: string;
     can_join: boolean;
     can_reschedule: boolean;
     can_cancel: boolean;
+    // Additional properties for completed classes
+    user_rating?: number;
+    materials_url?: string;
+    has_materials?: boolean;
+    teacher_rated?: boolean;
+    // Database fields
+    booking_date?: string;
+    start_time?: string;
+    end_time?: string;
+    duration_minutes?: number;
+    teacher_notes?: string;
+    student_notes?: string;
+    user_feedback?: string;
+    // TeachingSession relationship
+    teachingSession?: {
+        id: number;
+        teacher_notes?: string;
+        student_notes?: string;
+        student_rating?: number;
+        teacher_rating?: number;
+        meeting_platform?: string;
+        recording_url?: string;
+        completion_date?: string;
+        zoom_join_url?: string;
+        google_meet_link?: string;
+        // Additional data from relationships
+        student_review?: string;
+        booking_notes?: {
+            teacher_note?: string;
+            student_note?: string;
+            student_review?: string;
+        };
+    };
 }
 
 export interface BookingsPageProps {

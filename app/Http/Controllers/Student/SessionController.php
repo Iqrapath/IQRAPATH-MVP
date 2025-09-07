@@ -19,43 +19,47 @@ class SessionController extends Controller
         $user = $request->user();
         $filter = $request->get('filter', 'all'); // all, completed, upcoming
         
-        // Handle upcoming filter specially to include both sessions and pending bookings
-        if ($filter === 'upcoming') {
-            return $this->getUpcomingSessions($user->id, $request);
-        }
-        
-        // Build base query for other filters
-        $query = TeachingSession::with(['teacher.teacherProfile', 'subject.template', 'booking', 'progress'])
+        // Use Booking-based data to match Dashboard and My Bookings
+        $query = Booking::with(['teacher.teacherProfile', 'subject.template', 'teachingSession', 'teachingSession.progress'])
             ->where('student_id', $user->id)
-            ->orderBy('session_date', 'desc')
+            ->orderBy('booking_date', 'desc')
             ->orderBy('start_time', 'desc');
         
-        // Apply filters
+        // Apply filters based on booking status and date
         switch ($filter) {
             case 'completed':
-                $query->where('status', 'completed');
+                $query->where(function ($q) {
+                    $q->where('status', 'completed')
+                      ->orWhere(function ($subQ) {
+                          $subQ->where('booking_date', '<', today())
+                               ->whereIn('status', ['approved', 'upcoming']);
+                      });
+                });
+                break;
+            case 'upcoming':
+                $query->where('booking_date', '>=', today())
+                      ->whereIn('status', ['pending', 'approved', 'upcoming']);
                 break;
             case 'all':
             default:
-                // Total class tab should only show completed and ongoing classes (exclude upcoming)
-                $query->whereIn('status', ['completed', 'ongoing', 'in_progress']);
+                // Show all bookings
                 break;
         }
         
-        $sessions = $query->paginate(10);
+        $bookings = $query->paginate(10);
         
-        // Format sessions for frontend
-        $formattedSessions = $sessions->getCollection()->map(function ($session) {
-            return $this->formatSessionForList($session);
+        // Format bookings for frontend (using session-like format)
+        $formattedSessions = $bookings->getCollection()->map(function ($booking) {
+            return $this->formatBookingForSessionList($booking);
         });
         
-        $sessions->setCollection($formattedSessions);
+        $bookings->setCollection($formattedSessions);
         
         // Get stats for the header
         $stats = $this->getStudentStats($user->id);
         
         return Inertia::render('student/sessions/index', [
-            'sessions' => $sessions,
+            'sessions' => $bookings,
             'filter' => $filter,
             'stats' => $stats,
         ]);
@@ -207,6 +211,60 @@ class SessionController extends Controller
     }
     
     /**
+     * Format booking for session list view (same format as TeachingSession).
+     */
+    private function formatBookingForSessionList(Booking $booking): array
+    {
+        $subjectName = $booking->subject?->template?->name ?? $booking->subject?->name ?? 'Unknown Subject';
+        
+        // Get progress from teaching session if it exists
+        $progress = 0;
+        if ($booking->teachingSession) {
+            if ($booking->teachingSession->status === 'completed') {
+                $progress = $booking->teachingSession->progress?->completion_percentage ?? 100;
+            } elseif ($booking->teachingSession->status === 'in_progress') {
+                $progress = $booking->teachingSession->progress?->completion_percentage ?? 50;
+            }
+        }
+        
+        // Get rating from teaching session or teacher profile
+        $rating = 0;
+        if ($booking->teachingSession) {
+            $rating = $booking->teachingSession->student_rating ?? $booking->teacher?->teacherProfile?->average_rating ?? 0;
+        }
+        
+        // Get meeting link from teaching session if it exists
+        $meetingLink = null;
+        if ($booking->teachingSession && $booking->teachingSession->zoom_join_url) {
+            $meetingLink = $booking->teachingSession->zoom_join_url;
+        }
+        
+        // Determine completion date
+        $completionDate = null;
+        if ($booking->teachingSession && $booking->teachingSession->completion_date) {
+            $completionDate = $booking->teachingSession->completion_date->format('M j, Y');
+        }
+        
+        return [
+            'id' => $booking->id,
+            'session_uuid' => $booking->booking_uuid,
+            'title' => $subjectName,
+            'teacher' => $booking->teacher?->name ?? 'Teacher Not Found',
+            'teacher_avatar' => $booking->teacher?->avatar ?? '/assets/images/default-avatar.jpg',
+            'subject' => $subjectName,
+            'date' => $booking->booking_date->format('M j, Y'),
+            'time' => $booking->start_time->format('g:i A') . ' - ' . $booking->end_time->format('g:i A'),
+            'duration' => $this->calculateDuration($booking->start_time, $booking->end_time),
+            'status' => ucfirst($booking->status),
+            'meeting_link' => $meetingLink,
+            'completion_date' => $completionDate,
+            'progress' => $progress,
+            'rating' => $rating,
+            'imageUrl' => $this->getSubjectImage($subjectName),
+        ];
+    }
+    
+    /**
      * Generate pagination links.
      */
     private function generatePaginationLinks(int $currentPage, int $lastPage, Request $request): array
@@ -248,31 +306,25 @@ class SessionController extends Controller
      */
     private function getStudentStats(int $studentId): array
     {
-        // Get total sessions count
-        $totalSessions = TeachingSession::where('student_id', $studentId)->count();
+        // Use Booking-based logic to match Dashboard and My Bookings pages
+        $bookings = Booking::where('student_id', $studentId)->get();
+        $totalBookings = $bookings->count();
         
-        // Get completed sessions count
-        $completedSessions = TeachingSession::where('student_id', $studentId)
-            ->where('status', 'completed')
-            ->count();
+        $completedBookings = $bookings->filter(function ($booking) {
+            return $booking->status === 'completed' || 
+                   ($booking->booking_date < today() && 
+                    in_array($booking->status, ['approved', 'upcoming']));
+        })->count();
         
-        // Get upcoming sessions count (scheduled or confirmed teaching sessions)
-        $upcomingSessions = TeachingSession::where('student_id', $studentId)
-            ->whereIn('status', ['scheduled', 'confirmed'])
-            ->where('session_date', '>=', now()->toDateString())
-            ->count();
-        
-        // Get pending bookings count (bookings without teaching sessions)
-        $pendingBookings = Booking::where('student_id', $studentId)
-            ->whereIn('status', ['pending', 'approved'])
-            ->where('booking_date', '>=', now()->toDateString())
-            ->whereDoesntHave('teachingSession')
-            ->count();
+        $upcomingBookings = $bookings->filter(function ($booking) {
+            return $booking->booking_date >= today() && 
+                   in_array($booking->status, ['pending', 'approved', 'upcoming']);
+        })->count();
         
         return [
-            'totalSessions' => $totalSessions,
-            'completedSessions' => $completedSessions,
-            'upcomingSessions' => $upcomingSessions + $pendingBookings, // Include both sessions and pending bookings
+            'totalSessions' => $totalBookings,
+            'completedSessions' => $completedBookings,
+            'upcomingSessions' => $upcomingBookings,
         ];
     }
     

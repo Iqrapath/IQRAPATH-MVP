@@ -150,6 +150,14 @@ class TeachingSession extends Model
     }
 
     /**
+     * Get the teacher reviews for this session.
+     */
+    public function teacherReviews(): HasMany
+    {
+        return $this->hasMany(TeacherReview::class, 'session_id');
+    }
+
+    /**
      * Scope a query to only include sessions with a specific status.
      */
     public function scopeWithStatus($query, $status)

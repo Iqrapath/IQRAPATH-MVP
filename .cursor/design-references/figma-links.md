@@ -26,6 +26,14 @@ This file contains all Figma links and specifications for the IQRAPATH project.
 - **Last Updated**: 2025-01-30
 - **Components**: Teacher profile card, calendar with month navigation, time slot buttons (Morning/Afternoon/Evening), action buttons
 
+### Student My Bookings Page Components
+- **Upcoming Class Card**: [IQRAPATH Upcoming Class](https://www.figma.com/design/jmWnnfdCipxqiQF39Tdb0S/IQRAPATH?node-id=409-26933&t=m6ohX2RrycH79wFY-0)
+- **Ongoing Class Card**: [IQRAPATH Ongoing Class](https://www.figma.com/design/jmWnnfdCipxqiQF39Tdb0S/IQRAPATH?node-id=411-27985&t=m6ohX2RrycH79wFY-0)
+- **Completed Class Card**: [IQRAPATH Completed Class](https://www.figma.com/design/jmWnnfdCipxqiQF39Tdb0S/IQRAPATH?node-id=412-28472&t=m6ohX2RrycH79wFY-0)
+- **Contains**: Class status-specific layouts, action buttons, timing information, teacher details
+- **Last Updated**: 2025-01-30
+- **Components**: Tab navigation, booking cards with status-specific styling, action buttons per state
+
 ## 📋 Usage Instructions
 
 ### For Developers:

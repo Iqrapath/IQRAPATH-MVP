@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('booking_id')->constrained()->onDelete('cascade');
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->enum('note_type', ['admin_note', 'teacher_note', 'student_note', 'system_note']);
+            $table->enum('note_type', ['admin_note', 'teacher_note', 'student_note', 'student_review', 'system_note']);
             $table->text('content');
             $table->timestamps();
         });

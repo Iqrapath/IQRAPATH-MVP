@@ -112,9 +112,9 @@ class Booking extends Model
     }
 
     /**
-     * Get the notes for the booking.
+     * Get the structured notes for the booking.
      */
-    public function notes(): HasMany
+    public function bookingNotes(): HasMany
     {
         return $this->hasMany(BookingNote::class);
     }
