@@ -19,17 +19,28 @@
  * 📱 RESPONSIVE: Clean single column layout
  * 🎯 STATES: Clean design with button hover states
  */
-import React from 'react';
+import React, { useState } from 'react';
 import { router } from '@inertiajs/react';
 import { toast } from 'sonner';
 import { BookingData } from '@/types';
 import { BookingIcon } from '@/components/icons/booking-icon';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface UpcomingClassCardProps {
     booking: BookingData;
 }
 
 export default function UpcomingClassCard({ booking }: UpcomingClassCardProps) {
+    const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
     const handleViewDetails = () => {
         router.visit(`/student/my-bookings/${booking.id}`);
     };
@@ -39,20 +50,23 @@ export default function UpcomingClassCard({ booking }: UpcomingClassCardProps) {
     };
 
     const handleCancel = () => {
-        if (confirm('Are you sure you want to cancel this booking?')) {
-            router.post(`/student/my-bookings/${booking.id}/cancel`, {}, {
-                onSuccess: () => {
-                    toast.success('Booking cancelled successfully');
-                },
-                onError: (errors) => {
-                    if (errors.error) {
-                        toast.error(errors.error);
-                    } else {
-                        toast.error('Failed to cancel booking');
-                    }
+        setIsCancelDialogOpen(true);
+    };
+
+    const confirmCancelBooking = () => {
+        router.post(`/student/my-bookings/${booking.id}/cancel`, {}, {
+            onSuccess: () => {
+                toast.success('Booking cancelled successfully');
+                setIsCancelDialogOpen(false);
+            },
+            onError: (errors) => {
+                if (errors.error) {
+                    toast.error(errors.error);
+                } else {
+                    toast.error('Failed to cancel booking');
                 }
-            });
-        }
+            }
+        });
     };
 
     // Get subject-specific colors for the book icon
@@ -124,6 +138,27 @@ export default function UpcomingClassCard({ booking }: UpcomingClassCardProps) {
                         </button>
                     </div>
                 </div>
+
+            {/* Cancel Booking Confirmation Dialog */}
+            <AlertDialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Cancel Booking</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to cancel this booking? This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Keep Booking</AlertDialogCancel>
+                        <AlertDialogAction 
+                            onClick={confirmCancelBooking}
+                            className="bg-red-600 hover:bg-red-700"
+                        >
+                            Cancel Booking
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

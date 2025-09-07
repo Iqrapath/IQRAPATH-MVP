@@ -59,11 +59,6 @@ export default function ViewSummaryModal({ booking, isOpen, onClose }: ViewSumma
         onClose();
     };
 
-    const handleDownloadPDF = () => {
-        // Handle PDF download functionality
-        console.log('Download PDF for booking:', booking.id);
-    };
-
     const handleSaveReview = () => {
         // Save the rating and review to the database
         router.post(`/student/bookings/${booking.id}/review`, {
@@ -93,6 +88,7 @@ export default function ViewSummaryModal({ booking, isOpen, onClose }: ViewSumma
         );
         setIsEditingReview(false);
     };
+
 
     const handleSavePersonalNotes = () => {
         // Save personal notes to student_note
@@ -348,80 +344,80 @@ export default function ViewSummaryModal({ booking, isOpen, onClose }: ViewSumma
                     )}
                 </div>
 
-                {/* Rate & Review Section */}
-                <div className="mb-4">
-                    <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-bold text-gray-900 text-sm">Rate & Review:</h3>
-                        {!isEditingReview && (
-                            <Button
-                                onClick={() => setIsEditingReview(true)}
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 px-2 text-xs text-teal-600 hover:text-teal-700 hover:bg-teal-50"
-                            >
-                                <Edit3 className="w-3 h-3 mr-1" />
-                                Edit
-                            </Button>
-                        )}
-                    </div>
+                 {/* Rate & Review Section */}
+                 <div className="mb-4">
+                     <div className="flex items-center justify-between mb-3">
+                         <h3 className="font-bold text-gray-900 text-sm">Rate & Review:</h3>
+                         {!isEditingReview && (
+                             <Button
+                                 onClick={() => setIsEditingReview(true)}
+                                 variant="ghost"
+                                 size="sm"
+                                 className="h-6 px-2 text-xs text-teal-600 hover:text-teal-700 hover:bg-teal-50"
+                             >
+                                 <Edit3 className="w-3 h-3 mr-1" />
+                                 Edit
+                             </Button>
+                         )}
+                     </div>
 
-                    {/* Star Rating */}
-                    <div className="flex items-center gap-1 mb-3">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                            <span 
-                                key={star} 
-                                onClick={() => isEditingReview && setRating(star)}
-                                className={`text-lg ${isEditingReview ? 'cursor-pointer hover:text-yellow-500' : 'cursor-default'} ${
-                                    star <= rating
-                                        ? 'text-yellow-400' 
-                                        : 'text-gray-300'
-                                }`}
-                            >
-                                ★
-                            </span>
-                        ))}
-                        <span className="text-xs text-gray-500 ml-2">
-                            {rating > 0 ? `(${rating}/5 stars)` : '(Leave a Star Rating)'}
-                        </span>
-                    </div>
+                     {/* Star Rating */}
+                     <div className="flex items-center gap-1 mb-3">
+                         {[1, 2, 3, 4, 5].map((star) => (
+                             <span 
+                                 key={star} 
+                                 onClick={() => isEditingReview && setRating(star)}
+                                 className={`text-lg ${isEditingReview ? 'cursor-pointer hover:text-yellow-500' : 'cursor-default'} ${
+                                     star <= rating
+                                         ? 'text-yellow-400' 
+                                         : 'text-gray-300'
+                                 }`}
+                             >
+                                 ★
+                             </span>
+                         ))}
+                         <span className="text-xs text-gray-500 ml-2">
+                             {rating > 0 ? `(${rating}/5 stars)` : '(Leave a Star Rating)'}
+                         </span>
+                     </div>
 
-                    {/* Feedback Textarea */}
-                    {isEditingReview ? (
-                        <div className="space-y-3">
-                            <Textarea
-                                value={review}
-                                onChange={(e) => setReview(e.target.value)}
-                                placeholder="Write your feedback about the class..."
-                                className="min-h-[60px] text-sm"
-                            />
-                            <div className="flex gap-2 justify-end">
-                                <Button
-                                    onClick={handleCancelEdit}
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-7 px-3 text-xs"
-                                >
-                                    <XCircle className="w-3 h-3 mr-1" />
-                                    Cancel
-                                </Button>
-                                <Button
-                                    onClick={handleSaveReview}
-                                    size="sm"
-                                    className="h-7 px-3 bg-teal-600 hover:bg-teal-700 text-xs"
-                                >
-                                    <Save className="w-3 h-3 mr-1" />
-                                    Save
-                                </Button>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="bg-gray-50 rounded-lg p-3 border border-gray-200 min-h-[60px]">
-                            <p className="text-gray-400 text-sm">
-                                {review || 'Write your feedback...'}
-                            </p>
-                        </div>
-                    )}
-                </div>
+                     {/* Feedback Textarea */}
+                     {isEditingReview ? (
+                         <div className="space-y-3">
+                             <Textarea
+                                 value={review}
+                                 onChange={(e) => setReview(e.target.value)}
+                                 placeholder="Write your feedback about the class..."
+                                 className="min-h-[60px] text-sm"
+                             />
+                             <div className="flex gap-2 justify-end">
+                                 <Button
+                                     onClick={handleCancelEdit}
+                                     variant="outline"
+                                     size="sm"
+                                     className="h-7 px-3 text-xs"
+                                 >
+                                     <XCircle className="w-3 h-3 mr-1" />
+                                     Cancel
+                                 </Button>
+                                 <Button
+                                     onClick={handleSaveReview}
+                                     size="sm"
+                                     className="h-7 px-3 bg-teal-600 hover:bg-teal-700 text-xs"
+                                 >
+                                     <Save className="w-3 h-3 mr-1" />
+                                     Save
+                                 </Button>
+                             </div>
+                         </div>
+                     ) : (
+                         <div className="bg-gray-50 rounded-lg p-3 border border-gray-200 min-h-[60px]">
+                             <p className="text-gray-400 text-sm">
+                                 {review || 'Write your feedback...'}
+                             </p>
+                         </div>
+                     )}
+                 </div>
 
                 {/* Action Buttons - Center Aligned */}
                 <div className="flex gap-2 justify-center">
@@ -438,9 +434,9 @@ export default function ViewSummaryModal({ booking, isOpen, onClose }: ViewSumma
                     >
                         <Download className="w-3 h-3" />
                         Download Summary PDF
-                    </Button>
-                </div>
-            </div>
-        </div>
-    );
-}
+                     </Button>
+                 </div>
+             </div>
+         </div>
+     );
+ }

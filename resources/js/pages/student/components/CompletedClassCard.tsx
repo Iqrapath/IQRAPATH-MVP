@@ -23,6 +23,7 @@ import { router } from '@inertiajs/react';
 import { BookingData } from '@/types';
 import { BookingIcon } from '@/components/icons/booking-icon';
 import ViewSummaryModal from '@/components/student/ViewSummaryModal';
+import RateTeacherDialog from '@/components/student/RateTeacherDialog';
 
 interface CompletedClassCardProps {
     booking: BookingData;
@@ -30,6 +31,7 @@ interface CompletedClassCardProps {
 
 export default function CompletedClassCard({ booking }: CompletedClassCardProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isRateDialogOpen, setIsRateDialogOpen] = useState(false);
 
     const handleViewSummary = () => {
         setIsModalOpen(true);
@@ -40,7 +42,7 @@ export default function CompletedClassCard({ booking }: CompletedClassCardProps)
     };
 
     const handleRateTeacher = () => {
-        router.visit(`/student/my-bookings/${booking.id}/rate-teacher`);
+        setIsRateDialogOpen(true);
     };
 
     // Get subject-specific colors for the book icon
@@ -128,6 +130,13 @@ export default function CompletedClassCard({ booking }: CompletedClassCardProps)
                 booking={booking}
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
+            />
+
+            {/* Rate Teacher Dialog */}
+            <RateTeacherDialog
+                booking={booking}
+                isOpen={isRateDialogOpen}
+                onClose={() => setIsRateDialogOpen(false)}
             />
         </>
     );

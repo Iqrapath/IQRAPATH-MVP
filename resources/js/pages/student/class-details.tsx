@@ -11,7 +11,7 @@
  * - Action buttons: Reschedule (teal solid) and Cancel Booking (teal outline)
  * - Colors: Primary teal (#2c7870), status badges, proper spacing
  */
-import React from 'react';
+import React, { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import StudentLayout from '@/layouts/student/student-layout';
 import { toast } from 'sonner';
@@ -33,6 +33,16 @@ import { UserLocationIcon } from '@/components/icons/user-location-icon';
 import { ZoomIcon } from '@/components/icons/zoom-icon';
 import { GoogleMeetIcon } from '@/components/icons/google-meet-icon';
 import TeacherProfileModal from '@/components/common/TeacherProfileModal';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface Props extends PageProps, ClassDetailsPageProps { }
 
@@ -198,31 +208,27 @@ function TeacherDetailsCard({ teacher }: { teacher: Props['teacher'] }) {
 }
 
 export default function ClassDetails({ auth, booking, teacher }: Props) {
-    // Debug: Log booking data to see what's being passed
-    console.log('Booking data:', {
-        id: booking.id,
-        status: booking.status,
-        can_reschedule: booking.can_reschedule,
-        can_cancel: booking.can_cancel,
-        date: booking.date
-    });
+    const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
 
 
     const handleCancelBooking = () => {
-        if (confirm('Are you sure you want to cancel this booking?')) {
-            router.post(`/student/my-bookings/${booking.id}/cancel`, {}, {
-                onSuccess: () => {
-                    toast.success('Booking cancelled successfully!');
-                },
-                onError: (errors) => {
-                    if (errors.error) {
-                        toast.error(errors.error);
-                    } else {
-                        toast.error('Failed to cancel booking. Please try again.');
-                    }
+        setIsCancelDialogOpen(true);
+    };
+
+    const confirmCancelBooking = () => {
+        router.post(`/student/my-bookings/${booking.id}/cancel`, {}, {
+            onSuccess: () => {
+                toast.success('Booking cancelled successfully!');
+                setIsCancelDialogOpen(false);
+            },
+            onError: (errors) => {
+                if (errors.error) {
+                    toast.error(errors.error);
+                } else {
+                    toast.error('Failed to cancel booking. Please try again.');
                 }
-            });
-        }
+            }
+        });
     };
 
     const handleRescheduleBooking = () => {
@@ -274,6 +280,27 @@ export default function ClassDetails({ auth, booking, teacher }: Props) {
                     </button>
                 </div>
             </div>
+
+            {/* Cancel Booking Confirmation Dialog */}
+            <AlertDialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Cancel Booking</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to cancel this booking? This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Keep Booking</AlertDialogCancel>
+                        <AlertDialogAction 
+                            onClick={confirmCancelBooking}
+                            className="bg-red-600 hover:bg-red-700"
+                        >
+                            Cancel Booking
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </StudentLayout>
     );
 }
