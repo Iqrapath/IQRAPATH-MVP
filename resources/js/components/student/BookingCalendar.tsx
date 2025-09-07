@@ -14,11 +14,11 @@ interface TeacherAvailability {
 
 interface BookingCalendarProps {
     availabilities: TeacherAvailability[];
-    selectedDate: Date | null;
+    selectedDates: Date[];
     onDateSelect: (date: Date) => void;
 }
 
-export default function BookingCalendar({ availabilities, selectedDate, onDateSelect }: BookingCalendarProps) {
+export default function BookingCalendar({ availabilities, selectedDates, onDateSelect }: BookingCalendarProps) {
     const [currentDate, setCurrentDate] = useState(new Date());
 
     const months = [
@@ -84,49 +84,92 @@ export default function BookingCalendar({ availabilities, selectedDate, onDateSe
         setCurrentDate(newDate);
     };
 
+    // Find next month with availability
+    const findNextMonthWithAvailability = () => {
+        let checkDate = new Date(currentDate);
+        for (let i = 0; i < 12; i++) {
+            checkDate.setMonth(checkDate.getMonth() + 1);
+            const year = checkDate.getFullYear();
+            const month = checkDate.getMonth();
+            const firstDay = new Date(year, month, 1);
+            const startDate = new Date(firstDay);
+            startDate.setDate(startDate.getDate() - firstDay.getDay());
+
+            const days = [];
+            const currentDateToShow = new Date(startDate);
+
+            for (let week = 0; week < 6; week++) {
+                for (let day = 0; day < 7; day++) {
+                    const isCurrentMonth = currentDateToShow.getMonth() === month;
+                    const dayOfWeek = currentDateToShow.getDay();
+                    const hasAvailability = hasAvailabilityOnDay(dayOfWeek);
+
+                    if (isCurrentMonth && hasAvailability) {
+                        return checkDate;
+                    }
+                    currentDateToShow.setDate(currentDateToShow.getDate() + 1);
+                }
+                if (currentDateToShow.getMonth() !== month && week >= 4) break;
+            }
+        }
+        return null;
+    };
+
     return (
-        <div>
-            <h3 className="text-lg font-bold text-xl text-[#212121] mb-6">Select Date & Time</h3>
+        <div className="space-y-4">
+            {/* Month Navigation */}
+            <div className="flex items-center justify-between">
+                <button
+                    onClick={() => navigateMonth('prev')}
+                    className="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-center transition-colors"
+                >
+                    <ChevronLeft className="w-4 h-4 text-gray-600" />
+                </button>
 
-            <div className="bg-white rounded-2xl p-6 border border-[#E8E8E8]">
+                <h3 className="text-lg font-bold text-gray-900">
+                    {months[currentDate.getMonth()]} {currentDate.getFullYear()}
+                </h3>
 
-                {/* Calendar Header */}
-                <div className="flex items-center justify-between mb-6">
-                    <button
-                        onClick={() => navigateMonth('prev')}
-                        className="p-2 hover:bg-[#F8F9FA] rounded-lg transition-colors"
-                    >
-                        <ChevronLeft className="w-5 h-5 text-[#4F4F4F]" />
-                    </button>
+                <button
+                    onClick={() => navigateMonth('next')}
+                    className="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-center transition-colors"
+                >
+                    <ChevronRight className="w-4 h-4 text-gray-600" />
+                </button>
+            </div>
 
-                    <h4 className="text-lg font-bold text-xl text-[#212121]">
-                        {months[currentDate.getMonth()]} {currentDate.getFullYear()}
-                    </h4>
-
-                    <button
-                        onClick={() => navigateMonth('next')}
-                        className="p-2 hover:bg-[#F8F9FA] rounded-lg transition-colors"
-                    >
-                        <ChevronRight className="w-5 h-5 text-[#4F4F4F]" />
-                    </button>
+            {/* Month Labels - All 12 months with horizontal scroll */}
+            <div className="overflow-x-auto scrollbar-hide px-4">
+                <div className="flex space-x-2 pb-2 min-w-max">
+                    {months.map((month, index) => (
+                        <button
+                            key={month}
+                            onClick={() => {
+                                const newDate = new Date(currentDate);
+                                newDate.setMonth(index);
+                                setCurrentDate(newDate);
+                            }}
+                            className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+                                index === currentDate.getMonth()
+                                    ? 'bg-[#2c7870] text-white'
+                                    : 'text-gray-500 hover:text-[#2c7870] hover:bg-gray-100'
+                            }`}
+                        >
+                            {month}
+                        </button>
+                    ))}
                 </div>
+            </div>
 
-                {/* Calendar Grid */}
-                <div className="mb-6">
-                    {/* Days of week header */}
-                    <div className="grid grid-cols-7 gap-2 mb-3">
-                        {daysOfWeek.map(day => (
-                            <div key={day} className="text-center text-sm font-medium text-[#828282] py-2">
-                                {day}
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Calendar days */}
-                    <div className="grid grid-cols-7 gap-2">
-                        {calendarDays.map((day, index) => {
-                            const isSelected = selectedDate?.toDateString() === day.fullDate.toDateString();
-                            const canSelect = day.isCurrentMonth && !day.isPast && day.hasAvailability;
+            {/* Day Numbers - Only show days with teacher availability */}
+            {calendarDays.filter(day => day.isCurrentMonth && day.hasAvailability).length > 0 ? (
+                <div className="flex justify-center space-x-4">
+                    {calendarDays
+                        .filter(day => day.isCurrentMonth && day.hasAvailability)
+                        .slice(0, 7)
+                        .map((day, index) => {
+                            const isSelected = selectedDates.some(date => date.toDateString() === day.fullDate.toDateString());
+                            const canSelect = !day.isPast;
 
                             return (
                                 <button
@@ -137,32 +180,46 @@ export default function BookingCalendar({ availabilities, selectedDate, onDateSe
                                         }
                                     }}
                                     disabled={!canSelect}
-                                    className={`
-                                    h-12 rounded-lg text-sm font-medium transition-all duration-200 relative
-                                    ${day.isCurrentMonth
-                                            ? isSelected
-                                                ? 'bg-[#2C7870] text-white'
-                                                : day.hasAvailability
-                                                    ? 'text-[#212121] hover:bg-[#F0F8F7] hover:text-[#2C7870] cursor-pointer'
-                                                    : 'text-[#BDBDBD] cursor-not-allowed'
-                                            : 'text-[#E0E0E0] cursor-not-allowed'
-                                        }
-                                    ${day.isToday && day.isCurrentMonth && !isSelected
-                                            ? 'ring-2 ring-[#2C7870] ring-opacity-30'
-                                            : ''
-                                        }
-                                `}
+                                    className={`w-8 h-8 rounded-full text-sm font-medium transition-colors ${
+                                        isSelected
+                                            ? 'bg-[#2c7870] text-white'
+                                            : canSelect
+                                                ? 'text-gray-900 hover:bg-gray-100'
+                                                : 'text-gray-400 cursor-not-allowed'
+                                    }`}
                                 >
                                     {day.date}
-                                    {day.hasAvailability && day.isCurrentMonth && !isSelected && (
-                                        <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-[#2C7870] rounded-full"></div>
-                                    )}
                                 </button>
                             );
                         })}
-                    </div>
                 </div>
-            </div>
+            ) : (
+                <div className="text-center py-4 text-gray-500">
+                    <p className="text-sm mb-2">No available days this month</p>
+                    {findNextMonthWithAvailability() && (
+                        <button
+                            onClick={() => setCurrentDate(findNextMonthWithAvailability()!)}
+                            className="text-sm text-[#2c7870] hover:text-[#236158] font-medium"
+                        >
+                            Go to next available month →
+                        </button>
+                    )}
+                </div>
+            )}
+
+            {/* Days of Week Labels - Only show days with availability */}
+            {calendarDays.filter(day => day.isCurrentMonth && day.hasAvailability).length > 0 && (
+                <div className="flex justify-center space-x-4">
+                    {calendarDays
+                        .filter(day => day.isCurrentMonth && day.hasAvailability)
+                        .slice(0, 7)
+                        .map((day, index) => (
+                            <span key={index} className="text-xs text-gray-500 w-8 text-center">
+                                {daysOfWeek[day.dayOfWeek]}
+                            </span>
+                        ))}
+                </div>
+            )}
         </div>
     );
 }

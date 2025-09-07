@@ -185,6 +185,48 @@ button[data-has-unread="true"]::after {
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
         transition-duration: 300ms;
     }
+    
+    .scrollbar-hide {
+        -ms-overflow-style: none;  /* Internet Explorer 10+ */
+        scrollbar-width: none;  /* Firefox */
+    }
+    
+    .scrollbar-hide::-webkit-scrollbar {
+        display: none;  /* Safari and Chrome */
+    }
+    
+    /* Custom checkbox styling for time filters */
+    input[type="checkbox"] {
+        appearance: none;
+        background-color: white;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        width: 16px;
+        height: 16px;
+        position: relative;
+        cursor: pointer;
+    }
+    
+    input[type="checkbox"]:checked {
+        background-color: #2c7870;
+        border-color: #2c7870;
+    }
+    
+    input[type="checkbox"]:checked::after {
+        content: '✓';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+        font-size: 12px;
+        font-weight: bold;
+    }
+    
+    input[type="checkbox"]:focus {
+        outline: 2px solid #2c7870;
+        outline-offset: 2px;
+    }
 }
 
 /* Animation for the loading component */

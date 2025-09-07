@@ -25,10 +25,10 @@ class DatabaseSeeder extends Seeder
             GuardianSeeder::class,
             TeacherAvailabilitySeeder::class,
             TeacherWalletSeeder::class,
-            TeacherReviewSeeder::class, // Now students exist
+            // TeacherReviewSeeder::class, // Now students exist
             UnassignedUserSeeder::class, // Create unassigned users for testing
             UserSeeder::class, // This should run last to handle relationships
-            TeachingSessionSeeder::class,
+            // TeachingSessionSeeder::class,
             NotificationTemplateSeeder::class,
             NotificationTriggerSeeder::class,
             UrgentActionSeeder::class,

@@ -14,7 +14,8 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Calendar, DollarSign } from 'lucide-react';
+import { MoneyIcon } from '../icons/money-icon';
+import { DateTimeIcon } from '../icons/date-time-icon';
 
 interface Teacher {
     id: number;
@@ -97,7 +98,7 @@ export default function BookingSummaryModal({
 
                         {/* Date & Time */}
                         <div className="flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-gray-500" />
+                            <DateTimeIcon className="w-8 h-8 text-gray-500" />
                             <span className="text-gray-500 text-sm">Date & Time:</span>
                             <div className="flex items-center gap-2 bg-[#FFF9E9]">
                                 <div className="bg-[#FFF9E9] text-[#338078] px-2 py-1 rounded text-xs">
@@ -111,7 +112,7 @@ export default function BookingSummaryModal({
 
                         {/* Total Fee */}
                         <div className="flex items-center gap-2">
-                            <DollarSign className="w-4 h-4 text-amber-500" />
+                            <MoneyIcon className="w-8 h-8 text-amber-500" />
                             <span className="text-gray-500 text-sm">Total Fee:</span>
                             <div className="bg-[#FFF9E9] text-[#338078] px-2 py-1 rounded text-xs font-medium">
                                 <span className="font-bold">${Math.round(totalFee / 750)}</span> / {currency}{formatAmount(totalFee)}

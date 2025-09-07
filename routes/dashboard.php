@@ -65,6 +65,8 @@ Route::middleware(['auth', 'verified', 'role:student'])->prefix('student')->name
     Route::get('/my-bookings', [App\Http\Controllers\Student\BookingController::class, 'index'])->name('my-bookings');
     Route::get('/my-bookings/{booking}', [App\Http\Controllers\Student\BookingController::class, 'show'])->name('my-bookings.show');
     Route::get('/book-class', [App\Http\Controllers\Student\BookingController::class, 'create'])->name('book-class');
+    Route::get('/reschedule/{booking}', [App\Http\Controllers\Student\BookingController::class, 'reschedule'])->name('reschedule');
+    Route::post('/reschedule/{booking}/update', [App\Http\Controllers\Student\BookingController::class, 'updateReschedule'])->name('reschedule.update');
     Route::get('/booking/session-details', [App\Http\Controllers\Student\BookingController::class, 'sessionDetailsGet'])->name('booking.session-details.get');
     Route::post('/booking/session-details', [App\Http\Controllers\Student\BookingController::class, 'sessionDetails'])->name('booking.session-details');
     Route::get('/booking/pricing-payment', [App\Http\Controllers\Student\BookingController::class, 'pricingPaymentGet'])->name('booking.pricing-payment.get');

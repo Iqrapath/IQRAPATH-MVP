@@ -12,7 +12,7 @@
  * - Colors: Primary teal (#2c7870), status badges, proper spacing
  */
 import React from 'react';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import StudentLayout from '@/layouts/student/student-layout';
 import {
     Calendar,
@@ -31,6 +31,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { UserLocationIcon } from '@/components/icons/user-location-icon';
 import { ZoomIcon } from '@/components/icons/zoom-icon';
 import { GoogleMeetIcon } from '@/components/icons/google-meet-icon';
+import TeacherProfileModal from '@/components/common/TeacherProfileModal';
 
 interface Props extends PageProps, ClassDetailsPageProps { }
 
@@ -38,7 +39,7 @@ function ClassDetailsCard({ booking }: { booking: Props['booking'] }) {
     const getStatusBadgeColor = (status: string) => {
         switch (status.toLowerCase()) {
             case 'confirmed':
-                return 'bg-teal-100 text-white';
+                return 'bg-green-100 text-green-800';
             case 'pending':
                 return 'bg-amber-50 text-amber-700';
             case 'approved':
@@ -152,7 +153,7 @@ function TeacherDetailsCard({ teacher }: { teacher: Props['teacher'] }) {
                                 <span className="text-sm text-gray-500">{Number(teacher.rating).toFixed(1)}/5 from {teacher.reviews_count} Students</span>
                             </div>
                             <div className="mb-3">
-                                <div className="text-sm text-gray-500 mb-1">Subjects Taught</div>
+                                <div className="text-sm text-gray-500 mb-1">Specialization</div>
                                 <div className="text-lg font-medium text-gray-900">{teacher.subjects.join(', ')}</div>
                             </div>
                             <div>
@@ -164,12 +165,27 @@ function TeacherDetailsCard({ teacher }: { teacher: Props['teacher'] }) {
 
                     {/* Action Buttons */}
                     <div className="flex items-center gap-4">
-                        <Link
-                            href={`/student/teachers/${teacher.id}`}
-                            className="text-[#2c7870] hover:text-[#236158] font-medium"
-                        >
-                            View Profile
-                        </Link>
+                        <TeacherProfileModal
+                            teacher={{
+                                id: teacher.id,
+                                name: teacher.name,
+                                avatar: teacher.avatar,
+                                subjects: teacher.subjects,
+                                rating: teacher.rating,
+                                location: teacher.location,
+                                availability: teacher.availability,
+                                reviews_count: teacher.reviews_count,
+                                bio: teacher.bio,
+                                experience_years: String(teacher.experience_years),
+                                hourly_rate_ngn: teacher.hourly_rate_ngn,
+                                is_verified: teacher.is_verified || false,
+                            }}
+                            trigger={
+                                <button className="text-[#2c7870] hover:text-[#236158] font-medium">
+                                    View Profile
+                                </button>
+                            }
+                        />
                         <button className="w-10 h-10 rounded-lg border-b-3 border-[#2c7870] flex items-center justify-center transition-colors cursor-pointer">
                             <MessageCircle className="w-5 h-5 text-[#2c7870]" />
                         </button>
@@ -181,10 +197,15 @@ function TeacherDetailsCard({ teacher }: { teacher: Props['teacher'] }) {
 }
 
 export default function ClassDetails({ auth, booking, teacher }: Props) {
-    const handleReschedule = () => {
-        // TODO: Implement reschedule functionality
-        console.log('Reschedule booking:', booking.id);
-    };
+    // Debug: Log booking data to see what's being passed
+    console.log('Booking data:', {
+        id: booking.id,
+        status: booking.status,
+        can_reschedule: booking.can_reschedule,
+        can_cancel: booking.can_cancel,
+        date: booking.date
+    });
+
 
     const handleCancelBooking = () => {
         // TODO: Implement cancel booking functionality
@@ -219,16 +240,9 @@ export default function ClassDetails({ auth, booking, teacher }: Props) {
 
                 {/* Action Buttons */}
                 <div className="flex items-center gap-4 pt-6">
-                    {booking.can_reschedule && (
-                        <button
-                            onClick={handleReschedule}
-                            className="bg-[#2c7870] hover:bg-[#236158] text-white rounded-full px-8 py-3 font-medium transition-colors"
-                        >
-                            Reschedule
-                        </button>
-                    )}
 
-                    {booking.can_cancel && (
+                    {/* Always show Cancel Booking button for confirmed/pending/approved bookings */}
+                    {(booking.can_cancel || ['confirmed', 'pending', 'approved'].includes(booking.status.toLowerCase())) && (
                         <button
                             onClick={handleCancelBooking}
                             className="border border-[#2c7870] text-[#2c7870] hover:bg-[#2c7870] hover:text-white rounded-full px-8 py-3 font-medium transition-colors"

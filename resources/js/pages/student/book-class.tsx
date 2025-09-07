@@ -11,7 +11,7 @@
  * - Buttons: Cancel (outline) and Continue (filled) with exact styling
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { router } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import StudentLayout from '@/layouts/student/student-layout';
@@ -51,13 +51,24 @@ interface Teacher {
     recommended_teachers?: RecommendedTeacher[];
 }
 
+interface CurrentBooking {
+    id: number;
+    booking_uuid: string;
+    current_date: string;
+    current_start_time: string;
+    current_end_time: string;
+    subject: string;
+    teacher_name: string;
+    current_availability_ids: number[];
+}
+
 interface BookClassPageProps {
     teacher?: Teacher;
     teacherId?: string;
 }
 
 export default function BookClassPage({ teacher, teacherId }: BookClassPageProps) {
-    const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+    const [selectedDates, setSelectedDates] = useState<Date[]>([]);
     const [selectedAvailabilityIds, setSelectedAvailabilityIds] = useState<number[]>([]);
 
     if (!teacher) {
@@ -81,8 +92,18 @@ export default function BookClassPage({ teacher, teacherId }: BookClassPageProps
 
     // Handler functions
     const handleDateSelect = (date: Date) => {
-        setSelectedDate(date);
-        setSelectedAvailabilityIds([]); // Reset time selection when date changes
+        setSelectedDates(prev => {
+            const dateString = date.toDateString();
+            const isSelected = prev.some(d => d.toDateString() === dateString);
+            
+            if (isSelected) {
+                // Remove date if already selected
+                return prev.filter(d => d.toDateString() !== dateString);
+            } else {
+                // Add date if not selected
+                return [...prev, date];
+            }
+        });
     };
 
     const handleTimeSlotSelect = (availabilityId: number) => {
@@ -99,78 +120,93 @@ export default function BookClassPage({ teacher, teacherId }: BookClassPageProps
 
     const handleClearAll = () => {
         setSelectedAvailabilityIds([]);
+        setSelectedDates([]);
     };
 
     const handleContinue = () => {
-        if (selectedDate && selectedAvailabilityIds.length > 0) {
-            // Navigate to session details page
+        if (selectedDates.length > 0 && selectedAvailabilityIds.length > 0) {
+            // Navigate to session details page for new booking
             router.visit('/student/booking/session-details', {
                 method: 'post',
                 data: {
                     teacher_id: teacher.id,
-                    date: selectedDate.toISOString().split('T')[0],
+                    dates: selectedDates.map(date => date.toISOString().split('T')[0]),
                     availability_ids: selectedAvailabilityIds
                 }
             });
+        } else {
+            alert('Please select at least one date and time slot');
         }
     };
 
     return (
         <StudentLayout pageTitle="Book Class">
             <Head title="Book Class" />
-            <div className="min-h-screen bg-[#F8F9FA]">
+            <div className="min-h-screen">
                 <div className="max-w-4xl mx-auto px-6 py-8">
                     {/* Header Section */}
                     <div className="mb-8">
-                        <h1 className="text-2xl font-bold text-[#212121] mb-2">Book a Class</h1>
-                        <p className="text-base text-[#4F4F4F]">
+                        <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                            Book a Class
+                        </h1>
+                        <p className="text-base text-gray-600">
                             You're booking a session with {teacher.name}
                         </p>
                     </div>
 
-                    {/* Teacher Profile Section - Top */}
-                    <TeacherProfileSection teacher={teacher} />
+                    {/* Teacher Profile Section */}
+                    <div className="mb-8">
+                        <TeacherProfileSection teacher={teacher} />
+                    </div>
 
-                    {/* Booking Interface Section - Bottom */}
-                    <div className="space-y-6 mt-8">
-                        {/* Calendar Component */}
-                        <BookingCalendar 
-                            availabilities={teacher.availabilities || []}
-                            selectedDate={selectedDate}
-                            onDateSelect={handleDateSelect}
-                        />
+                    {/* Main Booking Interface */}
+                    <div className="space-y-8">
+                        {/* Section 1: Select Date & Time */}
+                            <h2 className="text-xl font-bold text-gray-900 mb-6">Select Date & Time</h2>
+                        <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+                            <BookingCalendar 
+                                availabilities={teacher.availabilities || []}
+                                selectedDates={selectedDates}
+                                onDateSelect={handleDateSelect}
+                            />
+                        </div>
 
-                        {/* Time Slot Grid Component */}
-                        <TimeSlotGrid 
-                            selectedDate={selectedDate}
-                            availabilities={teacher.availabilities || []}
-                            selectedAvailabilityIds={selectedAvailabilityIds}
-                            onTimeSlotSelect={handleTimeSlotSelect}
-                            onClearAll={handleClearAll}
-                        />
+                        {/* Section 2: Select time */}
+                            <h2 className="text-xl font-bold text-gray-900 mb-6">Select time</h2>
+                        <div className="">
+                            <TimeSlotGrid 
+                                selectedDates={selectedDates}
+                                availabilities={teacher.availabilities || []}
+                                selectedAvailabilityIds={selectedAvailabilityIds}
+                                onTimeSlotSelect={handleTimeSlotSelect}
+                                onClearAll={handleClearAll}
+                            />
+                        </div>
 
                         {/* Action Buttons */}
-                        <div className="flex gap-4 justify-end">
+                        <div className="flex gap-4 justify-end pt-4">
                             <Button
                                 variant="outline"
                                 onClick={() => router.visit('/student/browse-teachers')}
-                                className="px-8 py-3 text-[#4F4F4F] border-[#E8E8E8] hover:bg-[#F8F9FA]"
+                                className="px-8 py-3 text-[#2c7870] border-[#2c7870] hover:bg-[#2c7870] hover:text-white rounded-lg font-medium transition-colors"
                             >
                                 Cancel
                             </Button>
                             <Button
                                 onClick={handleContinue}
-                                disabled={!selectedDate || selectedAvailabilityIds.length === 0}
-                                className="px-8 py-3 bg-[#2C7870] hover:bg-[#236158] text-white disabled:bg-[#BDBDBD] disabled:cursor-not-allowed"
+                                disabled={selectedDates.length === 0 || selectedAvailabilityIds.length === 0}
+                                className="px-8 py-3 bg-[#2c7870] hover:bg-[#236158] text-white disabled:bg-gray-300 disabled:cursor-not-allowed rounded-lg font-medium transition-colors"
                             >
-                                Continue {selectedAvailabilityIds.length > 0 && `(${selectedAvailabilityIds.length} slot${selectedAvailabilityIds.length > 1 ? 's' : ''})`}
+                                Continue {selectedDates.length > 0 && selectedAvailabilityIds.length > 0 && `(${selectedDates.length} day${selectedDates.length > 1 ? 's' : ''}, ${selectedAvailabilityIds.length} slot${selectedAvailabilityIds.length > 1 ? 's' : ''})`}
                             </Button>
                         </div>
                     </div>
                 </div>
 
                 {/* Recommended Teachers Section */}
-                <RecommendedTeachers teachers={teacher.recommended_teachers || []} />
+                <div className="mt-12">
+                    <RecommendedTeachers teachers={teacher.recommended_teachers || []} />
+                </div>
             </div>
         </StudentLayout>
     );

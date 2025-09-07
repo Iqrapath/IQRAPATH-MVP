@@ -179,13 +179,16 @@ class BookingController extends Controller
             'name' => $teacher->name,
             'avatar' => null, // Use initials instead of images
             'specialization' => $teacherProfile?->qualification ?? 'Islamic Studies',
-            'location' => $teacherProfile?->education ?? 'Not specified',
+            'location' => $teacherProfile?->location ?? 'Not specified',
             'rating' => $teacherProfile?->rating ?? 4.5,
             'availability' => $teacherProfile?->teaching_mode ?? 'Available on request',
             'bio' => $teacherProfile?->bio ?? '',
             'experience_years' => $teacherProfile?->experience_years ?? 0,
             'subjects' => $subjectNames,
             'reviews_count' => $reviewsCount,
+            'hourly_rate_ngn' => $teacherProfile?->hourly_rate_ngn ?? 0,
+            'hourly_rate_usd' => $teacherProfile?->hourly_rate_usd ?? 0,
+            'is_verified' => $teacherProfile?->verified ?? false,
         ];
 
         return Inertia::render('student/class-details', [
@@ -202,7 +205,7 @@ class BookingController extends Controller
         // Clear any existing booking session when starting fresh
         $request->session()->forget('booking_session');
         
-        $teacherId = $request->query('teacherId');
+        $teacherId = $request->query('teacherId') ?? $request->query('teacher_id');
         $teacher = null;
 
         if ($teacherId) {
@@ -217,8 +220,6 @@ class BookingController extends Controller
                 ->find($teacherId);
         }
 
-        // dd($teacher);
-        // return;
         // Format teacher data for the page header
         $formattedTeacher = null;
         if ($teacher) {
@@ -332,8 +333,10 @@ class BookingController extends Controller
         // Store booking session data in session for page refresh support
         $request->session()->put('booking_session', [
             'teacher_id' => $request->input('teacher_id'),
-            'date' => $request->input('date'),
+            'dates' => $request->input('dates', []),
             'availability_ids' => $request->input('availability_ids', []),
+            'subjects' => $request->input('subjects', []),
+            'note_to_teacher' => $request->input('note_to_teacher', ''),
         ]);
         
         return $this->renderSessionDetails($request);
@@ -344,102 +347,113 @@ class BookingController extends Controller
      */
     public function sessionDetailsGet(Request $request)
     {
-        // For GET requests, try to get data from session first, then from request
-        $sessionData = $request->session()->get('booking_session', []);
+        return $this->renderSessionDetails($request);
+    }
+
+    /**
+     * Render session details page
+     */
+    private function renderSessionDetails(Request $request)
+    {
+        // Get data from session first, then from request
+        $sessionData = $request->hasSession() ? $request->session()->get('booking_session', []) : [];
         
         $teacherId = $request->input('teacher_id') ?? $sessionData['teacher_id'] ?? null;
-        $date = $request->input('date') ?? $sessionData['date'] ?? null;
+        $dates = $request->input('dates') ?? $sessionData['dates'] ?? [];
         $availabilityIds = $request->input('availability_ids') ?? $sessionData['availability_ids'] ?? [];
-        
-        if (!$teacherId || !$date || empty($availabilityIds)) {
-            // Redirect back to book class if missing required data
+        $subjects = $request->input('subjects') ?? $sessionData['subjects'] ?? [];
+        $noteToTeacher = $request->input('note_to_teacher') ?? $sessionData['note_to_teacher'] ?? '';
+
+        if (!$teacherId || empty($dates) || empty($availabilityIds)) {
             return redirect()->route('student.book-class')
                 ->with('error', 'Please start the booking process from the beginning.');
         }
 
-        // Create a new request with the data
-        $newRequest = new Request([
-            'teacher_id' => $teacherId,
-            'date' => $date,
-            'availability_ids' => $availabilityIds,
-        ]);
-
-        return $this->renderSessionDetails($newRequest);
-    }
-
-    /**
-     * Common method to render session details page
-     */
-    private function renderSessionDetails(Request $request)
-    {
-        $teacherId = $request->input('teacher_id');
-        $date = $request->input('date');
-        $availabilityIds = $request->input('availability_ids', []);
-
-        // Get teacher info for context
-        $teacher = null;
-        if ($teacherId) {
-            $teacher = User::where('role', 'teacher')
-                ->with(['teacherProfile.subjects.template'])
-                ->find($teacherId);
+        $teacher = User::where('role', 'teacher')->with(['teacherProfile.subjects.template'])->find($teacherId);
+        
+        if (!$teacher) {
+            return redirect()->route('student.browse-teachers')
+                ->with('error', 'Teacher not found.');
         }
 
-        $formattedTeacher = null;
-        if ($teacher) {
-            $subjects = [];
-            $profile = $teacher->teacherProfile;
-            
-            if ($profile && $profile->subjects) {
-                $subjects = $profile->subjects->map(function ($subject) {
-                    return [
-                        'id' => $subject->id,
-                        'name' => $subject->template?->name ?? 'Unknown Subject',
-                        'template' => $subject->template
-                    ];
-                })->toArray();
+        $profile = $teacher->teacherProfile;
+        
+        // Get recommended teachers (similar teachers with good ratings)
+        $recommendedTeachers = User::where('role', 'teacher')
+            ->where('id', '!=', $teacher->id)
+            ->with(['teacherProfile.subjects.template'])
+            ->whereHas('teacherProfile', function ($query) {
+                $query->where('rating', '>=', 4.0)
+                      ->where('verified', true);
+            })
+            ->take(6)
+            ->get()
+            ->map(function ($recommendedTeacher) {
+                $recommendedProfile = $recommendedTeacher->teacherProfile;
+                $recommendedSubjects = $recommendedProfile && $recommendedProfile->subjects 
+                    ? $recommendedProfile->subjects->pluck('template.name')->filter()->implode(', ')
+                    : 'General Tutoring';
+                
+                return [
+                    'id' => $recommendedTeacher->id,
+                    'name' => $recommendedTeacher->name,
+                    'subjects' => $recommendedSubjects,
+                    'location' => $recommendedProfile->location ?? 'Location not set',
+                    'rating' => $recommendedProfile->rating ? (float) $recommendedProfile->rating : 4.0,
+                    'price' => $recommendedProfile->hourly_rate_ngn ? '₦' . number_format($recommendedProfile->hourly_rate_ngn) . ' / session' : '₦5,000 / session',
+                    'avatarUrl' => '',
+                ];
+            })->toArray();
+
+        $formattedTeacher = [
+            'id' => $teacher->id,
+            'name' => $teacher->name,
+            'subjects' => $profile?->subjects->map(function($subject) {
+                return [
+                    'id' => $subject->id,
+                    'name' => $subject->name,
+                    'template' => $subject->template ? [
+                        'name' => $subject->template->name
+                    ] : null
+                ];
+            }) ?? [],
+            'recommended_teachers' => $recommendedTeachers,
+            'hourly_rate_usd' => $profile?->hourly_rate_usd ? (float)$profile->hourly_rate_usd : 25.0,
+            'hourly_rate_ngn' => $profile?->hourly_rate_ngn ? (float)$profile->hourly_rate_ngn : 37500.0,
+        ];
+
+        // Get time slot information for the selected availability IDs
+        $timeSlots = [];
+        if (!empty($availabilityIds)) {
+            $availabilities = TeacherAvailability::whereIn('id', $availabilityIds)
+                ->orderBy('day_of_week')
+                ->orderBy('start_time')
+                ->get();
+                
+            foreach ($availabilities as $availability) {
+                $startTime = \Carbon\Carbon::parse($availability->start_time);
+                $endTime = \Carbon\Carbon::parse($availability->end_time);
+                
+                $timeSlots[] = [
+                    'id' => $availability->id,
+                    'day_of_week' => $availability->day_of_week,
+                    'start_time' => $availability->start_time,
+                    'end_time' => $availability->end_time,
+                    'formatted_time' => $startTime->format('g:i A') . ' - ' . $endTime->format('g:i A'),
+                    'time_zone' => $availability->time_zone,
+                ];
             }
-
-            
-            // Get recommended teachers (similar teachers with good ratings)
-            $recommendedTeachers = User::where('role', 'teacher')
-                ->where('id', '!=', $teacher->id)
-                ->with(['teacherProfile.subjects.template'])
-                ->whereHas('teacherProfile', function ($query) {
-                    $query->where('rating', '>=', 4.0)
-                          ->where('verified', true);
-                })
-                ->take(6)
-                ->get()
-                ->map(function ($recommendedTeacher) {
-                    $recommendedProfile = $recommendedTeacher->teacherProfile;
-                    $recommendedSubjects = $recommendedProfile && $recommendedProfile->subjects 
-                        ? $recommendedProfile->subjects->pluck('template.name')->filter()->implode(', ')
-                        : 'General Tutoring';
-                    
-                    return [
-                        'id' => $recommendedTeacher->id,
-                        'name' => $recommendedTeacher->name,
-                        'subjects' => $recommendedSubjects,
-                        'location' => $recommendedProfile->location,
-                        'rating' => $recommendedProfile->rating ? (float)$recommendedProfile->rating : null,
-                        'price' => $recommendedProfile->hourly_rate_usd ? '$' . (int)$recommendedProfile->hourly_rate_usd : 'Price not set',
-                        'avatarUrl' => null, // Use initials instead of images
-                    ];
-                })->toArray();
-
-            $formattedTeacher = [
-                'id' => $teacher->id,
-                'name' => $teacher->name,
-                'subjects' => $subjects,
-                'recommended_teachers' => $recommendedTeachers,
-            ];
         }
 
         return Inertia::render('student/session-details', [
             'teacher_id' => (int) $teacherId,
-            'date' => $date,
+            'dates' => $dates,
             'availability_ids' => array_map('intval', $availabilityIds),
+            'time_slots' => $timeSlots,
+            'subjects' => $subjects,
+            'note_to_teacher' => $noteToTeacher,
             'teacher' => $formattedTeacher,
+            'previous_page' => '/student/book-class?teacherId=' . $teacherId,
         ]);
     }
 
@@ -448,15 +462,37 @@ class BookingController extends Controller
      */
     public function pricingPayment(Request $request)
     {
+        // Get teacher data to store in session
+        $teacherId = $request->input('teacher_id');
+        $teacher = null;
+        $teacherData = null;
+        
+        if ($teacherId) {
+            $teacher = User::where('role', 'teacher')
+                ->with(['teacherProfile'])
+                ->find($teacherId);
+                
+            if ($teacher) {
+                $profile = $teacher->teacherProfile;
+                $teacherData = [
+                    'id' => $teacher->id,
+                    'name' => $teacher->name,
+                    'hourly_rate_usd' => $profile?->hourly_rate_usd ? (float)$profile->hourly_rate_usd : 25.0,
+                    'hourly_rate_ngn' => $profile?->hourly_rate_ngn ? (float)$profile->hourly_rate_ngn : 37500.0,
+                ];
+            }
+        }
+
         // Store booking session data in session for page refresh support
         $request->session()->put('booking_session', [
             'teacher_id' => $request->input('teacher_id'),
-            'date' => $request->input('date'),
+            'teacher_data' => $teacherData,
+            'dates' => $request->input('dates', []),
             'availability_ids' => $request->input('availability_ids', []),
             'subjects' => $request->input('subjects', []),
             'note_to_teacher' => $request->input('note_to_teacher', ''),
         ]);
-        
+
         return $this->renderPricingPayment($request);
     }
 
@@ -465,49 +501,93 @@ class BookingController extends Controller
      */
     public function pricingPaymentGet(Request $request)
     {
-        // For GET requests, try to get data from session first, then from request
-        $sessionData = $request->session()->get('booking_session', []);
+        return $this->renderPricingPayment($request);
+    }
+
+    /**
+     * Render pricing payment page
+     */
+    private function renderPricingPayment(Request $request)
+    {
+        // Get data from session first, then from request
+        $sessionData = $request->hasSession() ? $request->session()->get('booking_session', []) : [];
         
         $teacherId = $request->input('teacher_id') ?? $sessionData['teacher_id'] ?? null;
-        $date = $request->input('date') ?? $sessionData['date'] ?? null;
+        $dates = $request->input('dates') ?? $sessionData['dates'] ?? [];
         $availabilityIds = $request->input('availability_ids') ?? $sessionData['availability_ids'] ?? [];
         $subjects = $request->input('subjects') ?? $sessionData['subjects'] ?? [];
         $noteToTeacher = $request->input('note_to_teacher') ?? $sessionData['note_to_teacher'] ?? '';
-        
-        if (!$teacherId || !$date || empty($availabilityIds) || empty($subjects)) {
+
+        if (!$teacherId || empty($dates) || empty($subjects) || empty($availabilityIds)) {
             return redirect()->route('student.book-class')
                 ->with('error', 'Please start the booking process from the beginning.');
         }
 
-        // Create a new request with the data
-        $newRequest = new Request([
-            'teacher_id' => $teacherId,
-            'date' => $date,
-            'availability_ids' => $availabilityIds,
-            'subjects' => $subjects,
-            'note_to_teacher' => $noteToTeacher,
-        ]);
+        $teacher = User::where('role', 'teacher')->with(['teacherProfile'])->find($teacherId);
+        
+        if (!$teacher) {
+            return redirect()->route('student.browse-teachers')
+                ->with('error', 'Teacher not found.');
+        }
 
-        return $this->renderPricingPayment($newRequest);
-    }
+        $profile = $teacher->teacherProfile;
+        
+        // Get recommended teachers (similar teachers with good ratings)
+        $recommendedTeachers = User::where('role', 'teacher')
+            ->where('id', '!=', $teacher->id)
+            ->with(['teacherProfile.subjects.template'])
+            ->whereHas('teacherProfile', function ($query) {
+                $query->where('rating', '>=', 4.0)
+                      ->where('verified', true);
+            })
+            ->take(6)
+            ->get()
+            ->map(function ($recommendedTeacher) {
+                $recommendedProfile = $recommendedTeacher->teacherProfile;
+                $recommendedSubjects = $recommendedProfile && $recommendedProfile->subjects 
+                    ? $recommendedProfile->subjects->pluck('template.name')->filter()->implode(', ')
+                    : 'General Tutoring';
+                
+                return [
+                    'id' => $recommendedTeacher->id,
+                    'name' => $recommendedTeacher->name,
+                    'subjects' => $recommendedSubjects,
+                    'location' => $recommendedProfile->location ?? 'Location not set',
+                    'rating' => $recommendedProfile->rating ? (float) $recommendedProfile->rating : 4.0,
+                    'price' => $recommendedProfile->hourly_rate_ngn ? '₦' . number_format($recommendedProfile->hourly_rate_ngn) . ' / session' : '₦5,000 / session',
+                    'avatarUrl' => '',
+                ];
+            })->toArray();
 
-    /**
-     * Common method to render pricing and payment page
-     */
-    private function renderPricingPayment(Request $request)
-    {
-        $teacherId = $request->input('teacher_id');
-        $date = $request->input('date');
-        $availabilityIds = $request->input('availability_ids', []);
-        $subjects = $request->input('subjects', []);
-        $noteToTeacher = $request->input('note_to_teacher', '');
+        $formattedTeacher = [
+            'id' => $teacher->id,
+            'name' => $teacher->name,
+            'recommended_teachers' => $recommendedTeachers,
+            'hourly_rate_usd' => $profile?->hourly_rate_usd ? (float)$profile->hourly_rate_usd : 25.0,
+            'hourly_rate_ngn' => $profile?->hourly_rate_ngn ? (float)$profile->hourly_rate_ngn : 37500.0,
+        ];
 
-        // Get teacher info for pricing
-        $teacher = null;
-        if ($teacherId) {
-            $teacher = User::where('role', 'teacher')
-                ->with(['teacherProfile'])
-                ->find($teacherId);
+        // Get time slot information for the selected availability IDs
+        $timeSlots = [];
+        if (!empty($availabilityIds)) {
+            $availabilities = TeacherAvailability::whereIn('id', $availabilityIds)
+                ->orderBy('day_of_week')
+                ->orderBy('start_time')
+                ->get();
+                
+            foreach ($availabilities as $availability) {
+                $startTime = \Carbon\Carbon::parse($availability->start_time);
+                $endTime = \Carbon\Carbon::parse($availability->end_time);
+                
+                $timeSlots[] = [
+                    'id' => $availability->id,
+                    'day_of_week' => $availability->day_of_week,
+                    'start_time' => $availability->start_time,
+                    'end_time' => $availability->end_time,
+                    'formatted_time' => $startTime->format('g:i A') . ' - ' . $endTime->format('g:i A'),
+                    'time_zone' => $availability->time_zone,
+                ];
+            }
         }
 
         // Get student wallet balance
@@ -516,29 +596,15 @@ class BookingController extends Controller
         $walletBalanceNGN = 0;
         
         if ($studentWallet) {
-            // For now, we assume the balance is stored in NGN and we need to convert
-            // This might need adjustment based on your actual wallet implementation
             $walletBalanceNGN = (float)$studentWallet->balance;
-            // Convert NGN to USD using a simple rate (you might want to use a proper exchange rate service)
             $walletBalanceUSD = $walletBalanceNGN / 1500; // Approximate conversion rate
-        }
-
-        $formattedTeacher = null;
-        if ($teacher && $teacher->teacherProfile) {
-            $profile = $teacher->teacherProfile;
-            
-            $formattedTeacher = [
-                'id' => $teacher->id,
-                'name' => $teacher->name,
-                'hourly_rate_usd' => $profile->hourly_rate_usd ? (float)$profile->hourly_rate_usd : null,
-                'hourly_rate_ngn' => $profile->hourly_rate_ngn ? (float)$profile->hourly_rate_ngn : null,
-            ];
         }
 
         return Inertia::render('student/pricing-payment', [
             'teacher_id' => (int) $teacherId,
-            'date' => $date,
+            'dates' => $dates,
             'availability_ids' => array_map('intval', $availabilityIds),
+            'time_slots' => $timeSlots,
             'subjects' => $subjects,
             'note_to_teacher' => $noteToTeacher,
             'teacher' => $formattedTeacher,
@@ -548,7 +614,7 @@ class BookingController extends Controller
                 'id' => auth()->user()->id,
                 'name' => auth()->user()->name,
                 'email' => auth()->user()->email,
-                'country' => auth()->user()->country ?? 'NG', // Default to Nigeria if not set
+                'country' => auth()->user()->country ?? 'NG',
             ],
         ]);
     }
@@ -560,8 +626,9 @@ class BookingController extends Controller
     {
         $request->validate([
             'teacher_id' => 'required|integer|exists:users,id',
-            'date' => 'required|date',
-            'availability_ids' => 'required|array',
+            'dates' => 'required|array',
+            'dates.*' => 'date',
+            'availability_ids' => 'array',
             'availability_ids.*' => 'integer|exists:teacher_availabilities,id',
             'subjects' => 'required|array',
             'subjects.*' => 'string',
@@ -574,6 +641,13 @@ class BookingController extends Controller
 
         $student = auth()->user();
         $studentWallet = $student->studentWallet;
+        
+        // Extract request data
+        $teacherId = $request->input('teacher_id');
+        $dates = $request->input('dates', []);
+        $availabilityIds = $request->input('availability_ids', []);
+        $subjects = $request->input('subjects', []);
+        $noteToTeacher = $request->input('note_to_teacher', '');
 
         // Verify wallet payment if selected
         if (in_array('wallet', $request->payment_methods)) {
@@ -610,118 +684,65 @@ class BookingController extends Controller
                 'transaction_type' => 'debit',
                 'amount' => $requiredAmountNGN,
                 'status' => 'completed',
-                'description' => 'Class booking payment'
+                'description' => 'Class booking payment',
+                'reference' => 'BOOKING-' . Str::random(10),
             ]);
         }
 
-        // Create actual booking and session records
         DB::beginTransaction();
         
         try {
-            // Get teacher availability records to extract time information
-            $availabilities = TeacherAvailability::whereIn('id', $request->availability_ids)
-                ->orderBy('start_time')
-                ->get();
-            
-            if ($availabilities->isEmpty()) {
-                throw new \Exception('No valid availability slots found.');
-            }
-            
-            // Use first availability for timing (can be enhanced to handle multiple slots)
-            $firstAvailability = $availabilities->first();
-            $lastAvailability = $availabilities->last();
-            
-            // Calculate session duration
-            $startTime = \Carbon\Carbon::parse($firstAvailability->start_time);
-            $endTime = \Carbon\Carbon::parse($lastAvailability->end_time);
-            $durationMinutes = $startTime->diffInMinutes($endTime);
-            
-            // Get or create subject record
-            $subject = null;
-            if (!empty($request->subjects)) {
-                // For now, use the first subject. In future, could handle multiple subjects per booking
-                $subjectName = $request->subjects[0];
-                $subjectTemplate = SubjectTemplates::where('name', $subjectName)->first();
-                
-                if ($subjectTemplate) {
-                    // Get teacher profile
-                    $teacherProfile = TeacherProfile::where('user_id', $request->teacher_id)->first();
-                    
-                    if ($teacherProfile) {
-                        // Find or create a subject record for this teacher-template combination
-                        $subject = Subject::where('teacher_profile_id', $teacherProfile->id)
-                            ->where('subject_template_id', $subjectTemplate->id)
-                            ->first();
-                            
-                        if (!$subject) {
-                            $subject = Subject::create([
-                                'teacher_profile_id' => $teacherProfile->id,
-                                'subject_template_id' => $subjectTemplate->id,
-                                'teacher_notes' => 'Auto-created for booking',
-                                'is_active' => true,
-                            ]);
-                        }
+
+            // Create bookings for each date/availability combination
+            $createdBookings = [];
+            foreach ($dates as $date) {
+                foreach ($availabilityIds as $availabilityId) {
+                    $availability = TeacherAvailability::find($availabilityId);
+                    if (!$availability) {
+                        continue;
                     }
+
+                    $startTime = \Carbon\Carbon::parse($availability->start_time);
+                    $endTime = \Carbon\Carbon::parse($availability->end_time);
+                    $durationMinutes = $startTime->diffInMinutes($endTime);
+
+                    $booking = Booking::create([
+                        'student_id' => $student->id,
+                        'teacher_id' => $teacherId,
+                        'subject_id' => 1, // Default subject, can be enhanced
+                        'booking_date' => $date,
+                        'start_time' => $availability->start_time,
+                        'end_time' => $availability->end_time,
+                        'duration_minutes' => $durationMinutes,
+                        'status' => 'pending',
+                        'notes' => $noteToTeacher,
+                        'created_by_id' => $student->id,
+                    ]);
+
+                    $createdBookings[] = $booking;
                 }
             }
-            
-            if (!$subject) {
-                throw new \Exception('Subject not found or could not be created.');
-            }
-            
-            // Create booking record
-            $booking = Booking::create([
-                'booking_uuid' => Str::uuid(),
-                'student_id' => $student->id,
-                'teacher_id' => $request->teacher_id,
-                'subject_id' => $subject->id,
-                'booking_date' => $request->date,
-                'start_time' => $firstAvailability->start_time,
-                'end_time' => $lastAvailability->end_time,
-                'duration_minutes' => $durationMinutes,
-                'status' => 'pending', // Require teacher/admin approval
-                'notes' => $request->note_to_teacher,
-                'created_by_id' => $student->id,
-                'total_fee' => $request->amount,
-            ]);
-            
-            DB::commit();
-            
-            // Send booking created notifications (pending approval)
-            $this->bookingNotificationService->sendBookingCreatedNotifications($booking);
-            
-            // Clear booking session data after successful booking
+
+            // Teaching sessions will be created after teacher/admin approval
+            // No need to create them here as student only books the session
+
+            // Clear session data after successful booking
             $request->session()->forget('booking_session');
-            
+
+            DB::commit();
+
             return response()->json([
                 'success' => true,
-                'message' => 'Booking request submitted successfully! Your teacher will review and approve it soon.',
-                'booking_id' => $booking->id,
-                'booking_uuid' => $booking->booking_uuid,
-                'status' => 'pending',
-                'new_wallet_balance' => $studentWallet ? $studentWallet->balance : 0
+                'message' => 'Booking created successfully!',
+                'bookings' => $createdBookings,
             ]);
-            
+
         } catch (\Exception $e) {
-            DB::rollback();
-            
-            // If booking creation failed, refund the wallet if payment was deducted
-            if (in_array('wallet', $request->payment_methods) && isset($requiredAmountNGN)) {
-                $studentWallet->increment('balance', $requiredAmountNGN);
-                
-                // Create refund transaction record
-                \App\Models\WalletTransaction::create([
-                    'wallet_id' => $studentWallet->id,
-                    'transaction_type' => 'credit',
-                    'amount' => $requiredAmountNGN,
-                    'status' => 'completed',
-                    'description' => 'Refund for failed booking: ' . $e->getMessage()
-                ]);
-            }
+            DB::rollBack();
             
             return response()->json([
                 'success' => false,
-                'message' => 'Booking failed: ' . $e->getMessage()
+                'message' => 'Booking failed: ' . $e->getMessage(),
             ], 500);
         }
     }

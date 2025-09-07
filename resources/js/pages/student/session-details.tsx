@@ -17,10 +17,20 @@ import { Head } from '@inertiajs/react';
 import RecommendedTeachers from './components/RecommendedTeachers';
 import { type RecommendedTeacher } from '@/types';
 
+interface TimeSlot {
+    id: number;
+    day_of_week: string;
+    start_time: string;
+    end_time: string;
+    formatted_time: string;
+    time_zone: string;
+}
+
 interface SessionDetailsPageProps {
     teacher_id: number;
-    date: string;
+    dates: string[];
     availability_ids: number[];
+    time_slots: TimeSlot[];
     teacher?: {
         id: number;
         name: string;
@@ -33,19 +43,50 @@ interface SessionDetailsPageProps {
         }>;
         recommended_teachers?: RecommendedTeacher[];
     };
+    previous_page?: string;
 }
 
 export default function SessionDetailsPage({ 
     teacher_id, 
-    date, 
+    dates, 
     availability_ids, 
-    teacher 
+    time_slots,
+    teacher,
+    previous_page
 }: SessionDetailsPageProps) {
     const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
     const [noteToTeacher, setNoteToTeacher] = useState('');
 
+    const formatTimeSlots = (): string => {
+        if (time_slots.length === 0) {
+            return "Time not selected";
+        }
+        
+        if (time_slots.length === 1) {
+            return time_slots[0].formatted_time;
+        }
+        
+        // For multiple time slots, group by day and show times
+        const groupedByDay: { [key: string]: string[] } = {};
+        time_slots.forEach(slot => {
+            if (!groupedByDay[slot.day_of_week]) {
+                groupedByDay[slot.day_of_week] = [];
+            }
+            groupedByDay[slot.day_of_week].push(slot.formatted_time);
+        });
+        
+        const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        const sortedDays = Object.keys(groupedByDay).sort((a, b) => {
+            return dayOrder.indexOf(a) - dayOrder.indexOf(b);
+        });
+        
+        return sortedDays.map(day => 
+            `${day}: ${groupedByDay[day].join(', ')}`
+        ).join(' | ');
+    };
+
     // Show loading state while redirecting if missing required data
-    if (!teacher_id || !date || !availability_ids || availability_ids.length === 0) {
+    if (!teacher_id || !dates || dates.length === 0 || !availability_ids || availability_ids.length === 0) {
         return (
             <StudentLayout pageTitle="Session Details">
                 <Head title="Session Details" />
@@ -73,7 +114,13 @@ export default function SessionDetailsPage({
     };
 
     const handleGoBack = () => {
-        router.visit(`/student/book-class?teacherId=${teacher_id}`);
+        if (previous_page) {
+            // Use the previous page if provided
+            router.visit(previous_page);
+        } else {
+            // Default fallback to book-class
+            router.visit(`/student/book-class?teacherId=${teacher_id}`);
+        }
     };
 
     const handleContinue = () => {
@@ -91,8 +138,8 @@ export default function SessionDetailsPage({
             method: 'post',
             data: {
                 teacher_id,
-                date,
-                availability_ids,
+                dates,
+                availability_ids: availability_ids,
                 subjects: selectedSubjects,
                 note_to_teacher: noteToTeacher
             }
@@ -109,6 +156,25 @@ export default function SessionDetailsPage({
                         <h1 className="text-2xl font-bold text-[#212121] mb-2">
                             Subject / Session Details
                         </h1>
+                        <div className="text-sm text-[#4F4F4F] mb-2">
+                            Selected {dates.length} day{dates.length > 1 ? 's' : ''} • {availability_ids.length} time slot{availability_ids.length > 1 ? 's' : ''}
+                        </div>
+                        <div className="text-sm text-[#828282]">
+                            {dates.map((date, index) => (
+                                <div key={index} className="mb-1">
+                                    <span className="font-medium">
+                                        {new Date(date).toLocaleDateString('en-US', { 
+                                            weekday: 'short', 
+                                            month: 'short', 
+                                            day: 'numeric' 
+                                        })}
+                                    </span>
+                                </div>
+                            ))}
+                            <div className="text-sm text-[#4F4F4F] mt-2">
+                                <span className="font-medium">Time:</span> {formatTimeSlots()}
+                            </div>
+                        </div>
                     </div>
 
                     <div >
@@ -123,11 +189,11 @@ export default function SessionDetailsPage({
                             </h2>
                             
                             {availableSubjects.length > 0 ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 space-y-2">
                                     {availableSubjects.map((subject) => (
                                         <label 
                                             key={subject}
-                                            className="flex items-center gap-3 cursor-pointer"
+                                            className="flex items-center gap-1"
                                         >
                                             <input
                                                 type="checkbox"
@@ -135,7 +201,7 @@ export default function SessionDetailsPage({
                                                 onChange={() => handleSubjectToggle(subject)}
                                                 className="w-5 h-5 rounded border-2 border-[#BDBDBD] text-[#2C7870] focus:ring-[#2C7870] focus:ring-1"
                                             />
-                                            <span className="text-lg font-normal text-[#212121]">
+                                            <span className="text-lg font-normal text-[#212121] cursor-pointer hover:text-[#2C7870]">
                                                 {subject}
                                             </span>
                                         </label>

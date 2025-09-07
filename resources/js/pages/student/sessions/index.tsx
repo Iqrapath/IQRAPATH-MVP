@@ -179,7 +179,13 @@ export default function SessionsIndex({ sessions, filter, stats }: SessionsIndex
                             // Separate sessions by status
                             const completedSessions = sessions.data.filter(s => s.status?.toLowerCase() === 'completed');
                             const ongoingSessions = sessions.data.filter(s => s.status?.toLowerCase() === 'ongoing' || s.status?.toLowerCase() === 'in_progress');
-                            const upcomingSessions = sessions.data.filter(s => s.status?.toLowerCase() === 'upcoming' || s.status?.toLowerCase() === 'scheduled' || s.status?.toLowerCase() === 'pending');
+                            const upcomingSessions = sessions.data.filter(s => 
+                                s.status?.toLowerCase() === 'upcoming' || 
+                                s.status?.toLowerCase() === 'scheduled' || 
+                                s.status?.toLowerCase() === 'confirmed' ||
+                                s.status?.toLowerCase() === 'pending' ||
+                                s.status?.toLowerCase() === 'approved'
+                            );
                             
                             return (
                                 <>

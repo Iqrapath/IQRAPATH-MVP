@@ -93,14 +93,14 @@ function BookingCard({ booking, showActions = true }: BookingCardProps) {
                         <div className="flex items-center gap-3">
                             <button 
                             onClick={() => router.visit(`/student/my-bookings/${booking.id}`)}
-                            className="rounded-full bg-[#2c7870] hover:bg-[#236158] px-4 py-2 text-white text-sm font-medium">
+                            className="rounded-full bg-[#2c7870] hover:bg-[#236158] px-4 py-2 text-white text-sm font-medium cursor-pointer">
                                 View Details
                             </button>
 
                             {booking.can_join && (
                                 <button 
                                     onClick={handleJoinSession}
-                                    className="bg-[#2c7870] hover:bg-[#236158] text-white rounded-full py-2 px-4 flex items-center gap-2 text-sm font-medium transition-colors"
+                                    className="bg-[#2c7870] hover:bg-[#236158] text-white rounded-full py-2 px-4 flex items-center gap-2 text-sm font-medium transition-colors cursor-pointer"
                                 >
                                     <Video className="w-4 h-4" />
                                     Join
@@ -108,13 +108,13 @@ function BookingCard({ booking, showActions = true }: BookingCardProps) {
                             )}
 
                             {booking.can_reschedule && (
-                                <button className="rounded-full text-[#2c7870] border border-[#2c7870] px-4 py-2 text-sm font-medium">
+                                <button className="rounded-full text-[#2c7870] border border-[#2c7870] px-4 py-2 text-sm font-medium cursor-pointer">
                                     Reschedule
                                 </button>
                             )}
 
                             {booking.can_cancel && (
-                                <button className="text-red-600 hover:text-red-700 text-sm font-medium">
+                                <button className="text-red-600 hover:text-red-700 text-sm font-medium cursor-pointer">
                                     Cancel Booking
                                 </button>
                             )}

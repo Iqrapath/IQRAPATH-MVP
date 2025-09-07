@@ -17,11 +17,24 @@ import { Head } from '@inertiajs/react';
 import InsufficientFundsModal from '@/components/student/InsufficientFundsModal';
 import BookingSummaryModal from '@/components/student/BookingSummaryModal';
 import BookingSuccessModal from '@/components/student/BookingSuccessModal';
+import RecommendedTeachers from './components/RecommendedTeachers';
+
+interface TimeSlot {
+    id: number;
+    day_of_week: string;
+    start_time: string;
+    end_time: string;
+    formatted_time: string;
+    time_zone: string;
+}
+
+import { RecommendedTeacher } from '@/types';
 
 interface PricingPaymentPageProps {
     teacher_id: number;
-    date: string;
+    dates: string[];
     availability_ids: number[];
+    time_slots: TimeSlot[];
     subjects: string[];
     note_to_teacher: string;
     teacher?: {
@@ -29,6 +42,7 @@ interface PricingPaymentPageProps {
         name: string;
         hourly_rate_usd?: number;
         hourly_rate_ngn?: number;
+        recommended_teachers?: RecommendedTeacher[];
     };
     wallet_balance_usd?: number;
     wallet_balance_ngn?: number;
@@ -42,8 +56,9 @@ interface PricingPaymentPageProps {
 
 export default function PricingPaymentPage({ 
     teacher_id,
-    date,
+    dates,
     availability_ids,
+    time_slots,
     subjects,
     note_to_teacher,
     teacher,
@@ -61,7 +76,7 @@ export default function PricingPaymentPage({
     const [currentWalletBalanceNGN, setCurrentWalletBalanceNGN] = useState(wallet_balance_ngn);
 
     // Show loading state while redirecting if missing required data
-    if (!teacher_id || !date || !availability_ids || availability_ids.length === 0 || !subjects || subjects.length === 0) {
+    if (!teacher_id || !dates || dates.length === 0 || !availability_ids || availability_ids.length === 0 || !subjects || subjects.length === 0) {
         return (
             <StudentLayout pageTitle="Pricing & Payment">
                 <Head title="Pricing & Payment" />
@@ -69,6 +84,35 @@ export default function PricingPaymentPage({
                     <div className="text-center">
                         <p className="text-gray-600 mb-4">Redirecting to browse teachers...</p>
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2C7870] mx-auto"></div>
+                    </div>
+                </div>
+            </StudentLayout>
+        );
+    }
+
+    // Check if teacher data is available
+    if (!teacher) {
+        return (
+            <StudentLayout pageTitle="Pricing & Payment">
+                <Head title="Pricing & Payment" />
+                <div className="min-h-screen bg-[#F8F9FA]">
+                    <div className="max-w-2xl mx-auto px-6 py-8">
+                        <div className="bg-white rounded-2xl p-8 border border-[#E8E8E8]">
+                            <div className="text-center">
+                                <h2 className="text-xl font-semibold text-[#212121] mb-4">
+                                    Teacher Not Found
+                                </h2>
+                                <p className="text-[#4F4F4F] mb-6">
+                                    The teacher information could not be loaded. This might happen if the page was refreshed. Please start the booking process again.
+                                </p>
+                                <Button
+                                    onClick={() => router.visit('/student/browse-teachers')}
+                                    className="px-8 py-3 bg-[#2C7870] hover:bg-[#236158] text-white rounded-lg"
+                                >
+                                    Browse Teachers
+                                </Button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </StudentLayout>
@@ -107,6 +151,7 @@ export default function PricingPaymentPage({
     // Calculate pricing
     const usdRate = teacher.hourly_rate_usd;
     const ngnRate = teacher.hourly_rate_ngn;
+    const numberOfDays = dates.length;
     const numberOfSlots = availability_ids.length;
     const totalUSD = usdRate * numberOfSlots;
     const totalNGN = ngnRate * numberOfSlots;
@@ -133,8 +178,10 @@ export default function PricingPaymentPage({
             method: 'post',
             data: {
                 teacher_id,
-                date,
-                availability_ids
+                dates,
+                availability_ids,
+                subjects,
+                note_to_teacher
             }
         });
     };
@@ -206,7 +253,7 @@ export default function PricingPaymentPage({
             // Use axios for API call instead of router.visit to handle JSON response
             const response = await window.axios.post('/student/booking/payment', {
                 teacher_id,
-                date,
+                dates,
                 availability_ids,
                 subjects,
                 note_to_teacher,
@@ -245,6 +292,34 @@ export default function PricingPaymentPage({
         }
     };
 
+    const formatTimeSlots = (): string => {
+        if (time_slots.length === 0) {
+            return "Time not selected";
+        }
+        
+        if (time_slots.length === 1) {
+            return time_slots[0].formatted_time;
+        }
+        
+        // For multiple time slots, group by day and show times
+        const groupedByDay: { [key: string]: string[] } = {};
+        time_slots.forEach(slot => {
+            if (!groupedByDay[slot.day_of_week]) {
+                groupedByDay[slot.day_of_week] = [];
+            }
+            groupedByDay[slot.day_of_week].push(slot.formatted_time);
+        });
+        
+        const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        const sortedDays = Object.keys(groupedByDay).sort((a, b) => {
+            return dayOrder.indexOf(a) - dayOrder.indexOf(b);
+        });
+        
+        return sortedDays.map(day => 
+            `${day}: ${groupedByDay[day].join(', ')}`
+        ).join(' | ');
+    };
+
     return (
         <StudentLayout pageTitle="Pricing & Payment">
             <Head title="Pricing & Payment" />
@@ -255,6 +330,25 @@ export default function PricingPaymentPage({
                         <h1 className="text-2xl font-bold text-[#212121] mb-2">
                             Pricing & Payment
                         </h1>
+                        <div className="text-sm text-[#4F4F4F] mb-2">
+                            Selected {dates.length} day{dates.length > 1 ? 's' : ''} • {availability_ids.length} time slot{availability_ids.length > 1 ? 's' : ''}
+                        </div>
+                        <div className="text-sm text-[#828282]">
+                            {dates.map((date, index) => (
+                                <div key={index} className="mb-1">
+                                    <span className="font-medium">
+                                        {new Date(date).toLocaleDateString('en-US', { 
+                                            weekday: 'short', 
+                                            month: 'short', 
+                                            day: 'numeric' 
+                                        })}
+                                    </span>
+                                </div>
+                            ))}
+                            <div className="text-sm text-[#4F4F4F] mt-2">
+                                <span className="font-medium">Time:</span> {formatTimeSlots()}
+                            </div>
+                        </div>
                     </div>
 
                     <div className="">
@@ -267,11 +361,9 @@ export default function PricingPaymentPage({
                                 <div className="text-xl font-bold text-[#212121]">
                                     ${usdRate}/₦{ngnRate.toLocaleString()} per session
                                 </div>
-                                {numberOfSlots > 1 && (
-                                    <div className="text-sm text-[#4F4F4F] mt-2">
-                                        {numberOfSlots} sessions × ${usdRate} = ${totalUSD} / ₦{totalNGN.toLocaleString()}
-                                    </div>
-                                )}
+                                <div className="text-sm text-[#4F4F4F] mt-2">
+                                    {numberOfDays} day{numberOfDays > 1 ? 's' : ''} • {numberOfSlots} session{numberOfSlots > 1 ? 's' : ''} × ${usdRate} = ${totalUSD} / ₦{totalNGN.toLocaleString()}
+                                </div>
                             </div>
                         </div>
 
@@ -357,7 +449,7 @@ export default function PricingPaymentPage({
                                 </span>
                             </div>
                             <div className="text-sm text-[#4F4F4F] mt-1">
-                                {numberOfSlots} session{numberOfSlots > 1 ? 's' : ''} with {teacher?.name}
+                                {numberOfDays} day{numberOfDays > 1 ? 's' : ''} • {numberOfSlots} session{numberOfSlots > 1 ? 's' : ''} with {teacher?.name}
                             </div>
                         </div>
 
@@ -366,14 +458,14 @@ export default function PricingPaymentPage({
                             <Button
                                 variant="outline"
                                 onClick={handleGoBack}
-                                className="px-8 py-3 text-[#4F4F4F] border-[#E8E8E8] hover:bg-[#F8F9FA] rounded-lg"
+                                className="px-8 py-3 text-[#2C7870] border-[#2C7870] hover:bg-[#F8F9FA] rounded-full"
                             >
                                 Go Back
                             </Button>
                             <Button
                                 onClick={handleProceedToPayment}
                                 disabled={selectedPaymentMethods.length === 0}
-                                className="px-8 py-3 bg-[#2C7870] hover:bg-[#236158] text-white disabled:bg-[#BDBDBD] disabled:cursor-not-allowed rounded-lg"
+                                className="px-8 py-3 bg-[#2C7870] hover:bg-[#236158] text-white disabled:bg-[#BDBDBD] disabled:cursor-not-allowed rounded-full"
                             >
                                 Proceed To Payment
                             </Button>
@@ -408,13 +500,19 @@ export default function PricingPaymentPage({
                     id: 1,
                     name: subjects.join(' / ')
                 }}
-                date={new Date(date).toLocaleDateString('en-US', { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                })}
-                time="5:00 PM - 6:00 PM"
+                date={dates.length === 1 
+                    ? new Date(dates[0]).toLocaleDateString('en-US', { 
+                        weekday: 'long', 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                    })
+                    : `${dates.length} days: ${dates.map(d => new Date(d).toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric' 
+                    })).join(', ')}`
+                }
+                time={formatTimeSlots()}
                 totalFee={selectedCurrency === 'USD' ? totalUSD : totalNGN}
                 currency={selectedCurrency === 'USD' ? '$' : '₦'}
                 notes={note_to_teacher}
@@ -429,13 +527,26 @@ export default function PricingPaymentPage({
                     id: teacher?.id || teacher_id,
                     name: teacher?.name || 'Unknown Teacher'
                 }}
-                sessionDate={new Date(date).toLocaleDateString('en-US', { 
-                    weekday: 'long', 
-                    month: 'long', 
-                    day: 'numeric' 
-                })}
-                sessionTime="5:00 PM - 6:00 PM"
+                sessionDate={dates.length === 1 
+                    ? new Date(dates[0]).toLocaleDateString('en-US', { 
+                        weekday: 'long', 
+                        month: 'long', 
+                        day: 'numeric' 
+                    })
+                    : `${dates.length} days: ${dates.map(d => new Date(d).toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric' 
+                    })).join(', ')}`
+                }
+                sessionTime={formatTimeSlots()}
             />
+
+            {/* Recommended Teachers Section */}
+            {teacher?.recommended_teachers && teacher.recommended_teachers.length > 0 && (
+                <div className="mt-12">
+                    <RecommendedTeachers teachers={teacher.recommended_teachers} />
+                </div>
+            )}
         </StudentLayout>
     );
 }

@@ -204,6 +204,9 @@ export interface TeacherDetailsData {
     experience_years: number;
     subjects: string[];
     reviews_count: number;
+    hourly_rate_ngn?: number;
+    hourly_rate_usd?: number;
+    is_verified?: boolean;
 }
 
 export interface ClassDetailsPageProps {

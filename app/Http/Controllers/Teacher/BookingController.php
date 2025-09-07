@@ -149,75 +149,77 @@ class BookingController extends Controller
     /**
      * Reschedule a booking
      */
-    public function reschedule(Request $request, Booking $booking): JsonResponse
-    {
-        $teacher = auth()->user();
+
+    //  not need reschedule for now
+    // public function reschedule(Request $request, Booking $booking): JsonResponse
+    // {
+    //     $teacher = auth()->user();
         
-        // Ensure the booking belongs to this teacher
-        if ($booking->teacher_id !== $teacher->id) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized access to booking.'
-            ], 403);
-        }
+    //     // Ensure the booking belongs to this teacher
+    //     if ($booking->teacher_id !== $teacher->id) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Unauthorized access to booking.'
+    //         ], 403);
+    //     }
 
-        $request->validate([
-            'new_date' => 'required|date|after:today',
-            'new_start_time' => 'required|date_format:H:i',
-            'new_end_time' => 'required|date_format:H:i|after:new_start_time',
-            'reason' => 'nullable|string|max:500'
-        ]);
+    //     $request->validate([
+    //         'new_date' => 'required|date|after:today',
+    //         'new_start_time' => 'required|date_format:H:i',
+    //         'new_end_time' => 'required|date_format:H:i|after:new_start_time',
+    //         'reason' => 'nullable|string|max:500'
+    //     ]);
 
-        DB::transaction(function () use ($booking, $teacher, $request) {
-            $oldData = [
-                'booking_date' => $booking->booking_date,
-                'start_time' => $booking->start_time,
-                'end_time' => $booking->end_time,
-            ];
+    //     DB::transaction(function () use ($booking, $teacher, $request) {
+    //         $oldData = [
+    //             'booking_date' => $booking->booking_date,
+    //             'start_time' => $booking->start_time,
+    //             'end_time' => $booking->end_time,
+    //         ];
 
-            $newData = [
-                'booking_date' => $request->input('new_date'),
-                'start_time' => $request->input('new_start_time'),
-                'end_time' => $request->input('new_end_time'),
-                'rescheduled_by_id' => $teacher->id,
-                'rescheduled_at' => now(),
-                'reschedule_reason' => $request->input('reason'),
-            ];
+    //         $newData = [
+    //             'booking_date' => $request->input('new_date'),
+    //             'start_time' => $request->input('new_start_time'),
+    //             'end_time' => $request->input('new_end_time'),
+    //             'rescheduled_by_id' => $teacher->id,
+    //             'rescheduled_at' => now(),
+    //             'reschedule_reason' => $request->input('reason'),
+    //         ];
 
-            // Update booking
-            $booking->update($newData);
+    //         // Update booking
+    //         $booking->update($newData);
 
-            // Update teaching session if exists
-            if ($booking->teachingSession) {
-                $booking->teachingSession->update([
-                    'session_date' => $request->input('new_date'),
-                    'start_time' => $request->input('new_start_time'),
-                    'end_time' => $request->input('new_end_time'),
-                ]);
-            }
+    //         // Update teaching session if exists
+    //         if ($booking->teachingSession) {
+    //             $booking->teachingSession->update([
+    //                 'session_date' => $request->input('new_date'),
+    //                 'start_time' => $request->input('new_start_time'),
+    //                 'end_time' => $request->input('new_end_time'),
+    //             ]);
+    //         }
 
-            // Create booking history entry
-            \App\Models\BookingHistory::create([
-                'booking_id' => $booking->id,
-                'action' => 'rescheduled',
-                'previous_data' => $oldData,
-                'new_data' => $newData,
-                'performed_by_id' => $teacher->id,
-                'notes' => $request->input('reason'),
-                'ip_address' => $request->ip(),
-                'user_agent' => $request->userAgent(),
-            ]);
+    //         // Create booking history entry
+    //         \App\Models\BookingHistory::create([
+    //             'booking_id' => $booking->id,
+    //             'action' => 'rescheduled',
+    //             'previous_data' => $oldData,
+    //             'new_data' => $newData,
+    //             'performed_by_id' => $teacher->id,
+    //             'notes' => $request->input('reason'),
+    //             'ip_address' => $request->ip(),
+    //             'user_agent' => $request->userAgent(),
+    //         ]);
 
-            // Send reschedule notifications
-            $this->sendRescheduleNotifications($booking, $oldData, $newData);
-        });
+    //         // Send reschedule notifications
+    //         $this->sendRescheduleNotifications($booking, $oldData, $newData);
+    //     });
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Booking rescheduled successfully.',
-            'booking' => $booking->fresh(['student', 'subject', 'teachingSession'])
-        ]);
-    }
+    //     return response()->json([
+    //         'success' => true,
+    //         'message' => 'Booking rescheduled successfully.',
+    //         'booking' => $booking->fresh(['student', 'subject', 'teachingSession'])
+    //     ]);
+    // }
 
     /**
      * Cancel a booking

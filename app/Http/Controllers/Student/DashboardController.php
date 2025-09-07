@@ -64,34 +64,55 @@ class DashboardController extends Controller
             ->where('status', 'completed')
             ->count();
         
-        // Get upcoming sessions count (scheduled or confirmed)
+        // Get upcoming sessions count (scheduled or confirmed teaching sessions)
         $upcomingSessions = TeachingSession::where('student_id', $studentId)
             ->whereIn('status', ['scheduled', 'confirmed'])
             ->where('session_date', '>=', Carbon::today())
             ->count();
         
+        // Get pending bookings count (bookings without teaching sessions)
+        $pendingBookings = Booking::where('student_id', $studentId)
+            ->whereIn('status', ['pending', 'approved'])
+            ->where('booking_date', '>=', Carbon::today())
+            ->whereDoesntHave('teachingSession')
+            ->count();
+        
         return [
             'totalSessions' => $totalSessions,
             'completedSessions' => $completedSessions,
-            'upcomingSessions' => $upcomingSessions,
+            'upcomingSessions' => $upcomingSessions + $pendingBookings, // Include both sessions and pending bookings
         ];
     }
     
     /**
      * Get upcoming sessions for the student.
+     * This includes both approved teaching sessions and pending bookings.
      */
     private function getUpcomingSessions(int $studentId): array
     {
+        // Get approved teaching sessions
         $sessions = TeachingSession::with(['teacher', 'subject.template', 'booking'])
             ->where('student_id', $studentId)
             ->whereIn('status', ['scheduled', 'confirmed'])
             ->where('session_date', '>=', Carbon::today())
             ->orderBy('session_date', 'asc')
             ->orderBy('start_time', 'asc')
-            ->limit(5)
             ->get();
         
-        return $sessions->map(function ($session) {
+        // Get pending bookings that don't have teaching sessions yet
+        $pendingBookings = Booking::with(['teacher', 'subject.template'])
+            ->where('student_id', $studentId)
+            ->whereIn('status', ['pending', 'approved'])
+            ->where('booking_date', '>=', Carbon::today())
+            ->whereDoesntHave('teachingSession')
+            ->orderBy('booking_date', 'asc')
+            ->orderBy('start_time', 'asc')
+            ->get();
+        
+        $upcomingData = collect();
+        
+        // Process approved teaching sessions
+        $upcomingData = $upcomingData->merge($sessions->map(function ($session) {
             // Get subject name from subject template if available
             $subjectName = $session->subject?->template?->name ?? $session->subject?->name ?? 'Subject Not Found';
             
@@ -106,8 +127,39 @@ class DashboardController extends Controller
                 'imageUrl' => null, // Use initials instead of image
                 'meetingUrl' => $session->zoom_join_url ?? $session->meeting_link,
                 'session_uuid' => $session->session_uuid,
+                'type' => 'session'
             ];
-        })->toArray();
+        }));
+        
+        // Process pending bookings
+        $upcomingData = $upcomingData->merge($pendingBookings->map(function ($booking) {
+            // Get subject name from subject template if available
+            $subjectName = $booking->subject?->template?->name ?? $booking->subject?->name ?? 'Subject Not Found';
+            
+            return [
+                'id' => $booking->id,
+                'title' => $subjectName,
+                'teacher' => $booking->teacher?->name ?? 'Teacher Not Found',
+                'subject' => $subjectName,
+                'date' => $booking->booking_date->format('l, F j, Y'),
+                'time' => $booking->start_time->format('g:i A') . ' - ' . $booking->end_time->format('g:i A'),
+                'status' => ucfirst($booking->status),
+                'imageUrl' => null, // Use initials instead of image
+                'meetingUrl' => null, // No meeting URL for pending bookings
+                'session_uuid' => $booking->booking_uuid,
+                'type' => 'booking'
+            ];
+        }));
+        
+        // Sort by date and time, then limit to 5
+        return $upcomingData
+            ->sortBy([
+                ['date', 'asc'],
+                ['time', 'asc']
+            ])
+            ->take(5)
+            ->values()
+            ->toArray();
     }
     
     /**
