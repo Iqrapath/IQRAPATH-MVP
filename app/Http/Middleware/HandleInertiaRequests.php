@@ -56,6 +56,7 @@ class HandleInertiaRequests extends Middleware
                     'status_message' => $request->user()->status_message,
                     'last_active_at' => $request->user()->last_active_at,
                     'wallet_balance' => $this->getUserWalletBalance($request->user()),
+                    'wallet' => $this->getUserWallet($request->user()),
                 ] : null,
             ],
             'ziggy' => fn (): array => [
@@ -90,6 +91,69 @@ class HandleInertiaRequests extends Middleware
             case 'guardian':
                 $wallet = $user->guardianWallet;
                 return $wallet ? (float) $wallet->balance : 0.0;
+            
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * Get the wallet object for the authenticated user based on their role.
+     *
+     * @param \App\Models\User $user
+     * @return array|null
+     */
+    private function getUserWallet($user): ?array
+    {
+        if (!$user) {
+            return null;
+        }
+
+        switch ($user->role) {
+            case 'student':
+                $wallet = $user->getOrCreateWallet();
+                return [
+                    'id' => $wallet->id,
+                    'user_id' => $wallet->user_id,
+                    'payment_id' => $wallet->payment_id,
+                    'balance' => (float) $wallet->balance,
+                    'total_spent' => (float) $wallet->total_spent,
+                    'total_refunded' => (float) $wallet->total_refunded,
+                    'default_payment_method_id' => $wallet->default_payment_method_id,
+                    'auto_renew_enabled' => $wallet->auto_renew_enabled,
+                    'created_at' => $wallet->created_at,
+                    'updated_at' => $wallet->updated_at,
+                ];
+            
+            case 'teacher':
+                $wallet = $user->teacherWallet;
+                return $wallet ? [
+                    'id' => $wallet->id,
+                    'user_id' => $wallet->user_id,
+                    'payment_id' => $wallet->payment_id ?? null,
+                    'balance' => (float) $wallet->balance,
+                    'total_spent' => (float) $wallet->total_spent,
+                    'total_refunded' => (float) $wallet->total_refunded,
+                    'default_payment_method_id' => $wallet->default_payment_method_id,
+                    'auto_renew_enabled' => $wallet->auto_renew_enabled,
+                    'created_at' => $wallet->created_at,
+                    'updated_at' => $wallet->updated_at,
+                ] : null;
+            
+            case 'guardian':
+                $wallet = $user->guardianWallet;
+                return $wallet ? [
+                    'id' => $wallet->id,
+                    'user_id' => $wallet->user_id,
+                    'payment_id' => $wallet->payment_id ?? null,
+                    'balance' => (float) $wallet->balance,
+                    'total_spent' => (float) $wallet->total_spent,
+                    'total_refunded' => (float) $wallet->total_refunded,
+                    'default_payment_method_id' => $wallet->default_payment_method_id,
+                    'auto_renew_enabled' => $wallet->auto_renew_enabled,
+                    'created_at' => $wallet->created_at,
+                    'updated_at' => $wallet->updated_at,
+                ] : null;
             
             default:
                 return null;

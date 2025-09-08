@@ -7,6 +7,7 @@ use App\Notifications\CustomResetPasswordNotification;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -239,6 +240,14 @@ class User extends Authenticatable implements MustVerifyEmail
     public function teacherProfile(): HasOne
     {
         return $this->hasOne(TeacherProfile::class);
+    }
+
+    /**
+     * Get the subjects for the teacher (through teacher profile).
+     */
+    public function subjects(): HasManyThrough
+    {
+        return $this->hasManyThrough(Subject::class, TeacherProfile::class, 'user_id', 'teacher_profile_id');
     }
 
     /**

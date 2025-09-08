@@ -68,9 +68,27 @@ Route::middleware(['auth', 'verified', 'role:student'])->prefix('student')->name
     Route::post('/bookings/{booking}/review', [App\Http\Controllers\Student\BookingController::class, 'saveReview'])->name('bookings.review');
     Route::post('/bookings/{booking}/personal-notes', [App\Http\Controllers\Student\BookingController::class, 'savePersonalNotes'])->name('bookings.personal-notes');
     Route::get('/bookings/{booking}/summary-pdf', [App\Http\Controllers\Student\BookingController::class, 'downloadSummaryPdf'])->name('bookings.summary-pdf');
+    
+    // Booking Modification routes
+    Route::get('/modifications', [App\Http\Controllers\Student\BookingModificationController::class, 'index'])->name('modifications.index');
+    Route::get('/modifications/{modification}', [App\Http\Controllers\Student\BookingModificationController::class, 'show'])->name('modifications.show');
+    Route::get('/bookings/{booking}/reschedule', [App\Http\Controllers\Student\BookingModificationController::class, 'reschedule'])->name('bookings.reschedule');
+    Route::post('/bookings/{booking}/reschedule', [App\Http\Controllers\Student\BookingModificationController::class, 'storeReschedule'])->name('bookings.reschedule.store');
+    Route::get('/bookings/{booking}/rebook', [App\Http\Controllers\Student\BookingModificationController::class, 'rebook'])->name('bookings.rebook');
+    Route::post('/bookings/{booking}/rebook', [App\Http\Controllers\Student\BookingModificationController::class, 'storeRebook'])->name('bookings.rebook.store');
+    Route::delete('/modifications/{modification}/cancel', [App\Http\Controllers\Student\BookingModificationController::class, 'cancel'])->name('modifications.cancel');
+    Route::get('/modifications/teacher-availability', [App\Http\Controllers\Student\BookingModificationController::class, 'getTeacherAvailability'])->name('modifications.teacher-availability');
+    
+    // New Reschedule Flow Routes (UI-based)
+    Route::match(['get', 'post'], '/reschedule/class', [App\Http\Controllers\Student\BookingModificationController::class, 'rescheduleClass'])->name('reschedule.class');
+    Route::get('/reschedule/session-details', [App\Http\Controllers\Student\BookingModificationController::class, 'rescheduleSessionDetailsGet'])->name('reschedule.session-details.get');
+    Route::post('/reschedule/session-details', [App\Http\Controllers\Student\BookingModificationController::class, 'rescheduleSessionDetails'])->name('reschedule.session-details');
+    Route::get('/reschedule/pricing-payment', [App\Http\Controllers\Student\BookingModificationController::class, 'reschedulePricingPaymentGet'])->name('reschedule.pricing-payment.get');
+    Route::post('/reschedule/pricing-payment', [App\Http\Controllers\Student\BookingModificationController::class, 'reschedulePricingPayment'])->name('reschedule.pricing-payment');
+    Route::post('/reschedule/submit', [App\Http\Controllers\Student\BookingModificationController::class, 'submitReschedule'])->name('reschedule.submit');
+    Route::post('/reschedule/check-existing', [App\Http\Controllers\Student\BookingModificationController::class, 'checkExistingModification'])->name('reschedule.check-existing');
+    
     Route::get('/book-class', [App\Http\Controllers\Student\BookingController::class, 'create'])->name('book-class');
-    Route::get('/reschedule/{booking}', [App\Http\Controllers\Student\BookingController::class, 'reschedule'])->name('reschedule');
-    Route::post('/reschedule/{booking}/update', [App\Http\Controllers\Student\BookingController::class, 'updateReschedule'])->name('reschedule.update');
     Route::get('/booking/session-details', [App\Http\Controllers\Student\BookingController::class, 'sessionDetailsGet'])->name('booking.session-details.get');
     Route::post('/booking/session-details', [App\Http\Controllers\Student\BookingController::class, 'sessionDetails'])->name('booking.session-details');
     Route::get('/booking/pricing-payment', [App\Http\Controllers\Student\BookingController::class, 'pricingPaymentGet'])->name('booking.pricing-payment.get');
@@ -93,6 +111,21 @@ Route::middleware(['auth', 'verified', 'role:student'])->prefix('student')->name
     Route::get('/payment/publishable-key', [App\Http\Controllers\Student\PaymentController::class, 'getPublishableKey'])->name('payment.publishable-key');
     Route::get('/payment/paystack-public-key', [App\Http\Controllers\Student\PaymentController::class, 'getPaystackPublicKey'])->name('payment.paystack-public-key');
     Route::post('/payment/verify-paystack', [App\Http\Controllers\Student\PaymentController::class, 'verifyPaystackPayment'])->name('payment.verify-paystack');
+});
+
+// Teacher routes
+Route::middleware(['auth', 'verified', 'role:teacher'])->prefix('teacher')->name('teacher.')->group(function () {
+    Route::get('/dashboard', [TeacherDashboardController::class, 'index'])->name('dashboard');
+    Route::get('/notifications', function () {
+        return Inertia::render('teacher/notifications/notifications');
+    })->name('notifications');
+    
+    // Booking Modification routes for teachers
+    Route::get('/modifications', [App\Http\Controllers\Teacher\BookingModificationController::class, 'index'])->name('modifications.index');
+    Route::get('/modifications/{modification}', [App\Http\Controllers\Teacher\BookingModificationController::class, 'show'])->name('modifications.show');
+    Route::post('/modifications/{modification}/approve', [App\Http\Controllers\Teacher\BookingModificationController::class, 'approve'])->name('modifications.approve');
+    Route::post('/modifications/{modification}/reject', [App\Http\Controllers\Teacher\BookingModificationController::class, 'reject'])->name('modifications.reject');
+    Route::get('/modifications/statistics', [App\Http\Controllers\Teacher\BookingModificationController::class, 'statistics'])->name('modifications.statistics');
 });
 
 // Guardian routes

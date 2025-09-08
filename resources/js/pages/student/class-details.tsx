@@ -232,7 +232,12 @@ export default function ClassDetails({ auth, booking, teacher }: Props) {
     };
 
     const handleRescheduleBooking = () => {
-        router.visit(`/student/my-bookings/${booking.id}/reschedule`);
+        router.visit('/student/reschedule/class', {
+            data: {
+                booking_id: booking.id,
+                teacher_id: booking.teacher_id
+            }
+        });
     };
 
     return (

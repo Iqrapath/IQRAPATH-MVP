@@ -46,7 +46,13 @@ export default function UpcomingClassCard({ booking }: UpcomingClassCardProps) {
     };
 
     const handleReschedule = () => {
-        router.visit(`/student/my-bookings/${booking.id}/reschedule`);
+        router.visit('/student/reschedule/class', {
+            method: 'post',
+            data: {
+                booking_id: booking.id,
+                teacher_id: typeof booking.teacher === 'object' ? booking.teacher.id : booking.teacher_id
+            }
+        });
     };
 
     const handleCancel = () => {

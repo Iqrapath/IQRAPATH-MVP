@@ -24,6 +24,7 @@ import { BookingData } from '@/types';
 import { BookingIcon } from '@/components/icons/booking-icon';
 import ViewSummaryModal from '@/components/student/ViewSummaryModal';
 import RateTeacherDialog from '@/components/student/RateTeacherDialog';
+import { toast } from 'sonner';
 
 interface CompletedClassCardProps {
     booking: BookingData;
@@ -38,7 +39,9 @@ export default function CompletedClassCard({ booking }: CompletedClassCardProps)
     };
 
     const handleRebook = () => {
-        router.visit(`/student/browse-teachers/${booking.teacher_id}?rebook=${booking.id}`);
+        toast.info('Rebook feature coming soon! Stay tuned for updates.', {
+            duration: 4000,
+        });
     };
 
     const handleRateTeacher = () => {

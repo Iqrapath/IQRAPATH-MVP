@@ -19,6 +19,7 @@ class StudentWallet extends Model
      */
     protected $fillable = [
         'user_id',
+        'payment_id',
         'balance',
         'total_spent',
         'total_refunded',
@@ -171,5 +172,33 @@ class StudentWallet extends Model
         return $this->balance >= $amount;
     }
 
+    /**
+     * Generate a unique payment ID for the wallet.
+     * Format: IQR-STU-{timestamp}-{random} (e.g., IQR-STU-1704067200-A7B9)
+     */
+    public static function generateUniquePaymentId(): string
+    {
+        do {
+            // Generate a payment ID with format: IQR-STU-{timestamp}-{4 random alphanumeric}
+            $timestamp = time();
+            $random = strtoupper(substr(str_shuffle('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'), 0, 4));
+            $paymentId = "IQR-STU-{$timestamp}-{$random}";
+        } while (self::where('payment_id', $paymentId)->exists());
 
+        return $paymentId;
+    }
+
+    /**
+     * Boot method to automatically generate payment_id when creating a new wallet.
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($wallet) {
+            if (empty($wallet->payment_id)) {
+                $wallet->payment_id = self::generateUniquePaymentId();
+            }
+        });
+    }
 } 

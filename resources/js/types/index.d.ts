@@ -34,6 +34,19 @@ export interface SharedData {
 
 export type StatusType = 'online' | 'away' | 'busy' | 'offline';
 
+export interface Wallet {
+    id: number;
+    user_id: number;
+    payment_id: string;
+    balance: number;
+    total_spent: number;
+    total_refunded: number;
+    default_payment_method_id?: number | null;
+    auto_renew_enabled: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
 export interface User {
     id: number;
     name: string;
@@ -48,6 +61,7 @@ export interface User {
     email_verified_at?: string | null;
     teacherProfile?: TeacherProfile;
     wallet_balance?: number | null;
+    wallet?: Wallet;
 }
 
 export interface Notification {
