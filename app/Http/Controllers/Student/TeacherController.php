@@ -23,14 +23,16 @@ class TeacherController extends Controller
         $maxPrice = $request->get('max_price');
         $experience = $request->get('experience');
         $language = $request->get('language');
-        $verified = $request->get('verified');
+        // Note: Only verified teachers are shown (filtered in base query)
         $availableNow = $request->get('available_now');
         $sort = $request->get('sort', 'rating');
 
-        // Build base query for teachers
+        // Build base query for teachers - only show verified teachers
         $query = User::with(['teacherProfile.subjects.template'])
             ->where('role', 'teacher')
-            ->whereHas('teacherProfile');
+            ->whereHas('teacherProfile', function ($q) {
+                $q->where('verified', true);
+            });
 
         // Apply search filter
         if ($search) {
@@ -66,12 +68,7 @@ class TeacherController extends Controller
             });
         }
 
-        // Apply verified filter
-        if ($verified) {
-            $query->whereHas('teacherProfile', function ($q) {
-                $q->where('verified', true);
-            });
-        }
+        // Note: Verified filter is already applied in base query
 
         // Apply sorting
         switch ($sort) {
@@ -118,7 +115,6 @@ class TeacherController extends Controller
                 'max_price' => $maxPrice,
                 'experience' => $experience,
                 'language' => $language,
-                'verified' => $verified,
                 'available_now' => $availableNow,
                 'sort' => $sort,
             ],

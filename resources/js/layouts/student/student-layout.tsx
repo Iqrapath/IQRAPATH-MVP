@@ -77,7 +77,7 @@ export default function StudentLayout({
                 />
                 <div className="flex flex-1 relative overflow-hidden">
                     {/* Left Sidebar - Hidden on mobile by default, shown when toggled */}
-                    <div className={`${isMobile ? 'absolute z-30 h-full' : 'pl-25 pt-2'} ${isMobile && !showLeftSidebar ? 'hidden' : 'block'}`}>
+                    <div className={`${isMobile ? 'absolute z-30 h-full' : 'pl-25 pt-2 pb-2'} ${isMobile && !showLeftSidebar ? 'hidden' : 'block'}`}>
                         <StudentLeftSidebar 
                             isMobile={isMobile}
                             // onClose={closeLeftSidebar}
@@ -86,7 +86,7 @@ export default function StudentLayout({
                     </div>
 
                     {/* Main Content */}
-                    <main className="flex-1 p-6 overflow-y-auto scrollbar-hide scrollbar-thin scrollbar-thumb-teal-600"
+                    <main className="flex-1 p-4 overflow-y-auto scrollbar-hide scrollbar-thin scrollbar-thumb-teal-600"
                     style={{
                         scrollbarWidth: 'none', /* Firefox */
                         msOverflowStyle: 'none', /* IE and Edge */

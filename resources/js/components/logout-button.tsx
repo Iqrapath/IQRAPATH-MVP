@@ -1,8 +1,9 @@
 import React from 'react';
 import { router } from '@inertiajs/react';
-import { LogOut } from 'lucide-react';
-import { Button } from './ui/button';
+import { LogOutIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useAuthLoading } from '@/hooks/use-auth-loading';
+import LogoutIcon from './icons/logout-icon';
 
 interface LogoutButtonProps {
   className?: string;
@@ -37,7 +38,7 @@ export default function LogoutButton({
       size={size}
       className={className}
     >
-      <LogOut className="h-4 w-4 mr-2" />
+      <LogoutIcon className="h-5 w-5 mr-2.5" />
       {!iconOnly && 'Logout'}
     </Button>
   );

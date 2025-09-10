@@ -32,7 +32,7 @@ class OnboardingController extends Controller
     /**
      * Show the role selection onboarding page.
      */
-    public function index(Request $request): Response
+    public function index(Request $request): Response|RedirectResponse
     {
         $user = $request->user();
         
@@ -69,7 +69,7 @@ class OnboardingController extends Controller
     /**
      * Show teacher onboarding page.
      */
-    public function teacher(Request $request): Response
+    public function teacher(Request $request): Response|RedirectResponse
     {
         $user = $request->user();
         
@@ -152,7 +152,7 @@ class OnboardingController extends Controller
     /**
      * Show student onboarding page.
      */
-    public function student(Request $request): Response
+    public function student(Request $request): Response|RedirectResponse
     {
         $user = $request->user();
         
@@ -206,7 +206,7 @@ class OnboardingController extends Controller
     /**
      * Show guardian onboarding page.
      */
-    public function guardian(Request $request): Response
+    public function guardian(Request $request): Response|RedirectResponse
     {
         $user = $request->user();
         

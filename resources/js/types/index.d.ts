@@ -259,7 +259,7 @@ export interface TeacherDetailsData {
     reviews_count: number;
     hourly_rate_ngn?: number;
     hourly_rate_usd?: number;
-    is_verified?: boolean;
+    verified?: boolean;
 }
 
 export interface ClassDetailsPageProps {

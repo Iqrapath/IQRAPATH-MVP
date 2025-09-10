@@ -189,7 +189,7 @@ function TeacherDetailsCard({ teacher }: { teacher: Props['teacher'] }) {
                                 bio: teacher.bio,
                                 experience_years: String(teacher.experience_years),
                                 hourly_rate_ngn: teacher.hourly_rate_ngn,
-                                is_verified: teacher.is_verified || false,
+                                verified: teacher.verified || false,
                             }}
                             trigger={
                                 <button className="text-[#2c7870] hover:text-[#236158] font-medium">

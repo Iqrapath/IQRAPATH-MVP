@@ -32,6 +32,7 @@ interface TeacherProfileModalProps {
         reviews_count?: number | string;
         bio?: string;
         experience_years?: string;
+        verified?: boolean; // Teacher verification status
         availability_data?: {
             availability_type?: string;
             time_slots?: Array<{
@@ -167,7 +168,7 @@ export default function TeacherProfileModal({ teacher, trigger }: TeacherProfile
                             </Avatar>
                             <div className="flex items-center gap-2 mt-2 text-sm text-gray-700 p-1">
                                 <VerifiedIcon className="w-4 h-4 text-[#2C7870]" />
-                                <span className="text-sm">{currentTeacher.is_verified ? 'Verified' : 'Not Verified'}</span>
+                                <span className="text-sm">{currentTeacher.verified ? 'Verified' : 'Not Verified'}</span>
                             </div>
                         </div>
                         <div className="flex-1 min-w-0">

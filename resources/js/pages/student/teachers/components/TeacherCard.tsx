@@ -29,13 +29,13 @@ interface TeacherCardProps {
         id: number;
         name: string;
         avatar?: string;
-        subjects: string[];
+        subjects?: string[];
         location: string;
-        rating: number;
-        reviews_count: number;
+        rating?: number;
+        reviews_count?: number;
         availability?: string;
         hourly_rate_usd?: number;
-        hourly_rate_ngn: number;
+        hourly_rate_ngn?: number;
         verified: boolean;
         experience_years: string;
         teaching_mode: string;
@@ -44,10 +44,21 @@ interface TeacherCardProps {
 }
 
 export default function TeacherCard({ teacher }: TeacherCardProps) {
+    // Convert teacher data to match TeacherProfileModal interface
+    const modalTeacher = {
+        ...teacher,
+        subjects: teacher.subjects || [],
+        rating: teacher.rating || 0,
+        reviews_count: teacher.reviews_count || 0,
+        location: teacher.location || '',
+        availability: teacher.availability || '',
+        hourly_rate_ngn: teacher.hourly_rate_ngn || 0,
+    };
     const renderStars = (rating: number) => {
-        const fullStars = Math.floor(rating);
-        const partialStar = rating % 1;
-        const emptyStars = 5 - Math.ceil(rating);
+        const safeRating = rating || 0;
+        const fullStars = Math.floor(safeRating);
+        const partialStar = safeRating % 1;
+        const emptyStars = 5 - Math.ceil(safeRating);
         
         return (
             <div className="flex items-center gap-1">
@@ -76,12 +87,12 @@ export default function TeacherCard({ teacher }: TeacherCardProps) {
     };
 
     const formatSubjects = (subjects: string[]) => {
-        // if (subjects.length === 0) return 'Hifz, Tajweed';
+        if (!subjects || subjects.length === 0) return 'No subjects listed';
         return subjects.slice(0, 2).join(', ');
     };
 
     const formatAvailability = (availability?: string) => {
-        // if (!availability) return 'Mon-Fri, 5-8 PM';
+        if (!availability) return 'Not specified';
         return availability;
     };
 
@@ -110,7 +121,7 @@ export default function TeacherCard({ teacher }: TeacherCardProps) {
                             {/* Subject */}
                             <div className="text-sm">
                                 <span className="text-gray-500">Subject: </span>
-                                <span className="text-gray-700 font-medium break-words">{formatSubjects(teacher.subjects)}</span>
+                                <span className="text-gray-700 font-medium break-words">{formatSubjects(teacher.subjects || [])}</span>
                             </div>
                             
                             {/* Location */}
@@ -121,9 +132,9 @@ export default function TeacherCard({ teacher }: TeacherCardProps) {
                             
                             {/* Rating */}
                             <div className="flex items-center gap-3">
-                                {renderStars(teacher.rating)}
+                                {renderStars(teacher.rating || 0)}
                                 <span className="text-sm font-medium text-gray-600">
-                                    {teacher.rating}/5
+                                    {teacher.rating || 0}/5
                                 </span>
                             </div>
                             
@@ -139,7 +150,7 @@ export default function TeacherCard({ teacher }: TeacherCardProps) {
                             {/* Pricing */}
                             <div className="inline-flex flex-col bg-teal-50 rounded-full px-4 py-3 text-left">
                                 <div className="text-sm font-bold text-[#3B3B3B]">
-                                    ${teacher.hourly_rate_usd || 30} / ₦{teacher.hourly_rate_ngn.toLocaleString()}
+                                    ${teacher.hourly_rate_usd || 30} / ₦{teacher.hourly_rate_ngn?.toLocaleString() || '0'}
                                 </div>
                                 <div className="text-xs text-gray-600 mt-1">Per session</div>
                             </div>
@@ -147,7 +158,7 @@ export default function TeacherCard({ teacher }: TeacherCardProps) {
                             {/* Actions */}
                             <div className="flex items-center gap-4 sm:gap-6 flex-wrap">
                                 <TeacherProfileModal
-                                    teacher={teacher}
+                                    teacher={modalTeacher}
                                     trigger={
                                         <Button 
                                             variant="link" 
