@@ -1,0 +1,202 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services;
+
+use App\Models\Booking;
+use App\Models\TeachingSession;
+use App\Models\User;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+
+class TeacherStatsService
+{
+    /**
+     * Get teacher statistics for dashboard.
+     */
+    public function getTeacherStats(int $teacherId): array
+    {
+        // Get active students (students who have booked sessions with this teacher)
+        $activeStudents = Booking::where('teacher_id', $teacherId)
+            ->whereHas('teachingSession', function ($query) {
+                $query->whereIn('status', ['scheduled', 'confirmed', 'in_progress', 'completed']);
+            })
+            ->distinct('student_id')
+            ->count('student_id');
+        
+        // Get upcoming sessions (sessions scheduled for today or later)
+        $upcomingSessions = TeachingSession::where('teacher_id', $teacherId)
+            ->whereIn('status', ['scheduled', 'confirmed'])
+            ->where('session_date', '>=', Carbon::today())
+            ->count();
+        
+        // Get pending requests (bookings waiting for teacher approval)
+        $pendingRequests = Booking::where('teacher_id', $teacherId)
+            ->where('status', 'pending')
+            ->count();
+        
+        return [
+            'activeStudents' => $activeStudents,
+            'upcomingSessions' => $upcomingSessions,
+            'pendingRequests' => $pendingRequests,
+        ];
+    }
+    
+    /**
+     * Get recent activity for teacher dashboard.
+     */
+    public function getRecentActivity(int $teacherId, int $limit = 5): array
+    {
+        // Get recent bookings
+        $recentBookings = Booking::with(['student', 'subject.template'])
+            ->where('teacher_id', $teacherId)
+            ->orderBy('created_at', 'desc')
+            ->limit($limit)
+            ->get()
+            ->map(function ($booking) {
+                return [
+                    'id' => $booking->id,
+                    'type' => 'booking',
+                    'student_name' => $booking->student->name,
+                    'subject' => $booking->subject->template->name ?? $booking->subject->name ?? 'Unknown Subject',
+                    'date' => $booking->booking_date->format('M j, Y'),
+                    'time' => $booking->start_time->format('g:i A'),
+                    'status' => ucfirst($booking->status),
+                    'created_at' => $booking->created_at->diffForHumans(),
+                ];
+            });
+        
+        return $recentBookings->toArray();
+    }
+
+    /**
+     * Get upcoming sessions for teacher dashboard.
+     */
+    public function getUpcomingSessions(int $teacherId): array
+    {
+        return Booking::with(['student', 'subject.template'])
+            ->where('teacher_id', $teacherId)
+            ->where('status', 'approved')
+            ->where('booking_date', '>=', now())
+            ->orderBy('booking_date', 'asc')
+            ->orderBy('start_time', 'asc')
+            ->limit(10)
+            ->get()
+            ->map(function ($booking) {
+                return [
+                    'id' => $booking->id,
+                    'student_name' => $booking->student->name,
+                    'subject' => $booking->subject->template->name ?? $booking->subject->name ?? 'Unknown Subject',
+                    'date' => $booking->booking_date->format('Y-m-d'),
+                    'time' => $booking->start_time->format('g:i A'),
+                    'status' => ucfirst($booking->status),
+                ];
+            })
+            ->toArray();
+    }
+
+    /**
+     * Get active students for teacher sessions page.
+     */
+    public function getActiveStudents(int $teacherId): array
+    {
+        return User::with(['studentProfile'])
+            ->where('role', 'student')
+            ->whereHas('studentBookings', function ($query) use ($teacherId) {
+                $query->where('teacher_id', $teacherId)
+                    ->whereHas('teachingSession', function ($sessionQuery) {
+                        $sessionQuery->whereIn('status', ['scheduled', 'confirmed', 'in_progress', 'completed']);
+                    });
+            })
+            ->get()
+            ->map(function ($student) use ($teacherId) {
+                // Get completed sessions count
+                $completedSessions = TeachingSession::where('teacher_id', $teacherId)
+                    ->where('student_id', $student->id)
+                    ->where('status', 'completed')
+                    ->count();
+
+                // Get total sessions count
+                $totalSessions = TeachingSession::where('teacher_id', $teacherId)
+                    ->where('student_id', $student->id)
+                    ->count();
+
+                // Calculate progress percentage
+                $progress = $totalSessions > 0 ? round(($completedSessions / $totalSessions) * 100) : 0;
+
+                // Calculate average rating from teacher reviews
+                $averageRating = DB::table('teacher_reviews')
+                    ->where('teacher_id', $teacherId)
+                    ->where('student_id', $student->id)
+                    ->avg('rating');
+                
+                // Ensure averageRating is numeric
+                $averageRating = is_numeric($averageRating) ? (float) $averageRating : null;
+
+                return [
+                    'id' => $student->id,
+                    'name' => $student->name,
+                    'avatar' => $student->studentProfile->profile_picture ?? null,
+                    'level' => $student->studentProfile->grade_level ?? 'Beginner',
+                    'sessionsCompleted' => $completedSessions,
+                    'progress' => $progress,
+                    'rating' => $averageRating ? round((float) $averageRating, 1) : 0,
+                    'lastActive' => $student->last_active_at ? $student->last_active_at->diffForHumans() : 'Never',
+                ];
+            })
+            ->toArray();
+    }
+
+    /**
+     * Get upcoming sessions for teacher sessions page.
+     */
+    public function getUpcomingSessionsForSessionsPage(int $teacherId): array
+    {
+        return TeachingSession::with(['student', 'subject.template'])
+            ->where('teacher_id', $teacherId)
+            ->whereIn('status', ['scheduled', 'confirmed'])
+            ->where('session_date', '>=', now())
+            ->orderBy('session_date', 'asc')
+            ->orderBy('start_time', 'asc')
+            ->get()
+            ->map(function ($session) {
+                return [
+                    'id' => $session->id,
+                    'student_name' => $session->student->name,
+                    'subject' => $session->subject->template->name ?? $session->subject->name ?? 'Unknown Subject',
+                    'date' => $session->session_date->format('Y-m-d'),
+                    'time' => $session->start_time->format('g:i A') . ' - ' . $session->end_time->format('g:i A'),
+                    'status' => ucfirst($session->status),
+                ];
+            })
+            ->toArray();
+    }
+
+    /**
+     * Get pending requests for teacher sessions page.
+     */
+    public function getPendingRequests(int $teacherId): array
+    {
+        return Booking::with(['student', 'subject.template'])
+            ->where('teacher_id', $teacherId)
+            ->where('status', 'pending')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($booking) {
+                return [
+                    'id' => $booking->id,
+                    'student' => [
+                        'name' => $booking->student->name,
+                        'avatar' => $booking->student->studentProfile->profile_picture ?? null,
+                    ],
+                    'note' => $booking->notes ?? 'No additional notes provided.',
+                    'subject' => $booking->subject->template->name ?? $booking->subject->name ?? 'Unknown Subject',
+                    'requestedDate' => $booking->booking_date->format('Y-m-d'),
+                    'requestedTime' => $booking->start_time->format('g:i A') . ' - ' . $booking->end_time->format('g:i A'),
+                    'status' => 'pending',
+                ];
+            })
+            ->toArray();
+    }
+}

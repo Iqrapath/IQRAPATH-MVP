@@ -2,16 +2,39 @@ import { Head } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
 import { type TeacherProfile, type User } from '@/types';
 import TeacherLayout from '@/layouts/teacher/teacher-layout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { TeacherStatsOverview } from './components/TeacherStatsOverview';
+import { TeacherUpcomingSessions } from './components/TeacherUpcomingSessions';
+import { RecommendedStudents } from './components/RecommendedStudents';
 import TeacherVerificationSuccessModal from '@/components/teacher/TeacherVerificationSuccessModal';
+
+interface UpcomingSession {
+    id: number;
+    student_name: string;
+    subject: string;
+    date: string;
+    time: string;
+    status: string;
+}
 
 interface TeacherDashboardProps {
     teacherProfile: TeacherProfile;
     user?: User;
+    stats: {
+        activeStudents: number;
+        upcomingSessions: number;
+        pendingRequests: number;
+    };
+    upcomingSessions: UpcomingSession[];
     showVerificationSuccess?: boolean;
 }
 
-export default function TeacherDashboard({ teacherProfile, user, showVerificationSuccess = false }: TeacherDashboardProps) {
+export default function TeacherDashboard({ 
+    teacherProfile, 
+    user, 
+    stats, 
+    upcomingSessions,
+    showVerificationSuccess = false 
+}: TeacherDashboardProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
 
     useEffect(() => {
@@ -24,57 +47,32 @@ export default function TeacherDashboard({ teacherProfile, user, showVerificatio
         <TeacherLayout pageTitle="Teacher Dashboard">
             <Head title="Teacher Dashboard" />
             
-            <div className="container mx-auto py-10">
-                <h1 className="text-3xl font-bold mb-6">Welcome Back, {user?.name || 'Teacher'}</h1>
-                
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Teacher Profile</CardTitle>
-                            <CardDescription>Your teaching information</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="space-y-2">
-                                <div>
-                                    <span className="font-medium">Specialization: </span>
-                                    <span>{teacherProfile?.specialization || 'Not set'}</span>
-                                </div>
-                                <div>
-                                    <span className="font-medium">Teaching Level: </span>
-                                    <span>{teacherProfile?.teaching_level || 'Not set'}</span>
-                                </div>
-                                <div>
-                                    <span className="font-medium">Experience: </span>
-                                    <span>{teacherProfile?.experience_years || 'Not set'} years</span>
-                                </div>
-                                <div>
-                                    <span className="font-medium">Hourly Rate: </span>
-                                    <span>${teacherProfile?.hourly_rate || 'Not set'}</span>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                    
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>My Students</CardTitle>
-                            <CardDescription>Students you are teaching</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <p>Student list functionality will be implemented here.</p>
-                        </CardContent>
-                    </Card>
-                    
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Teaching Schedule</CardTitle>
-                            <CardDescription>Your upcoming classes</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <p>Schedule functionality will be implemented here.</p>
-                        </CardContent>
-                    </Card>
+            <div className="space-y-8">
+                {/* Welcome Header */}
+                <div className="flex items-center space-x-3">
+                    {/* <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
+                        <span className="text-gray-600 text-sm font-medium">
+                            {user?.name ? user.name.charAt(0).toUpperCase() : 'T'}
+                        </span>
+                    </div> */}
+                    <div>
+                        <span className="text-2xl text-gray-700">Welcome</span>
+                        <span className="text-3xl font-bold text-gray-800 ml-2">{user?.name || 'Teacher'}</span>
+                    </div>
                 </div>
+
+                {/* Stats Overview */}
+                <TeacherStatsOverview stats={stats} />
+
+                {/* Upcoming Sessions */}
+                <TeacherUpcomingSessions sessions={upcomingSessions} />
+
+                {/* Recommended Students */}
+                <RecommendedStudents 
+                    teacherId={user?.id || 0}
+                    teacherSubjects={teacherProfile?.subjects || []}
+                    teacherSpecializations={teacherProfile?.specialization ? [teacherProfile.specialization] : []}
+                />
             </div>
 
             {/* Teacher Verification Success Modal */}

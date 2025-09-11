@@ -3,12 +3,17 @@
 namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
+use App\Services\TeacherStatsService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class DashboardController extends Controller
 {
+    public function __construct(
+        private TeacherStatsService $statsService
+    ) {}
+
     /**
      * Display the teacher dashboard.
      */
@@ -16,6 +21,12 @@ class DashboardController extends Controller
     {
         $user = $request->user();
         $teacherProfile = $user->teacherProfile;
+        
+        // Get teacher statistics
+        $stats = $this->statsService->getTeacherStats($user->id);
+        
+        // Get upcoming sessions
+        $upcomingSessions = $this->statsService->getUpcomingSessions($user->id);
         
         // Check if teacher was recently verified (within last 24 hours)
         $recentlyVerified = false;
@@ -33,6 +44,8 @@ class DashboardController extends Controller
         return Inertia::render('teacher/dashboard', [
             'teacherProfile' => $teacherProfile,
             'user' => $user,
+            'stats' => $stats,
+            'upcomingSessions' => $upcomingSessions,
             'showVerificationSuccess' => $recentlyVerified,
         ]);
     }

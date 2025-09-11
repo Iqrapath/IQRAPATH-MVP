@@ -9,6 +9,8 @@ use App\Http\Controllers\Teacher\ProfileController;
 use App\Http\Controllers\Teacher\TeacherReviewController;
 use App\Http\Controllers\Teacher\BookingController;
 use App\Http\Controllers\Teacher\SidebarController;
+use App\Http\Controllers\Teacher\RecommendedStudentsController;
+use App\Http\Controllers\Teacher\SessionsController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -26,6 +28,32 @@ use Inertia\Inertia;
 Route::middleware(['auth', 'verified', 'role:teacher', 'teacher.verified'])->prefix('teacher')->name('teacher.')->group(function () {
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    
+    // Sessions
+    Route::get('/sessions', [SessionsController::class, 'index'])->name('sessions');
+    Route::post('/sessions/requests/{booking}/accept', [SessionsController::class, 'acceptRequest'])->name('sessions.requests.accept');
+    Route::post('/sessions/requests/{booking}/decline', [SessionsController::class, 'declineRequest'])->name('sessions.requests.decline');
+    
+    // Debug route for recommended students
+    Route::get('/debug-recommended', function () {
+        try {
+            $teacher = auth()->user();
+            $teacherId = $teacher->id;
+            $teacherProfile = $teacher->teacherProfile;
+            
+            return response()->json([
+                'teacher_id' => $teacherId,
+                'has_teacher_profile' => $teacherProfile ? true : false,
+                'teacher_profile_id' => $teacherProfile ? $teacherProfile->id : null,
+                'subjects_count' => \App\Models\Subject::count(),
+                'subject_templates_count' => \App\Models\SubjectTemplates::count(),
+                'bookings_count' => \App\Models\Booking::count(),
+                'teacher_subjects' => $teacherProfile ? \App\Models\Subject::where('teacher_profile_id', $teacherProfile->id)->count() : 0
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    })->name('debug.recommended');
     
     // Notifications
     Route::get('/notifications', function () {
@@ -71,9 +99,6 @@ Route::middleware(['auth', 'verified', 'role:teacher', 'teacher.verified'])->pre
     Route::put('/profile/availability-preferences', [AvailabilityController::class, 'updatePreferences'])->name('profile.availability-preferences.update');
     
     // Teaching sessions
-    Route::get('/sessions', function () {
-        return Inertia::render('teacher/sessions/index');
-    })->name('sessions');
     Route::get('/sessions/upcoming', function () {
         return Inertia::render('teacher/sessions/upcoming');
     })->name('sessions.upcoming');
@@ -101,4 +126,7 @@ Route::middleware(['auth', 'verified', 'role:teacher', 'teacher.verified'])->pre
     Route::get('/sidebar-data', [SidebarController::class, 'getSidebarData'])->name('sidebar.data');
     Route::post('/requests/{booking}/accept', [SidebarController::class, 'acceptRequest'])->name('requests.accept');
     Route::post('/requests/{booking}/decline', [SidebarController::class, 'declineRequest'])->name('requests.decline');
+    
+    // Recommended students API
+    Route::get('/recommended-students', [RecommendedStudentsController::class, 'getRecommendedStudents'])->name('recommended-students');
 }); 
