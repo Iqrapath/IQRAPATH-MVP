@@ -14,8 +14,26 @@ class DashboardController extends Controller
      */
     public function index(Request $request): Response
     {
+        $user = $request->user();
+        $teacherProfile = $user->teacherProfile;
+        
+        // Check if teacher was recently verified (within last 24 hours)
+        $recentlyVerified = false;
+        if ($teacherProfile && $teacherProfile->verified) {
+            $verificationRequest = $teacherProfile->verificationRequests()
+                ->where('status', 'verified')
+                ->latest()
+                ->first();
+            
+            if ($verificationRequest && $verificationRequest->reviewed_at) {
+                $recentlyVerified = $verificationRequest->reviewed_at->isAfter(now()->subDay());
+            }
+        }
+        
         return Inertia::render('teacher/dashboard', [
-            'teacherProfile' => $request->user()->teacherProfile,
+            'teacherProfile' => $teacherProfile,
+            'user' => $user,
+            'showVerificationSuccess' => $recentlyVerified,
         ]);
     }
 }

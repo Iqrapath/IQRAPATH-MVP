@@ -1,14 +1,25 @@
 import { Head } from '@inertiajs/react';
+import { useState, useEffect } from 'react';
 import { type TeacherProfile, type User } from '@/types';
 import TeacherLayout from '@/layouts/teacher/teacher-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import TeacherVerificationSuccessModal from '@/components/teacher/TeacherVerificationSuccessModal';
 
 interface TeacherDashboardProps {
     teacherProfile: TeacherProfile;
     user?: User;
+    showVerificationSuccess?: boolean;
 }
 
-export default function TeacherDashboard({ teacherProfile, user }: TeacherDashboardProps) {
+export default function TeacherDashboard({ teacherProfile, user, showVerificationSuccess = false }: TeacherDashboardProps) {
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
+    useEffect(() => {
+        if (showVerificationSuccess) {
+            setIsModalOpen(true);
+        }
+    }, [showVerificationSuccess]);
+
     return (
         <TeacherLayout pageTitle="Teacher Dashboard">
             <Head title="Teacher Dashboard" />
@@ -65,6 +76,13 @@ export default function TeacherDashboard({ teacherProfile, user }: TeacherDashbo
                     </Card>
                 </div>
             </div>
+
+            {/* Teacher Verification Success Modal */}
+            <TeacherVerificationSuccessModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                teacherName={user?.name || 'Teacher'}
+            />
         </TeacherLayout>
     );
 } 

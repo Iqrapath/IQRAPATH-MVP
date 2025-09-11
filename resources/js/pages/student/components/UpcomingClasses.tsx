@@ -52,23 +52,23 @@ export default function UpcomingClasses({ classes }: UpcomingClassesProps) {
             {classes.length > 0 ? (
                 <>
                     {classes.map((cls) => {
-                        // Transform UpcomingSession to match UpcomingClassCard interface
+                        // Use service data directly - it already has the correct format
                         const sessionData = {
                             id: cls.id,
-                            session_uuid: cls.id.toString(),
+                            session_uuid: cls.session_uuid || cls.id.toString(),
                             title: cls.title,
                             teacher: cls.teacher,
-                            teacher_avatar: '',
-                            subject: cls.title, // This will be used for initials
+                            teacher_avatar: cls.teacher_avatar || '',
+                            subject: cls.subject || cls.title,
                             date: cls.date,
                             time: cls.time,
-                            duration: 60,
+                            duration: cls.duration || 60,
                             status: cls.status,
-                            meeting_link: cls.meetingUrl,
-                            completion_date: undefined,
-                            progress: 0,
-                            rating: 0,
-                            imageUrl: undefined // Force no image so initials will show
+                            meeting_link: cls.meeting_link || cls.meetingUrl,
+                            completion_date: cls.completion_date,
+                            progress: cls.progress || 0,
+                            rating: cls.rating || 0,
+                            imageUrl: cls.imageUrl || undefined
                         };
 
                         return (

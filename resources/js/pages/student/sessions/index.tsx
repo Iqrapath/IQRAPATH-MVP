@@ -175,65 +175,63 @@ export default function SessionsIndex({ sessions, filter, stats }: SessionsIndex
                 {/* Sessions List */}
                 <div className="space-y-4">
                     {sessions.data && sessions.data.length > 0 ? (
-                        (() => {
-                            // Separate sessions by status
-                            const completedSessions = sessions.data.filter(s => s.status?.toLowerCase() === 'completed');
-                            const ongoingSessions = sessions.data.filter(s => s.status?.toLowerCase() === 'ongoing' || s.status?.toLowerCase() === 'in_progress');
-                            const upcomingSessions = sessions.data.filter(s => 
-                                s.status?.toLowerCase() === 'upcoming' || 
-                                s.status?.toLowerCase() === 'scheduled' || 
-                                s.status?.toLowerCase() === 'confirmed' ||
-                                s.status?.toLowerCase() === 'pending' ||
-                                s.status?.toLowerCase() === 'approved'
-                            );
+                        // Backend service already filters the data, so just render it directly
+                        sessions.data.map((session) => {
+                            // Determine which card component to use based on session data
+                            const isCompleted = session.status?.toLowerCase() === 'completed' || 
+                                              (session.completion_date && (session.progress ?? 0) >= 100);
+                            const isOngoing = session.status?.toLowerCase() === 'ongoing' || 
+                                            session.status?.toLowerCase() === 'in_progress' ||
+                                            ((session.progress ?? 0) > 0 && (session.progress ?? 0) < 100);
+                            const isUpcoming = session.status?.toLowerCase() === 'upcoming' || 
+                                             session.status?.toLowerCase() === 'scheduled' || 
+                                             session.status?.toLowerCase() === 'confirmed' ||
+                                             session.status?.toLowerCase() === 'pending' ||
+                                             session.status?.toLowerCase() === 'approved';
+
+                            if (isCompleted) {
+                                return (
+                                    <CompletedClassCard
+                                        key={session.id}
+                                        session={session}
+                                        getSubjectIcon={getSubjectIcon}
+                                        getProgressColor={getProgressColor}
+                                        renderStars={renderStars}
+                                    />
+                                );
+                            } else if (isOngoing) {
+                                return (
+                                    <OngoingClassCard
+                                        key={session.id}
+                                        session={session}
+                                        getSubjectIcon={getSubjectIcon}
+                                        getProgressColor={getProgressColor}
+                                        renderStars={renderStars}
+                                    />
+                                );
+                            } else if (isUpcoming) {
+                                return (
+                                    <UpcomingClassCard
+                                        key={session.id}
+                                        session={session}
+                                        getSubjectIcon={getSubjectIcon}
+                                        getProgressColor={getProgressColor}
+                                        renderStars={renderStars}
+                                    />
+                                );
+                            }
                             
+                            // Default fallback - render as upcoming
                             return (
-                                <>
-                                    {/* Completed Classes - Individual Cards */}
-                                    {completedSessions.map((session) => (
-                                        <CompletedClassCard
-                                            key={session.id}
-                                            session={session}
-                                            getSubjectIcon={getSubjectIcon}
-                                            getProgressColor={getProgressColor}
-                                            renderStars={renderStars}
-                                        />
-                                    ))}
-                                    
-                                    {/* Ongoing Classes - Individual Cards */}
-                                    {ongoingSessions.map((session) => (
-                                        <OngoingClassCard
-                                            key={session.id}
-                                            session={session}
-                                            getSubjectIcon={getSubjectIcon}
-                                            getProgressColor={getProgressColor}
-                                            renderStars={renderStars}
-                                        />
-                                    ))}
-                                    
-                                    {/* Upcoming Classes - Single Card with Multiple Entries */}
-                                    {upcomingSessions.length > 0 && (
-                                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-                                            <div className="flex items-center justify-between mb-3">
-                                                <h2 className="text-lg font-bold text-gray-900">Upcoming Class</h2>
-                                                <Link href="/student/sessions?filter=upcoming" className="text-[#2C7870] hover:underline text-sm">
-                                                    View All Class
-                                                </Link>
-                                            </div>
-                                            {upcomingSessions.map((session) => (
-                                                <UpcomingClassCard
-                                                    key={session.id}
-                                                    session={session}
-                                                    getSubjectIcon={getSubjectIcon}
-                                                    getProgressColor={getProgressColor}
-                                                    renderStars={renderStars}
-                                                />
-                                            ))}
-                                        </div>
-                                    )}
-                                </>
+                                <UpcomingClassCard
+                                    key={session.id}
+                                    session={session}
+                                    getSubjectIcon={getSubjectIcon}
+                                    getProgressColor={getProgressColor}
+                                    renderStars={renderStars}
+                                />
                             );
-                        })()
+                        })
                     ) : (
                         <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-gray-100">
                             <div className="text-gray-400 mb-4">

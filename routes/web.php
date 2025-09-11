@@ -42,6 +42,16 @@ Route::get('/about', function () {
     return Inertia::render('about');
 })->name('about');
 
+// Test route for verification modal
+Route::get('/test-verification-modal', function () {
+    return Inertia::render('test-verification-modal');
+})->name('test-verification-modal');
+
+// Test route for teacher sidebar API
+Route::get('/test-teacher-sidebar', function () {
+    return Inertia::render('test-teacher-sidebar');
+})->name('test-teacher-sidebar');
+
 
 
 // Public content pages

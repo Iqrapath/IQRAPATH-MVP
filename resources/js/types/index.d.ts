@@ -158,15 +158,21 @@ export interface StudentStats {
 
 export interface UpcomingSession {
     id: number;
+    session_uuid: string;
     title: string;
     teacher: string;
+    teacher_avatar?: string;
     subject: string;
     date: string;
     time: string;
-    status: 'Confirmed' | 'Pending' | 'Completed' | 'Scheduled';
-    imageUrl: string;
-    meetingUrl?: string;
-    session_uuid: string;
+    duration?: number;
+    status: 'Confirmed' | 'Pending' | 'Completed' | 'Scheduled' | 'Approved' | 'Upcoming';
+    meeting_link?: string;
+    meetingUrl?: string; // Legacy field for backward compatibility
+    completion_date?: string;
+    progress?: number;
+    rating?: number;
+    imageUrl?: string;
 }
 
 export interface BookingData {

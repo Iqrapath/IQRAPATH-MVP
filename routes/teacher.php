@@ -8,6 +8,7 @@ use App\Http\Controllers\Teacher\FinancialController;
 use App\Http\Controllers\Teacher\ProfileController;
 use App\Http\Controllers\Teacher\TeacherReviewController;
 use App\Http\Controllers\Teacher\BookingController;
+use App\Http\Controllers\Teacher\SidebarController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -95,4 +96,9 @@ Route::middleware(['auth', 'verified', 'role:teacher', 'teacher.verified'])->pre
     // Teacher reviews (students and guardians can submit)
     Route::post('/reviews', [TeacherReviewController::class, 'store'])->middleware('role:student,guardian')->name('reviews.store');
     Route::get('/{teacher}/reviews', [TeacherReviewController::class, 'index'])->name('reviews.index');
+    
+    // Sidebar data API
+    Route::get('/sidebar-data', [SidebarController::class, 'getSidebarData'])->name('sidebar.data');
+    Route::post('/requests/{booking}/accept', [SidebarController::class, 'acceptRequest'])->name('requests.accept');
+    Route::post('/requests/{booking}/decline', [SidebarController::class, 'declineRequest'])->name('requests.decline');
 }); 

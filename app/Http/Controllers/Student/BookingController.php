@@ -12,6 +12,7 @@ use App\Models\TeacherAvailability;
 use App\Models\Subject;
 use App\Models\TeacherReview;
 use App\Models\BookingNote;
+use App\Services\StudentSessionService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Inertia\Inertia;
 use App\Models\User;
@@ -23,7 +24,8 @@ use Carbon\Carbon;
 class BookingController extends Controller
 {
     public function __construct(
-        private BookingNotificationService $bookingNotificationService
+        private BookingNotificationService $bookingNotificationService,
+        private StudentSessionService $sessionService
     ) {}
 
     /**
@@ -147,12 +149,7 @@ class BookingController extends Controller
                 'ongoing' => $ongoingBookings,
                 'completed' => $completedBookings,
             ],
-            'stats' => [
-                'total' => $bookings->count(),
-                'upcoming' => $upcomingBookings->count(),
-                'ongoing' => $ongoingBookings->count(),
-                'completed' => $completedBookings->count(),
-            ]
+            'stats' => $this->sessionService->getStudentStats($student->id)
         ]);
     }
 
