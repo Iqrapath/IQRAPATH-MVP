@@ -6,6 +6,8 @@ namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
 use App\Services\TeacherStatsService;
+use App\Services\BookingNotificationService;
+use App\Services\TeachingSessionMeetingService;
 use App\Models\Booking;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -15,7 +17,9 @@ use Inertia\Response;
 class SessionsController extends Controller
 {
     public function __construct(
-        private TeacherStatsService $teacherStatsService
+        private TeacherStatsService $teacherStatsService,
+        private BookingNotificationService $bookingNotificationService,
+        private TeachingSessionMeetingService $meetingService
     ) {}
 
     public function index(Request $request): Response
@@ -69,6 +73,13 @@ class SessionsController extends Controller
                 'notes' => $booking->notes,
             ]);
 
+            // Create meeting links (Zoom + Google Meet)
+            $meetingData = $this->meetingService->createMeetingLinks($teachingSession, $request->user());
+            $this->meetingService->updateSessionWithMeetingData($teachingSession, $meetingData);
+
+            // Send notifications for booking approval
+            $this->bookingNotificationService->sendBookingApprovedNotifications($booking);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Booking request accepted successfully.',
@@ -106,6 +117,9 @@ class SessionsController extends Controller
             // Update booking status to declined
             $booking->update(['status' => 'declined']);
 
+            // Send notifications for booking decline
+            $this->bookingNotificationService->sendBookingRejectedNotifications($booking, 'Teacher declined the booking request');
+
             return response()->json([
                 'success' => true,
                 'message' => 'Booking request declined successfully.'
@@ -115,6 +129,36 @@ class SessionsController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to decline booking request: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get detailed student profile data for modal display.
+     */
+    public function getStudentProfile(Request $request, int $studentId): JsonResponse
+    {
+        try {
+            $teacherId = $request->user()->id;
+            
+            $studentProfile = $this->teacherStatsService->getDetailedStudentProfile($teacherId, $studentId);
+            
+            if (empty($studentProfile)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Student not found or not associated with this teacher.'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $studentProfile
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch student profile: ' . $e->getMessage()
             ], 500);
         }
     }

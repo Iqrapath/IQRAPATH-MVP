@@ -2,14 +2,32 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Calendar, Clock } from 'lucide-react';
+import { SessionDetailsModal } from '@/components/SessionDetailsModal';
 
 interface UpcomingSession {
     id: number;
+    session_uuid?: string;
     student_name: string;
+    student_avatar?: string;
     subject: string;
+    teacher_name?: string;
+    teacher_avatar?: string;
     date: string;
+    start_time?: string;
+    end_time?: string;
     time: string;
+    duration?: string;
     status: string;
+    meeting_platform?: 'zoom' | 'google_meet';
+    meeting_link?: string;
+    zoom_join_url?: string;
+    google_meet_link?: string;
+    student_notes?: string;
+    teacher_notes?: string;
+    student_rating?: number;
+    teacher_rating?: number;
+    student_review?: string;
+    teacher_review?: string;
 }
 
 interface TeacherUpcomingSessionsProps {
@@ -20,6 +38,46 @@ export function TeacherUpcomingSessions({ sessions }: TeacherUpcomingSessionsPro
     // State for selected month and year
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+    
+    // Modal state
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [selectedSession, setSelectedSession] = useState<UpcomingSession | null>(null);
+    
+    // Modal handlers
+    const handleViewDetails = (session: UpcomingSession) => {
+        setSelectedSession(session);
+        setIsModalOpen(true);
+    };
+    
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        setSelectedSession(null);
+    };
+    
+    const handleJoinSession = (sessionId: number) => {
+        // TODO: Implement join session logic
+        console.log('Joining session:', sessionId);
+    };
+    
+    const handleStartChat = (sessionId: number) => {
+        // TODO: Implement start chat logic
+        console.log('Starting chat for session:', sessionId);
+    };
+    
+    const handleStartVideoCall = (sessionId: number) => {
+        // TODO: Implement start video call logic
+        console.log('Starting video call for session:', sessionId);
+    };
+    
+    const handleAddTeacherNotes = (sessionId: number, notes: string) => {
+        // TODO: Implement add teacher notes logic
+        console.log('Adding teacher notes for session:', sessionId, notes);
+    };
+    
+    const handleRateSession = (sessionId: number, rating: number, review: string) => {
+        // TODO: Implement rate session logic
+        console.log('Rating session:', sessionId, rating, review);
+    };
     
     // Generate all 12 months
     const months = [
@@ -219,7 +277,11 @@ export function TeacherUpcomingSessions({ sessions }: TeacherUpcomingSessionsPro
                                         </div>
 
                                         {/* View Details Link */}
-                                        <Button variant="link" className="text-teal-600 hover:text-teal-700 p-0">
+                                        <Button 
+                                            variant="link" 
+                                            className="text-teal-600 hover:text-teal-700 p-0"
+                                            onClick={() => handleViewDetails(session)}
+                                        >
                                             View Details
                                         </Button>
                                     </div>
@@ -237,6 +299,18 @@ export function TeacherUpcomingSessions({ sessions }: TeacherUpcomingSessionsPro
                     </Card>
                 )}
             </div>
+            
+            {/* Session Details Modal */}
+            <SessionDetailsModal
+                isOpen={isModalOpen}
+                onClose={handleCloseModal}
+                session={selectedSession}
+                onJoinSession={handleJoinSession}
+                onStartChat={handleStartChat}
+                onStartVideoCall={handleStartVideoCall}
+                onAddTeacherNotes={handleAddTeacherNotes}
+                onRateSession={handleRateSession}
+            />
         </div>
     );
 }

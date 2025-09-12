@@ -62,8 +62,7 @@ return [
     ],
 
     'google_meet' => [
-        'client_id' => env('
-        '),
+        'client_id' => env('GOOGLE_MEET_CLIENT_ID'),
         'client_secret' => env('GOOGLE_MEET_CLIENT_SECRET'),
         'refresh_token' => env('GOOGLE_MEET_REFRESH_TOKEN'),
         'webhook_secret' => env('GOOGLE_MEET_WEBHOOK_SECRET'),

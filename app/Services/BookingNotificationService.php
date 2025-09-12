@@ -9,6 +9,7 @@ use App\Models\BookingNotification;
 use App\Models\BookingHistory;
 use App\Models\User;
 use App\Models\Notification;
+use App\Events\NotificationCreated;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -27,6 +28,7 @@ class BookingNotificationService
         $student = $booking->student;
         $teacher = $booking->teacher;
         $subject = $booking->subject;
+        $subjectName = $subject->template->name ?? $subject->name ?? 'Unknown Subject';
 
         // Create booking history entry
         $this->createBookingHistory($booking, 'created', [
@@ -34,20 +36,20 @@ class BookingNotificationService
         ], $student);
 
         // Create main notification for student
-        Notification::create([
+        $studentNotification = Notification::create([
             'id' => \Illuminate\Support\Str::uuid(),
             'type' => 'App\Notifications\BookingNotification',
             'notifiable_type' => 'App\Models\User',
             'notifiable_id' => $student->id,
             'data' => [
                 'title' => 'Booking Confirmed',
-                'message' => "Your booking for {$subject->name} with {$teacher->name} has been created and is pending approval.",
+                'message' => "Your booking for {$subjectName} with {$teacher->name} has been created and is pending approval.",
                 'level' => 'success',
                 'action_url' => route('student.my-bookings'),
                 'action_text' => 'View Booking',
                 'booking_id' => $booking->id,
                 'teacher_name' => $teacher->name,
-                'subject_name' => $subject->name,
+                'subject_name' => $subjectName,
                 'booking_date' => $booking->booking_date,
                 'start_time' => $booking->start_time,
                 'end_time' => $booking->end_time,
@@ -55,27 +57,33 @@ class BookingNotificationService
             'read_at' => null,
         ]);
 
+        // Fire real-time event for student notification
+        event(new NotificationCreated($studentNotification));
+
         // Create main notification for teacher
-        Notification::create([
+        $teacherNotification = Notification::create([
             'id' => \Illuminate\Support\Str::uuid(),
             'type' => 'App\Notifications\BookingNotification',
             'notifiable_type' => 'App\Models\User',
             'notifiable_id' => $teacher->id,
             'data' => [
                 'title' => 'New Booking Request',
-                'message' => "You have a new booking request from {$student->name} for {$subject->name}.",
+                'message' => "You have a new booking request from {$student->name} for {$subjectName}.",
                 'level' => 'info',
                 'action_url' => route('teacher.bookings.index'),
                 'action_text' => 'Review Booking',
                 'booking_id' => $booking->id,
                 'student_name' => $student->name,
-                'subject_name' => $subject->name,
+                'subject_name' => $subjectName,
                 'booking_date' => $booking->booking_date,
                 'start_time' => $booking->start_time,
                 'end_time' => $booking->end_time,
             ],
             'read_at' => null,
         ]);
+
+        // Fire real-time event for teacher notification
+        event(new NotificationCreated($teacherNotification));
 
         // Send email notifications
         $this->sendEmailNotifications($booking, 'booking_created');
@@ -89,6 +97,7 @@ class BookingNotificationService
         $student = $booking->student;
         $teacher = $booking->teacher;
         $subject = $booking->subject;
+        $subjectName = $subject->template->name ?? $subject->name ?? 'Unknown Subject';
 
         // Create booking history entry
         $this->createBookingHistory($booking, 'approved', [
@@ -97,20 +106,20 @@ class BookingNotificationService
         ], $teacher);
 
         // Create main notification for student
-        Notification::create([
+        $studentNotification = Notification::create([
             'id' => \Illuminate\Support\Str::uuid(),
             'type' => 'App\Notifications\BookingNotification',
             'notifiable_type' => 'App\Models\User',
             'notifiable_id' => $student->id,
             'data' => [
                 'title' => 'Booking Approved!',
-                'message' => "Great news! Your booking for {$subject->name} with {$teacher->name} has been approved.",
+                'message' => "Great news! Your booking for {$subjectName} with {$teacher->name} has been approved.",
                 'level' => 'success',
                 'action_url' => route('student.my-bookings'),
                 'action_text' => 'View Booking',
                 'booking_id' => $booking->id,
                 'teacher_name' => $teacher->name,
-                'subject_name' => $subject->name,
+                'subject_name' => $subjectName,
                 'booking_date' => $booking->booking_date,
                 'start_time' => $booking->start_time,
                 'end_time' => $booking->end_time,
@@ -119,27 +128,33 @@ class BookingNotificationService
             'read_at' => null,
         ]);
 
+        // Fire real-time event for student notification
+        event(new NotificationCreated($studentNotification));
+
         // Create main notification for teacher
-        Notification::create([
+        $teacherNotification = Notification::create([
             'id' => \Illuminate\Support\Str::uuid(),
             'type' => 'App\Notifications\BookingNotification',
             'notifiable_type' => 'App\Models\User',
             'notifiable_id' => $teacher->id,
             'data' => [
                 'title' => 'Booking Approved',
-                'message' => "You have approved the booking request from {$student->name} for {$subject->name}.",
+                'message' => "You have approved the booking request from {$student->name} for {$subjectName}.",
                 'level' => 'success',
                 'action_url' => route('teacher.bookings.index'),
                 'action_text' => 'View Booking',
                 'booking_id' => $booking->id,
                 'student_name' => $student->name,
-                'subject_name' => $subject->name,
+                'subject_name' => $subjectName,
                 'booking_date' => $booking->booking_date,
                 'start_time' => $booking->start_time,
                 'end_time' => $booking->end_time,
             ],
             'read_at' => null,
         ]);
+
+        // Fire real-time event for teacher notification
+        event(new NotificationCreated($teacherNotification));
 
         // Send email notifications
         $this->sendEmailNotifications($booking, 'booking_approved');
@@ -156,6 +171,7 @@ class BookingNotificationService
         $student = $booking->student;
         $teacher = $booking->teacher;
         $subject = $booking->subject;
+        $subjectName = $subject->template->name ?? $subject->name ?? 'Unknown Subject';
 
         // Create booking history entry
         $this->createBookingHistory($booking, 'rejected', [
@@ -170,10 +186,10 @@ class BookingNotificationService
             $student,
             'booking_rejected',
             'Booking Not Available',
-            "Unfortunately, your booking for {$subject->name} with {$teacher->name} could not be approved.",
+            "Unfortunately, your booking for {$subjectName} with {$teacher->name} could not be approved.",
             [
                 'teacher_name' => $teacher->name,
-                'subject_name' => $subject->name,
+                'subject_name' => $subjectName,
                 'booking_date' => $booking->booking_date,
                 'start_time' => $booking->start_time,
                 'end_time' => $booking->end_time,
@@ -193,6 +209,7 @@ class BookingNotificationService
         $student = $booking->student;
         $teacher = $booking->teacher;
         $subject = $booking->subject;
+        $subjectName = $subject->template->name ?? $subject->name ?? 'Unknown Subject';
 
         // Create booking history entry
         $this->createBookingHistory($booking, 'reminder_sent', [
@@ -205,10 +222,10 @@ class BookingNotificationService
             $student,
             'session_starting_soon',
             'Session Starting Soon',
-            "Your {$subject->name} session with {$teacher->name} is starting in 15 minutes!",
+            "Your {$subjectName} session with {$teacher->name} is starting in 15 minutes!",
             [
                 'teacher_name' => $teacher->name,
-                'subject_name' => $subject->name,
+                'subject_name' => $subjectName,
                 'booking_date' => $booking->booking_date,
                 'start_time' => $booking->start_time,
                 'meeting_link' => $booking->teachingSession?->zoom_join_url ?? $booking->teachingSession?->google_meet_link,
@@ -221,10 +238,10 @@ class BookingNotificationService
             $teacher,
             'session_starting_soon',
             'Session Starting Soon',
-            "Your {$subject->name} session with {$student->name} is starting in 15 minutes!",
+            "Your {$subjectName} session with {$student->name} is starting in 15 minutes!",
             [
                 'student_name' => $student->name,
-                'subject_name' => $subject->name,
+                'subject_name' => $subjectName,
                 'booking_date' => $booking->booking_date,
                 'start_time' => $booking->start_time,
                 'meeting_link' => $booking->teachingSession?->zoom_join_url ?? $booking->teachingSession?->google_meet_link,
@@ -292,7 +309,7 @@ class BookingNotificationService
             $emailData = [
                 'student_name' => $student->name,
                 'teacher_name' => $teacher->name,
-                'subject_name' => $subject->name,
+                'subject_name' => $subjectName,
                 'booking_date' => $booking->booking_date,
                 'start_time' => $booking->start_time,
                 'end_time' => $booking->end_time,
@@ -301,18 +318,28 @@ class BookingNotificationService
 
             // Send email to student
             if ($student->email) {
-                Mail::send("emails.booking.{$type}", $emailData, function ($message) use ($student, $type) {
-                    $message->to($student->email, $student->name)
-                           ->subject($this->getEmailSubject($type, 'student'));
-                });
+                try {
+                    Mail::send("emails.booking.{$type}", $emailData, function ($message) use ($student, $type) {
+                        $message->to($student->email, $student->name)
+                               ->subject($this->getEmailSubject($type, 'student'));
+                    });
+                    Log::info("Email sent to student {$student->email} for booking {$booking->id}");
+                } catch (\Exception $e) {
+                    Log::error("Failed to send email to student {$student->email}: " . $e->getMessage());
+                }
             }
 
             // Send email to teacher
             if ($teacher->email) {
-                Mail::send("emails.booking.{$type}", $emailData, function ($message) use ($teacher, $type) {
-                    $message->to($teacher->email, $teacher->name)
-                           ->subject($this->getEmailSubject($type, 'teacher'));
-                });
+                try {
+                    Mail::send("emails.booking.{$type}", $emailData, function ($message) use ($teacher, $type) {
+                        $message->to($teacher->email, $teacher->name)
+                               ->subject($this->getEmailSubject($type, 'teacher'));
+                    });
+                    Log::info("Email sent to teacher {$teacher->email} for booking {$booking->id}");
+                } catch (\Exception $e) {
+                    Log::error("Failed to send email to teacher {$teacher->email}: " . $e->getMessage());
+                }
             }
 
             // Create email notification records

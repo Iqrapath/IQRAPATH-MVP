@@ -55,11 +55,21 @@ class TeacherStatsService
             ->limit($limit)
             ->get()
             ->map(function ($booking) {
+                // Get subject name with proper fallback
+                $subjectName = 'Unknown Subject';
+                if ($booking->subject) {
+                    if ($booking->subject->template) {
+                        $subjectName = $booking->subject->template->name;
+                    } elseif (isset($booking->subject->name)) {
+                        $subjectName = $booking->subject->name;
+                    }
+                }
+
                 return [
                     'id' => $booking->id,
                     'type' => 'booking',
                     'student_name' => $booking->student->name,
-                    'subject' => $booking->subject->template->name ?? $booking->subject->name ?? 'Unknown Subject',
+                    'subject' => $subjectName,
                     'date' => $booking->booking_date->format('M j, Y'),
                     'time' => $booking->start_time->format('g:i A'),
                     'status' => ucfirst($booking->status),
@@ -84,10 +94,20 @@ class TeacherStatsService
             ->limit(10)
             ->get()
             ->map(function ($booking) {
+                // Get subject name with proper fallback
+                $subjectName = 'Unknown Subject';
+                if ($booking->subject) {
+                    if ($booking->subject->template) {
+                        $subjectName = $booking->subject->template->name;
+                    } elseif (isset($booking->subject->name)) {
+                        $subjectName = $booking->subject->name;
+                    }
+                }
+
                 return [
                     'id' => $booking->id,
                     'student_name' => $booking->student->name,
-                    'subject' => $booking->subject->template->name ?? $booking->subject->name ?? 'Unknown Subject',
+                    'subject' => $subjectName,
                     'date' => $booking->booking_date->format('Y-m-d'),
                     'time' => $booking->start_time->format('g:i A'),
                     'status' => ucfirst($booking->status),
@@ -153,7 +173,7 @@ class TeacherStatsService
      */
     public function getUpcomingSessionsForSessionsPage(int $teacherId): array
     {
-        return TeachingSession::with(['student', 'subject.template'])
+        return TeachingSession::with(['student', 'student.studentProfile', 'subject.template', 'teacher'])
             ->where('teacher_id', $teacherId)
             ->whereIn('status', ['scheduled', 'confirmed'])
             ->where('session_date', '>=', now())
@@ -161,13 +181,57 @@ class TeacherStatsService
             ->orderBy('start_time', 'asc')
             ->get()
             ->map(function ($session) {
+                // Get subject name with proper fallback
+                $subjectName = 'Unknown Subject';
+                if ($session->subject) {
+                    if ($session->subject->template) {
+                        $subjectName = $session->subject->template->name;
+                    } elseif (isset($session->subject->name)) {
+                        $subjectName = $session->subject->name;
+                    }
+                }
+
+                // Calculate duration
+                $duration = '1 Hour'; // Default
+                if ($session->start_time && $session->end_time) {
+                    $start = \Carbon\Carbon::parse($session->start_time);
+                    $end = \Carbon\Carbon::parse($session->end_time);
+                    $minutes = $start->diffInMinutes($end);
+                    $hours = floor($minutes / 60);
+                    $remainingMinutes = $minutes % 60;
+                    
+                    if ($hours > 0) {
+                        $duration = $hours . ' Hour' . ($hours > 1 ? 's' : '');
+                        if ($remainingMinutes > 0) {
+                            $duration .= ' ' . $remainingMinutes . ' Min';
+                        }
+                    } else {
+                        $duration = $minutes . ' Minutes';
+                    }
+                }
+
                 return [
                     'id' => $session->id,
+                    'session_uuid' => $session->session_uuid,
                     'student_name' => $session->student->name,
-                    'subject' => $session->subject->template->name ?? $session->subject->name ?? 'Unknown Subject',
+                    'student_avatar' => $session->student->studentProfile->profile_picture ?? null,
+                    'subject' => $subjectName,
+                    'teacher_name' => $session->teacher->name ?? 'Teacher',
+                    'teacher_avatar' => $session->teacher->avatar ?? null,
                     'date' => $session->session_date->format('Y-m-d'),
+                    'start_time' => $session->start_time->format('H:i:s'),
+                    'end_time' => $session->end_time->format('H:i:s'),
                     'time' => $session->start_time->format('g:i A') . ' - ' . $session->end_time->format('g:i A'),
-                    'status' => ucfirst($session->status),
+                    'duration' => $duration,
+                    'status' => $session->status,
+                    'meeting_platform' => $session->meeting_platform,
+                    'meeting_link' => $session->meeting_link,
+                    'zoom_join_url' => $session->zoom_join_url,
+                    'google_meet_link' => $session->google_meet_link,
+                    'student_notes' => $session->student_notes,
+                    'teacher_notes' => $session->teacher_notes,
+                    'student_rating' => $session->student_rating,
+                    'teacher_rating' => $session->teacher_rating,
                 ];
             })
             ->toArray();
@@ -178,12 +242,22 @@ class TeacherStatsService
      */
     public function getPendingRequests(int $teacherId): array
     {
-        return Booking::with(['student', 'subject.template'])
+        return Booking::with(['student.studentProfile', 'subject.template'])
             ->where('teacher_id', $teacherId)
             ->where('status', 'pending')
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($booking) {
+                // Get subject name with proper fallback
+                $subjectName = 'Unknown Subject';
+                if ($booking->subject) {
+                    if ($booking->subject->template) {
+                        $subjectName = $booking->subject->template->name;
+                    } elseif (isset($booking->subject->name)) {
+                        $subjectName = $booking->subject->name;
+                    }
+                }
+
                 return [
                     'id' => $booking->id,
                     'student' => [
@@ -191,12 +265,112 @@ class TeacherStatsService
                         'avatar' => $booking->student->studentProfile->profile_picture ?? null,
                     ],
                     'note' => $booking->notes ?? 'No additional notes provided.',
-                    'subject' => $booking->subject->template->name ?? $booking->subject->name ?? 'Unknown Subject',
+                    'subject' => $subjectName,
                     'requestedDate' => $booking->booking_date->format('Y-m-d'),
                     'requestedTime' => $booking->start_time->format('g:i A') . ' - ' . $booking->end_time->format('g:i A'),
                     'status' => 'pending',
                 ];
             })
             ->toArray();
+    }
+
+    /**
+     * Get detailed student profile data for modal display.
+     */
+    public function getDetailedStudentProfile(int $teacherId, int $studentId): array
+    {
+        $student = User::with(['studentProfile', 'studentBookings' => function ($query) use ($teacherId) {
+            $query->where('teacher_id', $teacherId);
+        }])
+        ->where('id', $studentId)
+        ->where('role', 'student')
+        ->first();
+
+        if (!$student) {
+            return [];
+        }
+
+        // Get completed sessions count
+        $completedSessions = TeachingSession::where('teacher_id', $teacherId)
+            ->where('student_id', $student->id)
+            ->where('status', 'completed')
+            ->count();
+
+        // Get total sessions count
+        $totalSessions = TeachingSession::where('teacher_id', $teacherId)
+            ->where('student_id', $student->id)
+            ->count();
+
+        // Calculate progress percentage
+        $progress = $totalSessions > 0 ? round(($completedSessions / $totalSessions) * 100) : 0;
+
+        // Calculate average rating from teacher reviews
+        $averageRating = DB::table('teacher_reviews')
+            ->where('teacher_id', $teacherId)
+            ->where('student_id', $student->id)
+            ->avg('rating');
+        
+        $averageRating = is_numeric($averageRating) ? round((float) $averageRating, 1) : 0;
+
+        // Get upcoming sessions
+        $upcomingSessions = TeachingSession::with(['subject.template'])
+            ->where('teacher_id', $teacherId)
+            ->where('student_id', $student->id)
+            ->whereIn('status', ['scheduled', 'confirmed'])
+            ->where('session_date', '>=', now())
+            ->orderBy('session_date', 'asc')
+            ->orderBy('start_time', 'asc')
+            ->get()
+            ->map(function ($session) {
+                // Get subject name with proper fallback
+                $subjectName = 'Unknown Subject';
+                if ($session->subject) {
+                    if ($session->subject->template) {
+                        $subjectName = $session->subject->template->name;
+                    } elseif (isset($session->subject->name)) {
+                        $subjectName = $session->subject->name;
+                    }
+                }
+
+                return [
+                    'time' => $session->start_time->format('g:i A'),
+                    'endTime' => $session->end_time->format('g:i A'),
+                    'day' => $session->session_date->format('l'),
+                    'lesson' => $subjectName,
+                    'status' => ucfirst($session->status),
+                ];
+            })
+            ->toArray();
+
+        // Get student's subjects from their bookings
+        $subjects = $student->studentBookings()
+            ->with('subject.template')
+            ->get()
+            ->pluck('subject.template.name')
+            ->filter()
+            ->unique()
+            ->values()
+            ->toArray();
+
+        return [
+            'id' => $student->id,
+            'name' => $student->name,
+            'avatar' => $student->studentProfile->profile_picture ?? null,
+            'level' => $student->studentProfile->grade_level ?? 'Beginner',
+            'sessionsCompleted' => $completedSessions,
+            'progress' => $progress,
+            'rating' => $averageRating,
+            'isOnline' => $student->last_active_at && $student->last_active_at->isAfter(now()->subMinutes(5)),
+            // Additional fields for StudentProfileModal
+            'age' => $student->studentProfile->age ?? null,
+            'gender' => $student->studentProfile->gender ?? null,
+            'location' => $student->studentProfile->location ?? null,
+            'joinedDate' => $student->created_at->toISOString(),
+            'preferredLearningTime' => $student->studentProfile->preferred_learning_time ?? null,
+            'subjects' => $subjects,
+            'learningGoal' => $student->studentProfile->learning_goal ?? null,
+            'availableDays' => $student->studentProfile->available_days ? json_decode($student->studentProfile->available_days, true) : null,
+            'upcomingSessions' => $upcomingSessions,
+        ];
     }
 }

@@ -23,19 +23,19 @@ return new class extends Migration
             $table->time('end_time');
             $table->integer('actual_duration_minutes')->nullable();
             $table->enum('status', ['scheduled', 'in_progress', 'completed', 'cancelled', 'no_show'])->default('scheduled');
-            $table->string('meeting_link')->nullable();
-            $table->string('meeting_platform')->nullable();
-            $table->string('meeting_password')->nullable();
-            $table->string('zoom_meeting_id')->nullable();
-            $table->string('zoom_host_id')->nullable();
-            $table->string('zoom_join_url')->nullable();
-            $table->string('zoom_start_url')->nullable();
-            $table->string('zoom_password')->nullable();
+            $table->text('meeting_link')->nullable();
+            $table->text('meeting_platform')->nullable();
+            $table->text('meeting_password')->nullable();
+            $table->text('zoom_meeting_id')->nullable();
+            $table->text('zoom_host_id')->nullable();
+            $table->text('zoom_join_url')->nullable();
+            $table->text('zoom_start_url')->nullable();
+            $table->text('zoom_password')->nullable();
             
             // Google Meet fields
-            $table->string('google_meet_id')->nullable();
-            $table->string('google_meet_link')->nullable();
-            $table->string('google_calendar_event_id')->nullable();
+            $table->text('google_meet_id')->nullable();
+            $table->text('google_meet_link')->nullable();
+            $table->text('google_calendar_event_id')->nullable();
             
             // Attendance tracking
             $table->boolean('teacher_marked_present')->default(false);

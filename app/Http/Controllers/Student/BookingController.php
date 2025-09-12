@@ -730,6 +730,39 @@ class BookingController extends Controller
         $subjects = $request->input('subjects', []);
         $noteToTeacher = $request->input('note_to_teacher', '');
 
+        // Get the first subject from the request or default to a general subject
+        $selectedSubject = null;
+        if (!empty($subjects) && is_array($subjects)) {
+            $subjectName = $subjects[0]; // Get the first selected subject
+            // Find the subject by name in the teacher's subjects
+            // Get teacher profile ID first
+            $teacherProfile = \App\Models\TeacherProfile::where('user_id', $teacherId)->first();
+            
+            if ($teacherProfile) {
+                // Find the subject by name in the teacher's subjects using the template relationship
+                $selectedSubject = \App\Models\Subject::where('teacher_profile_id', $teacherProfile->id)
+                    ->whereHas('template', function($query) use ($subjectName) {
+                        $query->where('name', 'like', '%' . $subjectName . '%');
+                    })
+                    ->first();
+            }
+        }
+
+        // If no subject found, get the teacher's first available subject
+        if (!$selectedSubject) {
+            $teacherProfile = \App\Models\TeacherProfile::where('user_id', $teacherId)->first();
+            if ($teacherProfile) {
+                $selectedSubject = \App\Models\Subject::where('teacher_profile_id', $teacherProfile->id)
+                    ->where('is_active', true)
+                    ->first();
+            }
+        }
+
+        // Fallback to a default subject if still no subject found
+        if (!$selectedSubject) {
+            $selectedSubject = \App\Models\Subject::where('is_active', true)->first();
+        }
+
         // Verify wallet payment if selected
         if (in_array('wallet', $request->payment_methods)) {
             if (!$studentWallet) {
@@ -790,7 +823,7 @@ class BookingController extends Controller
                     $booking = Booking::create([
                         'student_id' => $student->id,
                         'teacher_id' => $teacherId,
-                        'subject_id' => 1, // Default subject, can be enhanced
+                        'subject_id' => $selectedSubject ? $selectedSubject->id : 1,
                         'booking_date' => $date,
                         'start_time' => $availability->start_time,
                         'end_time' => $availability->end_time,
@@ -799,6 +832,9 @@ class BookingController extends Controller
                         'notes' => $noteToTeacher,
                         'created_by_id' => $student->id,
                     ]);
+
+                    // Send notifications for booking creation
+                    $this->bookingNotificationService->sendBookingCreatedNotifications($booking);
 
                     $createdBookings[] = $booking;
                 }

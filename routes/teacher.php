@@ -33,6 +33,7 @@ Route::middleware(['auth', 'verified', 'role:teacher', 'teacher.verified'])->pre
     Route::get('/sessions', [SessionsController::class, 'index'])->name('sessions');
     Route::post('/sessions/requests/{booking}/accept', [SessionsController::class, 'acceptRequest'])->name('sessions.requests.accept');
     Route::post('/sessions/requests/{booking}/decline', [SessionsController::class, 'declineRequest'])->name('sessions.requests.decline');
+    Route::get('/sessions/student/{studentId}/profile', [SessionsController::class, 'getStudentProfile'])->name('sessions.student.profile');
     
     // Debug route for recommended students
     Route::get('/debug-recommended', function () {

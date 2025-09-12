@@ -26,12 +26,20 @@ class UserNotificationController extends Controller
     /**
      * Get all notifications for the authenticated user.
      */
-    public function index(Request $request): AnonymousResourceCollection
+    public function index(Request $request): JsonResponse
     {
         $perPage = $request->input('per_page', 15);
         $notifications = $this->notificationService->getUserNotifications($request->user(), $perPage);
         
-        return NotificationResource::collection($notifications);
+        return response()->json([
+            'data' => NotificationResource::collection($notifications->items()),
+            'meta' => [
+                'current_page' => $notifications->currentPage(),
+                'last_page' => $notifications->lastPage(),
+                'per_page' => $notifications->perPage(),
+                'total' => $notifications->total(),
+            ]
+        ]);
     }
 
     /**

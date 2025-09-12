@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
+use App\Services\BookingNotificationService;
+use App\Services\TeachingSessionMeetingService;
 use App\Models\Booking;
 use App\Models\BookingNotification;
 use App\Models\User;
@@ -14,6 +16,10 @@ use Illuminate\Support\Facades\DB;
 
 class SidebarController extends Controller
 {
+    public function __construct(
+        private BookingNotificationService $bookingNotificationService,
+        private TeachingSessionMeetingService $meetingService
+    ) {}
     /**
      * Get sidebar data for teacher dashboard.
      */
@@ -92,7 +98,7 @@ class SidebarController extends Controller
                         'avatar' => $booking->student->avatar,
                         'is_online' => $this->isUserOnline($booking->student->id),
                     ],
-                    'subject' => $booking->subject->name ?? 'Unknown Subject',
+                    'subject' => $booking->subject->template->name ?? $booking->subject->name ?? 'Unknown Subject',
                     'scheduled_at' => $booking->booking_date->format('M d, Y') . ' at ' . $booking->start_time->format('g:i A'),
                     'start_time' => $booking->start_time->format('g:i A'),
                     'end_time' => $booking->end_time->format('g:i A'),
@@ -196,7 +202,7 @@ class SidebarController extends Controller
                 ]);
 
                 // Create teaching session
-                $booking->teachingSession()->create([
+                $teachingSession = $booking->teachingSession()->create([
                     'teacher_id' => $booking->teacher_id,
                     'student_id' => $booking->student_id,
                     'subject_id' => $booking->subject_id,
@@ -206,19 +212,13 @@ class SidebarController extends Controller
                     'status' => 'scheduled',
                 ]);
 
-                // Create notification for student
-                BookingNotification::create([
-                    'booking_id' => $booking->id,
-                    'user_id' => $booking->student_id,
-                    'notification_type' => 'booking_approved',
-                    'channel' => 'in_app',
-                    'title' => 'Session Request Approved!',
-                    'message' => "Your session request with {$teacher->name} has been approved.",
-                    'is_read' => false,
-                    'is_sent' => true,
-                    'sent_at' => now(),
-                ]);
+                // Create meeting links (Zoom + Google Meet)
+                $meetingData = $this->meetingService->createMeetingLinks($teachingSession, $teacher);
+                $this->meetingService->updateSessionWithMeetingData($teachingSession, $meetingData);
             });
+
+            // Send notifications for booking approval
+            $this->bookingNotificationService->sendBookingApprovedNotifications($booking);
 
             return response()->json([
                 'success' => true,
@@ -259,20 +259,10 @@ class SidebarController extends Controller
                     'cancelled_by_id' => $teacher->id,
                     'cancelled_at' => now(),
                 ]);
-
-                // Create notification for student
-                BookingNotification::create([
-                    'booking_id' => $booking->id,
-                    'user_id' => $booking->student_id,
-                    'notification_type' => 'booking_rejected',
-                    'channel' => 'in_app',
-                    'title' => 'Session Request Declined',
-                    'message' => "Your session request with {$teacher->name} has been declined.",
-                    'is_read' => false,
-                    'is_sent' => true,
-                    'sent_at' => now(),
-                ]);
             });
+
+            // Send notifications for booking decline
+            $this->bookingNotificationService->sendBookingRejectedNotifications($booking, 'Teacher declined the booking request');
 
             return response()->json([
                 'success' => true,

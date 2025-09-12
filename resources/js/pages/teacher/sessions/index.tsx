@@ -20,6 +20,12 @@ import {
     Search,
     Plus
 } from 'lucide-react';
+import { Breadcrumbs } from '@/components/breadcrumbs';
+
+const breadcrumbs = [
+    { title: 'Dashboard', href: '/teacher/dashboard' },
+    { title: 'Sessions', href: '/teacher/sessions' }
+];
 
 interface Session {
     id: number;
@@ -127,37 +133,7 @@ export default function TeacherSessions({ user, teacherProfile, activeStudents, 
             <div className="space-y-6">
                 {/* Header */}
                 <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold text-gray-900">Sessions</h1>
-                        <p className="text-gray-600 mt-1">Manage your teaching sessions</p>
-                    </div>
-                    <Button className="bg-teal-600 hover:bg-teal-700">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Schedule Session
-                    </Button>
-                </div>
-
-                {/* Search and Filter */}
-                <div className="flex items-center space-x-4">
-                    <div className="relative flex-1 max-w-md">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                        <input
-                            type="text"
-                            placeholder="Search sessions..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                        />
-                    </div>
-                    <select
-                        value={filterType}
-                        onChange={(e) => setFilterType(e.target.value as 'all' | 'online' | 'in-person')}
-                        className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                    >
-                        <option value="all">All Types</option>
-                        <option value="online">Online</option>
-                        <option value="in-person">In-Person</option>
-                    </select>
+                   <Breadcrumbs breadcrumbs={breadcrumbs} />
                 </div>
 
                 {/* Tabs */}
