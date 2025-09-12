@@ -11,6 +11,7 @@ use App\Http\Controllers\Teacher\BookingController;
 use App\Http\Controllers\Teacher\SidebarController;
 use App\Http\Controllers\Teacher\RecommendedStudentsController;
 use App\Http\Controllers\Teacher\SessionsController;
+use App\Http\Controllers\Teacher\RequestsController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -34,6 +35,11 @@ Route::middleware(['auth', 'verified', 'role:teacher', 'teacher.verified'])->pre
     Route::post('/sessions/requests/{booking}/accept', [SessionsController::class, 'acceptRequest'])->name('sessions.requests.accept');
     Route::post('/sessions/requests/{booking}/decline', [SessionsController::class, 'declineRequest'])->name('sessions.requests.decline');
     Route::get('/sessions/student/{studentId}/profile', [SessionsController::class, 'getStudentProfile'])->name('sessions.student.profile');
+    
+    // Requests
+    Route::get('/requests', [RequestsController::class, 'index'])->name('requests');
+    Route::post('/requests/{request}/accept', [RequestsController::class, 'accept'])->name('requests.accept');
+    Route::post('/requests/{request}/decline', [RequestsController::class, 'decline'])->name('requests.decline');
     
     // Debug route for recommended students
     Route::get('/debug-recommended', function () {
@@ -107,10 +113,7 @@ Route::middleware(['auth', 'verified', 'role:teacher', 'teacher.verified'])->pre
         return Inertia::render('teacher/sessions/past');
     })->name('sessions.past');
     
-    // Student requests
-    Route::get('/requests', function () {
-        return Inertia::render('teacher/requests/index');
-    })->name('requests');
+    // Student requests - handled by RequestsController above
 
     // Booking management
     Route::get('/bookings', [BookingController::class, 'index'])->name('bookings.index');
