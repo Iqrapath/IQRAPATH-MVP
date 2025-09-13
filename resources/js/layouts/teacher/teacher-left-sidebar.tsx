@@ -25,6 +25,7 @@ import {
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import LogoutButton from '@/components/logout-button';
+import { toast } from 'sonner';
 
 interface TeacherLeftSidebarProps extends React.HTMLAttributes<HTMLDivElement> {
     isMobile?: boolean;
@@ -40,6 +41,7 @@ interface NavItem {
     iconType?: 'lucide' | 'custom';
     divider?: boolean;
     onClick?: (e: React.MouseEvent) => void;
+    comingSoon?: boolean;
 }
 
 // Feedback & Support Icon
@@ -96,6 +98,7 @@ export default function TeacherLeftSidebar({ className, isMobile = false, onClos
             title: 'Messages',
             href: '/teacher/messages',
             icon: MessageSquare,
+            comingSoon: true,
         },
         {
             title: 'Profile',
@@ -106,11 +109,13 @@ export default function TeacherLeftSidebar({ className, isMobile = false, onClos
             title: 'Rating & Feedback',
             href: '/teacher/feedback',
             icon: Star,
+            comingSoon: true,
         },
         {
             title: 'Settings',
             href: '/teacher/settings',
             icon: Settings,
+            comingSoon: true,
         },
         {
             title: 'Notification',
@@ -133,10 +138,19 @@ export default function TeacherLeftSidebar({ className, isMobile = false, onClos
         return false;
     };
 
+    // Handle coming soon pages
+    const handleComingSoon = (e: React.MouseEvent, title: string) => {
+        e.preventDefault();
+        toast.info(`${title} is coming soon!`, {
+            description: "This page is currently under development. Please check back later.",
+            duration: 3000,
+        });
+    };
+
     return (
         <div
             className={cn(
-                "flex flex-col p-4 space-y-4 bg-teal-600 text-white rounded-xl overflow-hidden relative",
+                "flex flex-col p-4 space-y-8 bg-teal-600 text-white rounded-xl overflow-hidden relative",
                 "w-60",
                 isMobile && "shadow-xl",
                 className
@@ -161,28 +175,46 @@ export default function TeacherLeftSidebar({ className, isMobile = false, onClos
                     <nav className="space-y-1">
                         {navItems.map((item, index) => (
                             <React.Fragment key={item.href || index}>
-                                <Link
-                                    href={item.href}
-                                    onClick={(e) => {
-                                        if (item.onClick) {
-                                            item.onClick(e);
-                                        }
-                                        if (isMobile && onClose) {
-                                            onClose();
-                                        }
-                                    }}
-                                    className={cn(
-                                        'flex items-center px-3 py-1.5 text-sm font-medium rounded-md transition-colors mx-1',
-                                        isActive(item.href)
-                                            ? 'bg-[#F3E5C3]/50 text-white'
-                                            : 'text-white/90 hover:bg-[rgba(255,255,255,0.08)] hover:text-white'
-                                    )}
-                                >
-                                    <span className="mr-2.5 h-5 w-5 flex-shrink-0 inline-flex items-center justify-center">
-                                        <IconRenderer icon={item.icon} size={20} type={item.iconType} />
-                                    </span>
-                                    <span className="text-sm">{item.title}</span>
-                                </Link>
+                                {item.comingSoon ? (
+                                    <button
+                                        onClick={(e) => handleComingSoon(e, item.title)}
+                                        className={cn(
+                                            'flex items-center px-3 py-1.5 text-sm font-medium rounded-md transition-colors mx-1 w-full text-left',
+                                            'text-white/70 hover:bg-[rgba(255,255,255,0.08)] hover:text-white/90 cursor-pointer'
+                                        )}
+                                    >
+                                        <span className="mr-2.5 h-5 w-5 flex-shrink-0 inline-flex items-center justify-center">
+                                            <IconRenderer icon={item.icon} size={20} type={item.iconType} />
+                                        </span>
+                                        <span className="text-sm">{item.title}</span>
+                                        <span className="ml-auto text-xs bg-orange-500/20 text-orange-200 px-2 py-0.5 rounded-full">
+                                            Soon
+                                        </span>
+                                    </button>
+                                ) : (
+                                    <Link
+                                        href={item.href}
+                                        onClick={(e) => {
+                                            if (item.onClick) {
+                                                item.onClick(e);
+                                            }
+                                            if (isMobile && onClose) {
+                                                onClose();
+                                            }
+                                        }}
+                                        className={cn(
+                                            'flex items-center px-3 py-1.5 text-sm font-medium rounded-md transition-colors mx-1',
+                                            isActive(item.href)
+                                                ? 'bg-[#F3E5C3]/50 text-white'
+                                                : 'text-white/90 hover:bg-[rgba(255,255,255,0.08)] hover:text-white'
+                                        )}
+                                    >
+                                        <span className="mr-2.5 h-5 w-5 flex-shrink-0 inline-flex items-center justify-center">
+                                            <IconRenderer icon={item.icon} size={20} type={item.iconType} />
+                                        </span>
+                                        <span className="text-sm">{item.title}</span>
+                                    </Link>
+                                )}
                                 {item.divider && (
                                     <div className="h-px bg-white/20 my-1 mx-3"></div>
                                 )}

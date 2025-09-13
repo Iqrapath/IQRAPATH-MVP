@@ -17,13 +17,6 @@ class FinancialController extends Controller
     public function __construct(FinancialService $financialService)
     {
         $this->financialService = $financialService;
-        $this->middleware('auth');
-        $this->middleware(function ($request, $next) {
-            if (!Auth::user()->isTeacher()) {
-                return redirect()->route('dashboard')->with('error', 'You do not have access to this section.');
-            }
-            return $next($request);
-        });
     }
 
     /**
@@ -32,14 +25,182 @@ class FinancialController extends Controller
     public function index()
     {
         $teacher = Auth::user();
-        $financialSummary = $this->financialService->getTeacherFinancialSummary($teacher);
+        
+        // Verify that the user is a teacher
+        if (!$teacher->isTeacher()) {
+            return redirect()->route('dashboard')->with('error', 'You do not have access to this section.');
+        }
+        
+        // Get or create teacher wallet (primary source of truth)
+        $teacherWallet = $teacher->teacherWallet;
+        if (!$teacherWallet) {
+            // Create wallet if it doesn't exist with zero values
+            $teacherWallet = \App\Models\TeacherWallet::create([
+                'user_id' => $teacher->id,
+                'balance' => 0.00,
+                'total_earned' => 0.00,
+                'total_withdrawn' => 0.00,
+                'pending_payouts' => 0.00,
+                'withdrawal_settings' => ['preferred_currency' => 'NGN'],
+                'auto_withdrawal_enabled' => false,
+            ]);
+        }
+        
+        // Get teacher profile for rates
+        $teacherProfile = $teacher->teacherProfile;
+        $hourlyRateUSD = $teacherProfile?->hourly_rate_usd ?? 0;
+        $hourlyRateNGN = $teacherProfile?->hourly_rate_ngn ?? 0;
+        $preferredCurrency = $teacherWallet->withdrawal_settings['preferred_currency'] ?? 'NGN';
+        
+        // HYBRID APPROACH: Use wallet data as primary source, sync with other tables
+        $this->syncFinancialData($teacher, $teacherWallet);
+        
+        $walletBalance = $teacherWallet->fresh()->balance;
+        $totalEarned = $teacherWallet->fresh()->total_earned;
+        $pendingPayouts = $teacherWallet->fresh()->pending_payouts;
+        
+        // Get upcoming earnings from scheduled sessions (only if teacher has rates set)
+        $upcomingEarnings = [];
+        if ($hourlyRateUSD > 0 || $hourlyRateNGN > 0) {
+            $upcomingEarnings = \App\Models\TeachingSession::where('teacher_id', $teacher->id)
+                ->where('status', 'scheduled')
+                ->where('session_date', '>=', now())
+                ->with(['student', 'subject'])
+                ->orderBy('session_date', 'asc')
+                ->take(5)
+                ->get()
+                ->map(function ($session) use ($hourlyRateUSD, $hourlyRateNGN, $preferredCurrency) {
+                    // Calculate session duration in hours
+                    $startTime = \Carbon\Carbon::parse($session->start_time);
+                    $endTime = \Carbon\Carbon::parse($session->end_time);
+                    $durationHours = $startTime->diffInHours($endTime);
+                    
+                    // Calculate amounts based on teacher's rates
+                    $amountUSD = $hourlyRateUSD * $durationHours;
+                    $amountNGN = $hourlyRateNGN * $durationHours;
+                    
+                    // Use preferred currency as primary amount
+                    $primaryAmount = $preferredCurrency === 'USD' ? $amountUSD : $amountNGN;
+                    $secondaryAmount = $preferredCurrency === 'USD' ? $amountNGN : $amountUSD;
+                    $secondaryCurrency = $preferredCurrency === 'USD' ? 'NGN' : 'USD';
+                    
+                    return [
+                        'id' => $session->id,
+                        'amount' => round($primaryAmount, 2),
+                        'amountSecondary' => round($secondaryAmount, 2),
+                        'currency' => $preferredCurrency,
+                        'secondaryCurrency' => $secondaryCurrency,
+                        'studentName' => $session->student->name,
+                        'subject' => $session->subject->name ?? 'General Class',
+                        'dueDate' => $session->session_date->format('jS F Y'),
+                        'status' => 'pending'
+                    ];
+                });
+        }
+        
+        // Get recent transactions from unified transactions (HYBRID: try both sources)
+        $recentTransactions = [];
+        
+        // First try unified transactions
+        $unifiedTransactions = \App\Models\UnifiedTransaction::where('wallet_type', 'App\\Models\\TeacherWallet')
+            ->where('wallet_id', $teacherWallet->id)
+            ->with(['session.student', 'session.subject'])
+            ->orderBy('transaction_date', 'desc')
+            ->take(10)
+            ->get();
+        
+        if ($unifiedTransactions->count() > 0) {
+            $recentTransactions = $unifiedTransactions->map(function ($transaction) {
+                return [
+                    'id' => $transaction->id,
+                    'date' => $transaction->transaction_date->format('j M'),
+                    'subject' => $transaction->session->subject->name ?? 'General Class',
+                    'studentName' => $transaction->session->student->name ?? 'Unknown Student',
+                    'amount' => $transaction->amount,
+                    'currency' => $transaction->currency,
+                    'status' => $transaction->status,
+                    'type' => $transaction->transaction_type
+                ];
+            });
+        } else {
+            // Fallback to old transactions table
+            $oldTransactions = \App\Models\Transaction::where('teacher_id', $teacher->id)
+                ->with(['session.student', 'session.subject'])
+                ->orderBy('created_at', 'desc')
+                ->take(10)
+                ->get();
+                
+            $recentTransactions = $oldTransactions->map(function ($transaction) {
+                return [
+                    'id' => $transaction->id,
+                    'date' => $transaction->created_at->format('j M'),
+                    'subject' => $transaction->session->subject->name ?? 'General Class',
+                    'studentName' => $transaction->session->student->name ?? 'Unknown Student',
+                    'amount' => $transaction->amount,
+                    'currency' => 'NGN', // Default currency for old transactions
+                    'status' => $transaction->status,
+                    'type' => $transaction->transaction_type
+                ];
+            });
+        }
+        
+        // No mock data - only use real transactions from database
+        
+        // Get pending payout requests
+        $pendingPayoutRequests = $teacher->payoutRequests()
+            ->where('status', 'pending')
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
+        // Get available currencies from actual transactions in the system
+        $usedCurrencies = \App\Models\UnifiedTransaction::select('currency')
+            ->distinct()
+            ->whereNotNull('currency')
+            ->pluck('currency')
+            ->toArray();
+        
+        // Add default currencies if none exist in transactions
+        $defaultCurrencies = ['NGN', 'USD'];
+        $allCurrencies = array_unique(array_merge($usedCurrencies, $defaultCurrencies));
+        
+        $availableCurrencies = collect($allCurrencies)->map(function ($currency) {
+            $currencyLabels = [
+                'NGN' => 'NGN - Nigerian Naira',
+                'USD' => 'USD - US Dollar',
+                'EUR' => 'EUR - Euro',
+                'GBP' => 'GBP - British Pound',
+            ];
+            
+            return [
+                'value' => $currency,
+                'label' => $currencyLabels[$currency] ?? $currency
+            ];
+        })->toArray();
 
-        return Inertia::render('Teacher/Financial/Dashboard', [
-            'walletBalance' => $financialSummary['wallet_balance'],
-            'totalEarned' => $financialSummary['total_earned'],
-            'pendingPayouts' => $financialSummary['pending_payouts'],
-            'recentTransactions' => $financialSummary['recent_transactions'],
-            'pendingPayoutRequests' => $financialSummary['pending_payout_requests'],
+        // Get teacher's payment methods
+        $paymentMethods = $teacher->paymentMethods()
+            ->where('is_active', true)
+            ->orderBy('is_default', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return Inertia::render('teacher/earnings/index', [
+            'walletBalance' => $walletBalance,
+            'totalEarned' => $totalEarned,
+            'pendingPayouts' => $pendingPayouts,
+            'recentTransactions' => $recentTransactions,
+            'pendingPayoutRequests' => $pendingPayoutRequests,
+            'upcomingEarnings' => $upcomingEarnings,
+            'paymentMethods' => $paymentMethods,
+            'earningsSettings' => [
+                'preferredCurrency' => $preferredCurrency,
+                'automaticPayouts' => $teacherWallet->auto_withdrawal_enabled
+            ],
+            'availableCurrencies' => $availableCurrencies,
+            'teacherRates' => [
+                'hourlyRateUSD' => $hourlyRateUSD,
+                'hourlyRateNGN' => $hourlyRateNGN
+            ]
         ]);
     }
 
@@ -49,6 +210,11 @@ class FinancialController extends Controller
     public function transactions(Request $request)
     {
         $teacher = Auth::user();
+        
+        // Verify that the user is a teacher
+        if (!$teacher->isTeacher()) {
+            return redirect()->route('dashboard')->with('error', 'You do not have access to this section.');
+        }
         
         $query = Transaction::where('teacher_id', $teacher->id);
         
@@ -82,11 +248,106 @@ class FinancialController extends Controller
     }
 
     /**
+     * Display the teacher's transaction history with advanced filtering.
+     */
+    public function history(Request $request)
+    {
+        $teacher = Auth::user();
+        
+        // Verify that the user is a teacher
+        if (!$teacher->isTeacher()) {
+            return redirect()->route('dashboard')->with('error', 'You do not have access to this section.');
+        }
+        
+        $teacherWallet = $teacher->teacherWallet;
+        
+        if (!$teacherWallet) {
+            return Inertia::render('teacher/earnings/history', [
+                'transactions' => [],
+                'filters' => $request->only(['type', 'status', 'date_from', 'date_to', 'currency']),
+                'availableCurrencies' => [],
+                'transactionTypes' => [],
+                'statuses' => [],
+            ]);
+        }
+        
+        // Build query for unified transactions
+        $query = \App\Models\UnifiedTransaction::where('wallet_type', 'App\\Models\\TeacherWallet')
+            ->where('wallet_id', $teacherWallet->id)
+            ->with(['session.student', 'session.subject']);
+        
+        // Apply filters
+        if ($request->has('type') && $request->type !== '') {
+            $query->where('transaction_type', $request->type);
+        }
+        
+        if ($request->has('status') && $request->status !== '') {
+            $query->where('status', $request->status);
+        }
+        
+        if ($request->has('currency') && $request->currency !== '') {
+            $query->where('currency', $request->currency);
+        }
+        
+        if ($request->has('date_from') && $request->date_from !== '') {
+            $query->whereDate('transaction_date', '>=', $request->date_from);
+        }
+        
+        if ($request->has('date_to') && $request->date_to !== '') {
+            $query->whereDate('transaction_date', '<=', $request->date_to);
+        }
+        
+        // Sort transactions
+        $query->orderBy('transaction_date', 'desc')
+              ->orderBy('created_at', 'desc');
+        
+        $transactions = $query->paginate(20);
+        
+        // Get available currencies from transactions
+        $availableCurrencies = \App\Models\UnifiedTransaction::where('wallet_type', 'App\\Models\\TeacherWallet')
+            ->where('wallet_id', $teacherWallet->id)
+            ->select('currency')
+            ->distinct()
+            ->whereNotNull('currency')
+            ->pluck('currency')
+            ->toArray();
+        
+        // Get available transaction types
+        $transactionTypes = \App\Models\UnifiedTransaction::where('wallet_type', 'App\\Models\\TeacherWallet')
+            ->where('wallet_id', $teacherWallet->id)
+            ->select('transaction_type')
+            ->distinct()
+            ->pluck('transaction_type')
+            ->toArray();
+        
+        // Get available statuses
+        $statuses = \App\Models\UnifiedTransaction::where('wallet_type', 'App\\Models\\TeacherWallet')
+            ->where('wallet_id', $teacherWallet->id)
+            ->select('status')
+            ->distinct()
+            ->pluck('status')
+            ->toArray();
+        
+        return Inertia::render('teacher/earnings/history', [
+            'transactions' => $transactions,
+            'filters' => $request->only(['type', 'status', 'date_from', 'date_to', 'currency']),
+            'availableCurrencies' => $availableCurrencies,
+            'transactionTypes' => $transactionTypes,
+            'statuses' => $statuses,
+        ]);
+    }
+
+    /**
      * Display the teacher's payout requests.
      */
     public function payoutRequests(Request $request)
     {
         $teacher = Auth::user();
+        
+        // Verify that the user is a teacher
+        if (!$teacher->isTeacher()) {
+            return redirect()->route('dashboard')->with('error', 'You do not have access to this section.');
+        }
         
         $query = PayoutRequest::where('teacher_id', $teacher->id);
         
@@ -121,6 +382,11 @@ class FinancialController extends Controller
     public function createPayoutRequest()
     {
         $teacher = Auth::user();
+        
+        // Verify that the user is a teacher
+        if (!$teacher->isTeacher()) {
+            return redirect()->route('dashboard')->with('error', 'You do not have access to this section.');
+        }
         $earnings = $teacher->earnings;
         
         if (!$earnings) {
@@ -152,6 +418,11 @@ class FinancialController extends Controller
         ]);
         
         $teacher = Auth::user();
+        
+        // Verify that the user is a teacher
+        if (!$teacher->isTeacher()) {
+            return redirect()->route('dashboard')->with('error', 'You do not have access to this section.');
+        }
         $earnings = $teacher->earnings;
         
         if (!$earnings || $earnings->wallet_balance < $validated['amount']) {
@@ -178,6 +449,11 @@ class FinancialController extends Controller
     public function cancelPayoutRequest(PayoutRequest $payoutRequest)
     {
         $teacher = Auth::user();
+        
+        // Verify that the user is a teacher
+        if (!$teacher->isTeacher()) {
+            return redirect()->route('dashboard')->with('error', 'You do not have access to this section.');
+        }
         
         // Verify that the payout request belongs to the teacher
         if ($payoutRequest->teacher_id !== $teacher->id) {
@@ -210,6 +486,11 @@ class FinancialController extends Controller
     {
         $teacher = Auth::user();
         
+        // Verify that the user is a teacher
+        if (!$teacher->isTeacher()) {
+            return redirect()->route('dashboard')->with('error', 'You do not have access to this section.');
+        }
+        
         // Verify that the transaction belongs to the teacher
         if ($transaction->teacher_id !== $teacher->id) {
             return redirect()->back()->with('error', 'You do not have permission to view this transaction.');
@@ -227,6 +508,11 @@ class FinancialController extends Controller
     {
         $teacher = Auth::user();
         
+        // Verify that the user is a teacher
+        if (!$teacher->isTeacher()) {
+            return redirect()->route('dashboard')->with('error', 'You do not have access to this section.');
+        }
+        
         // Verify that the payout request belongs to the teacher
         if ($payoutRequest->teacher_id !== $teacher->id) {
             return redirect()->back()->with('error', 'You do not have permission to view this payout request.');
@@ -236,4 +522,54 @@ class FinancialController extends Controller
             'payoutRequest' => $payoutRequest->load(['processedBy', 'transaction']),
         ]);
     }
+
+    /**
+     * Sync financial data between different tables to ensure consistency.
+     * Only uses real transaction data from the database.
+     */
+    private function syncFinancialData($teacher, $teacherWallet)
+    {
+        // Calculate totals from unified transactions (real data only)
+        $unifiedTransactions = \App\Models\UnifiedTransaction::where('wallet_type', 'App\\Models\\TeacherWallet')
+            ->where('wallet_id', $teacherWallet->id)
+            ->get();
+
+        $totalEarned = $unifiedTransactions
+            ->whereIn('transaction_type', ['session_payment', 'credit', 'bonus', 'refund'])
+            ->where('status', 'completed')
+            ->sum('amount');
+
+        $totalWithdrawn = $unifiedTransactions
+            ->whereIn('transaction_type', ['withdrawal', 'debit'])
+            ->where('status', 'completed')
+            ->sum('amount');
+
+        $pendingPayouts = $unifiedTransactions
+            ->whereIn('transaction_type', ['withdrawal'])
+            ->where('status', 'pending')
+            ->sum('amount');
+
+        $currentBalance = $totalEarned - $totalWithdrawn;
+
+        // Update wallet with calculated values from real transactions only
+        $teacherWallet->update([
+            'total_earned' => $totalEarned,
+            'total_withdrawn' => $totalWithdrawn,
+            'pending_payouts' => $pendingPayouts,
+            'balance' => $currentBalance,
+            'last_sync_at' => now(),
+        ]);
+
+        // Also sync with teacher_earnings table for backward compatibility
+        \App\Models\TeacherEarning::updateOrCreate(
+            ['teacher_id' => $teacher->id],
+            [
+                'wallet_balance' => $currentBalance,
+                'total_earned' => $totalEarned,
+                'total_withdrawn' => $totalWithdrawn,
+                'pending_payouts' => $pendingPayouts,
+            ]
+        );
+    }
+
 } 

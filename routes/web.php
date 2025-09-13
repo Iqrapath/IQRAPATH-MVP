@@ -23,6 +23,15 @@ Route::get('/', function () {
     return Inertia::render('welcome');
 })->name('home');
 
+// Test routes for modal testing
+Route::get('/test/modal', function () {
+    return Inertia::render('test/ModalTest');
+})->name('test.modal');
+
+Route::get('/test/payment-info', function () {
+    return Inertia::render('test/PaymentInfoTest');
+})->name('test.payment-info');
+
 Route::get('/find-teacher', [FindTeacherController::class, 'index'])->name('find-teacher');
 Route::get('/api/teachers', [FindTeacherController::class, 'getTeachers'])->name('api.teachers');
 
