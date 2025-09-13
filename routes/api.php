@@ -10,6 +10,7 @@ use App\Http\Controllers\API\Admin\UserController as AdminUserController;
 use App\Http\Controllers\API\UserController;
 use App\Models\User;
 use App\Http\Controllers\API\UserListController;
+use App\Http\Controllers\Teacher\AvailabilityController;
 
 /*
 |--------------------------------------------------------------------------
@@ -131,4 +132,10 @@ Route::middleware(['auth'])
         });
         
         
+    });
+
+    // Teacher availability routes
+    Route::middleware(['web', 'auth', 'role:teacher'])->group(function () {
+        Route::get('/teacher/availability/{teacherId}', [AvailabilityController::class, 'getAvailability']);
+        Route::post('/teacher/availability/{teacherId}', [AvailabilityController::class, 'updateAvailability']);
     }); 

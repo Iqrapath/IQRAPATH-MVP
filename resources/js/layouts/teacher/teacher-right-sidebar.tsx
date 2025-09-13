@@ -93,7 +93,6 @@ export default function TeacherRightSidebar({
             }
             
             setLastFetchTime(now);
-            console.log('Fetching sidebar data...');
             
             const response = await axios.get('/teacher/sidebar-data');
             

@@ -27,11 +27,14 @@ class TeacherController extends Controller
         $availableNow = $request->get('available_now');
         $sort = $request->get('sort', 'rating');
 
-        // Build base query for teachers - only show verified teachers
+        // Build base query for teachers - only show verified teachers and exclude those on holiday
         $query = User::with(['teacherProfile.subjects.template'])
             ->where('role', 'teacher')
             ->whereHas('teacherProfile', function ($q) {
                 $q->where('verified', true);
+            })
+            ->whereDoesntHave('teacherAvailabilities', function ($q) {
+                $q->where('holiday_mode', true);
             });
 
         // Apply search filter
@@ -196,6 +199,12 @@ class TeacherController extends Controller
         $profile = $teacher->teacherProfile;
         $subjects = $profile->subjects->take(3)->map(fn($s) => $s->template->name ?? $s->name)->filter()->toArray();
 
+        // Check if teacher is in holiday mode
+        $availability = \DB::table('teacher_availabilities')
+            ->where('teacher_id', $teacher->id)
+            ->first();
+        $isOnHoliday = $availability && $availability->holiday_mode;
+
         return [
             'id' => $teacher->id,
             'name' => $teacher->name,
@@ -217,6 +226,7 @@ class TeacherController extends Controller
             'available_slots' => $profile->available_slots,
             'response_time' => 'Usually responds in 2 hours',
             'availability' => $profile->availability,
+            'is_on_holiday' => $isOnHoliday,
         ];
     }
 

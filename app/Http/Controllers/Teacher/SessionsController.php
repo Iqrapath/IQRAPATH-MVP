@@ -162,4 +162,83 @@ class SessionsController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Get upcoming sessions for the teacher
+     */
+    public function getUpcomingSessions(Request $request): JsonResponse
+    {
+        try {
+            \Log::info('getUpcomingSessions called', ['user_id' => $request->user()?->id]);
+            
+            $teacherId = $request->user()->id;
+            
+            if (!$teacherId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not authenticated'
+                ], 401);
+            }
+            
+            $sessions = $this->teacherStatsService->getUpcomingSessionsForSessionsPage($teacherId);
+            
+            \Log::info('Upcoming sessions fetched', ['count' => count($sessions)]);
+            
+            return response()->json([
+                'success' => true,
+                'sessions' => $sessions
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error in getUpcomingSessions', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch upcoming sessions: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get past sessions for the teacher
+     */
+    public function getPastSessions(Request $request): JsonResponse
+    {
+        try {
+            $teacherId = $request->user()->id;
+            
+            // Get past sessions (completed, cancelled, no-show)
+            $sessions = Booking::where('teacher_id', $teacherId)
+                ->whereIn('status', ['completed', 'cancelled'])
+                ->with(['student', 'subject.template', 'teachingSession'])
+                ->orderBy('booking_date', 'desc')
+                ->orderBy('start_time', 'desc')
+                ->get()
+                ->map(function ($booking) {
+                    return [
+                        'id' => $booking->id,
+                        'date' => $booking->booking_date,
+                        'startTime' => \Carbon\Carbon::parse($booking->start_time)->format('g:i A'),
+                        'endTime' => \Carbon\Carbon::parse($booking->end_time)->format('g:i A'),
+                        'subject' => $booking->subject->template->name ?? 'Unknown Subject',
+                        'student' => $booking->student->name,
+                        'status' => $booking->status,
+                        'rating' => $booking->teachingSession?->rating,
+                        'feedback' => $booking->teachingSession?->feedback
+                    ];
+                });
+            
+            return response()->json([
+                'success' => true,
+                'sessions' => $sessions
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch past sessions: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

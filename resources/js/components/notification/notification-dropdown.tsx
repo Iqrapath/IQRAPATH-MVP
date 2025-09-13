@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -30,10 +30,15 @@ export function NotificationDropdown({ className, iconSize = 24 }: NotificationD
     notifications,
     unreadCount,
     isLoading,
+    fetchNotifications,
     markAsRead,
     markAllAsRead,
     deleteNotification,
-  } = useNotifications();
+  } = useNotifications({
+    pollingInterval: 30000, // Poll every 30 seconds as fallback
+    useWebSockets: true,
+    showToasts: false, // Disable toasts in dropdown to avoid duplicates
+  });
 
   const handleMarkAsRead = (notificationId: string) => {
     markAsRead(notificationId);
@@ -48,6 +53,19 @@ export function NotificationDropdown({ className, iconSize = 24 }: NotificationD
     deleteNotification(notificationId);
   };
 
+  // Listen for manual refresh events
+  useEffect(() => {
+    const handleRefresh = () => {
+      fetchNotifications();
+    };
+
+    window.addEventListener('refresh-notifications', handleRefresh);
+    
+    return () => {
+      window.removeEventListener('refresh-notifications', handleRefresh);
+    };
+  }, [fetchNotifications]);
+
   const getNotificationIcon = (type: string, level?: string) => {
     // You can customize this based on notification types in your system
     switch (type) {
@@ -59,6 +77,8 @@ export function NotificationDropdown({ className, iconSize = 24 }: NotificationD
         return <Bell className="h-4 w-4 text-amber-500" />;
       case 'App\\Notifications\\BookingNotification':
         return <Bell className="h-4 w-4 text-purple-500" />;
+      case 'App\\Notifications\\AvailabilityUpdatedNotification':
+        return <Bell className="h-4 w-4 text-emerald-500" />;
       case 'new_user_registration':
         return <Bell className="h-4 w-4 text-teal-500" />;
       default:

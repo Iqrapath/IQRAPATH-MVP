@@ -30,8 +30,16 @@ Route::middleware(['auth', 'verified', 'role:teacher', 'teacher.verified'])->pre
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
+    // Schedule
+    Route::get('/schedule', function () {
+        return Inertia::render('teacher/schedule/index');
+    })->name('schedule');
+    
     // Sessions
     Route::get('/sessions', [SessionsController::class, 'index'])->name('sessions');
+    Route::get('/sessions/upcoming', [SessionsController::class, 'getUpcomingSessions'])->name('sessions.upcoming');
+    Route::get('/sessions/past', [SessionsController::class, 'getPastSessions'])->name('sessions.past');
+    Route::post('/sessions/{sessionId}/join', [SessionsController::class, 'joinSession'])->name('sessions.join');
     Route::post('/sessions/requests/{booking}/accept', [SessionsController::class, 'acceptRequest'])->name('sessions.requests.accept');
     Route::post('/sessions/requests/{booking}/decline', [SessionsController::class, 'declineRequest'])->name('sessions.requests.decline');
     Route::get('/sessions/student/{studentId}/profile', [SessionsController::class, 'getStudentProfile'])->name('sessions.student.profile');
@@ -40,6 +48,10 @@ Route::middleware(['auth', 'verified', 'role:teacher', 'teacher.verified'])->pre
     Route::get('/requests', [RequestsController::class, 'index'])->name('requests');
     Route::post('/requests/{request}/accept', [RequestsController::class, 'accept'])->name('requests.accept');
     Route::post('/requests/{request}/decline', [RequestsController::class, 'decline'])->name('requests.decline');
+    
+    // Availability
+    Route::get('/availability/{teacherId}', [AvailabilityController::class, 'getAvailability'])->name('availability.get');
+    Route::post('/availability/{teacherId}', [AvailabilityController::class, 'updateAvailability'])->name('availability.update');
     
     // Debug route for recommended students
     Route::get('/debug-recommended', function () {
@@ -105,13 +117,14 @@ Route::middleware(['auth', 'verified', 'role:teacher', 'teacher.verified'])->pre
     Route::delete('/profile/availabilities/{availability}', [AvailabilityController::class, 'destroy'])->name('profile.availabilities.destroy');
     Route::put('/profile/availability-preferences', [AvailabilityController::class, 'updatePreferences'])->name('profile.availability-preferences.update');
     
-    // Teaching sessions
-    Route::get('/sessions/upcoming', function () {
-        return Inertia::render('teacher/sessions/upcoming');
-    })->name('sessions.upcoming');
-    Route::get('/sessions/past', function () {
-        return Inertia::render('teacher/sessions/past');
-    })->name('sessions.past');
+    // Teaching sessions - API routes only (page routes removed to avoid conflicts)
+        // Teaching sessions
+        // Route::get('/sessions/upcoming', function () {
+        //     return Inertia::render('teacher/sessions/upcoming');
+        // })->name('sessions.upcoming');
+        // Route::get('/sessions/past', function () {
+        //     return Inertia::render('teacher/sessions/past');
+        // })->name('sessions.past');
     
     // Student requests - handled by RequestsController above
 

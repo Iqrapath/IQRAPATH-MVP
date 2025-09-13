@@ -57,6 +57,7 @@ interface Teacher {
     available_slots: number;
     response_time: string;
     availability?: string; // Added missing property
+    is_on_holiday?: boolean; // Added holiday status
 }
 
 interface BrowseTeachersProps {

@@ -40,6 +40,7 @@ interface TeacherCardProps {
         experience_years: string;
         teaching_mode: string;
         languages: string[];
+        is_on_holiday?: boolean;
     };
 }
 
@@ -143,6 +144,15 @@ export default function TeacherCard({ teacher }: TeacherCardProps) {
                                 <span className="text-gray-500">Availability: </span>
                                 <span className="text-gray-700 font-medium break-words">{formatAvailability(teacher.availability || '')}</span>
                             </div>
+                            
+                            {/* Holiday Status */}
+                            {teacher.is_on_holiday && (
+                                <div className="text-sm">
+                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                        🏖️ Currently on Holiday
+                                    </span>
+                                </div>
+                            )}
                         </div>
 
                         {/* Bottom row: Price pill and actions */}

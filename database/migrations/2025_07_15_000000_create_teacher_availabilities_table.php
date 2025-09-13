@@ -14,9 +14,12 @@ return new class extends Migration
         Schema::create('teacher_availabilities', function (Blueprint $table) {
             $table->id();
             $table->foreignId('teacher_id')->constrained('users')->onDelete('cascade');
-            $table->tinyInteger('day_of_week'); // 0-6 (Sunday-Saturday)
-            $table->time('start_time');
-            $table->time('end_time');
+            $table->boolean('holiday_mode')->default(false); // Holiday mode affects entire account
+            $table->json('available_days')->nullable(); // Store selected days as JSON array
+            $table->json('day_schedules')->nullable(); // Store detailed day schedules as JSON
+            $table->tinyInteger('day_of_week')->nullable(); // 0-6 (Sunday-Saturday) - for backward compatibility
+            $table->time('start_time')->nullable(); // for backward compatibility
+            $table->time('end_time')->nullable(); // for backward compatibility
             $table->boolean('is_active')->default(true);
             $table->string('time_zone')->nullable();
             $table->string('preferred_teaching_hours')->nullable();

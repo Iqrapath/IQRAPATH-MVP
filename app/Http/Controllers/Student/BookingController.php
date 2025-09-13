@@ -299,6 +299,18 @@ class BookingController extends Controller
                     'teacherReviews'
                 ])
                 ->find($teacherId);
+                
+            // Check if teacher is in holiday mode
+            if ($teacher) {
+                $availability = \DB::table('teacher_availabilities')
+                    ->where('teacher_id', $teacherId)
+                    ->first();
+                    
+                if ($availability && $availability->holiday_mode) {
+                    return redirect()->route('student.browse-teachers')
+                        ->with('error', 'This teacher is currently on holiday and not accepting new bookings.');
+                }
+            }
         }
 
         // Format teacher data for the page header
@@ -729,6 +741,16 @@ class BookingController extends Controller
         $availabilityIds = $request->input('availability_ids', []);
         $subjects = $request->input('subjects', []);
         $noteToTeacher = $request->input('note_to_teacher', '');
+
+        // Check if teacher is in holiday mode before processing payment
+        $teacherAvailability = \DB::table('teacher_availabilities')
+            ->where('teacher_id', $teacherId)
+            ->first();
+            
+        if ($teacherAvailability && $teacherAvailability->holiday_mode) {
+            return redirect()->route('student.browse-teachers')
+                ->with('error', 'This teacher is currently on holiday and not accepting new bookings.');
+        }
 
         // Get the first subject from the request or default to a general subject
         $selectedSubject = null;
