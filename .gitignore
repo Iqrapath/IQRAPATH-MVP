@@ -22,3 +22,10 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+# Cursor IDE
+.cursor/
+.cursor.json
+.cursorrules
+.cursorignore
+*.cursor
