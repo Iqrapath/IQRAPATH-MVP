@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('student_wallets', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->text('payment_id')->unique();
+            $table->string('payment_id', 191)->unique();
             $table->decimal('balance', 10, 2)->default(0);
             $table->decimal('total_spent', 10, 2)->default(0);
             $table->decimal('total_refunded', 10, 2)->default(0);
