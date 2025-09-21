@@ -23,9 +23,13 @@ type RegisterForm = {
 interface RegisterTeacherProps {
     success?: boolean;
     user?: User;
+    content?: {
+        terms_conditions: string;
+        privacy_policy: string;
+    };
 }
 
-export default function Register({ success = false, user }: RegisterTeacherProps) {
+export default function Register({ success = false, user, content }: RegisterTeacherProps) {
     const { data, setData, post, processing, errors, reset } = useForm<Required<RegisterForm>>({
         name: '',
         email: '',
@@ -46,7 +50,7 @@ export default function Register({ success = false, user }: RegisterTeacherProps
 
     return (
         <AuthLayout>
-            <Head title="Register" />
+            <Head title="Teacher Registration - IqraQuest" />
             <div className="flex flex-col gap-6 w-full max-w-md mx-auto p-6">
                 <div className="text-start">
                     <h1 className="text-2xl font-bold mb-1">Create an Account</h1>
@@ -54,9 +58,21 @@ export default function Register({ success = false, user }: RegisterTeacherProps
                 </div>
 
                 <form className="flex flex-col gap-6" onSubmit={submit}>
+                    {/* General form errors */}
+                    {Object.keys(errors).length > 0 && (
+                        <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                            <p className="text-sm text-red-600 font-medium">Please fix the following errors:</p>
+                            <ul className="mt-1 text-sm text-red-600 list-disc list-inside">
+                                {Object.entries(errors).map(([field, message]) => (
+                                    <li key={field}>{message}</li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+                    
                     <div className="grid gap-5">
                         <div className="grid gap-2">
-                            <Label htmlFor="name">Name</Label>
+                            <Label htmlFor="name">Name <span className="text-red-500">*</span></Label>
                             <Input
                                 id="name"
                                 type="text"
@@ -67,12 +83,13 @@ export default function Register({ success = false, user }: RegisterTeacherProps
                                 onChange={(e) => setData('name', e.target.value)}
                                 disabled={processing}
                                 placeholder="zakirsoft"
+                                className={errors.name ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
                             />
                             <InputError message={errors.name} />
                         </div>
 
                         <div className="grid gap-2">
-                            <Label htmlFor="email">Email Address</Label>
+                            <Label htmlFor="email">Email Address <span className="text-red-500">*</span></Label>
                             <Input
                                 id="email"
                                 type="email"
@@ -83,12 +100,13 @@ export default function Register({ success = false, user }: RegisterTeacherProps
                                 onChange={(e) => setData('email', e.target.value)}
                                 disabled={processing}
                                 placeholder="zakirsoft@gmail.com"
+                                className={errors.email ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
                             />
                             <InputError message={errors.email} />
                         </div>
 
                         <div className="grid gap-2">
-                            <Label htmlFor="password">Password</Label>
+                            <Label htmlFor="password">Password <span className="text-red-500">*</span></Label>
                             <div className="relative">
                                 <Input
                                     id="password"
@@ -100,6 +118,7 @@ export default function Register({ success = false, user }: RegisterTeacherProps
                                     onChange={(e) => setData('password', e.target.value)}
                                     disabled={processing}
                                     placeholder="********"
+                                    className={errors.password ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
                                 />
                                 <button
                                     type="button"
@@ -116,7 +135,7 @@ export default function Register({ success = false, user }: RegisterTeacherProps
                         </div>
 
                         <div className="grid gap-2">
-                            <Label htmlFor="password_confirmation">Confirm Password</Label>
+                            <Label htmlFor="password_confirmation">Confirm Password <span className="text-red-500">*</span></Label>
                             <div className="relative">
                                 <Input
                                     id="password_confirmation"
@@ -128,6 +147,7 @@ export default function Register({ success = false, user }: RegisterTeacherProps
                                     onChange={(e) => setData('password_confirmation', e.target.value)}
                                     disabled={processing}
                                     placeholder="********"
+                                    className={errors.password_confirmation ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
                                 />
                                 <button
                                     type="button"
@@ -148,14 +168,16 @@ export default function Register({ success = false, user }: RegisterTeacherProps
                                 id="terms"
                                 checked={data.terms}
                                 onCheckedChange={(checked) => setData('terms', checked as boolean)}
+                                className={errors.terms ? "border-red-500" : ""}
                             />
                             <label
                                 htmlFor="terms"
-                                className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                className={`text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${errors.terms ? "text-red-500" : ""}`}
                             >
-                                By signing up, you agree to Iqtranet <TextLink href="#" className="text-red-500">Terms & Condition</TextLink>, <TextLink href="#" className="text-red-500">Privacy</TextLink> and <TextLink href="#" className="text-red-500">Policy</TextLink>.
+                                By signing up, you agree to IqraQuest <TextLink href={route('content.terms')} className="text-red-500">Terms & Conditions</TextLink> and <TextLink href={route('content.privacy')} className="text-red-500">Privacy Policy</TextLink>. <span className="text-red-500">*</span>
                             </label>
                         </div>
+                        <InputError message={errors.terms} />
 
                         <Button
                             type="submit"
@@ -179,6 +201,7 @@ export default function Register({ success = false, user }: RegisterTeacherProps
                         type="button"
                         variant="outline"
                         className="w-full flex items-center justify-center rounded-full gap-2 border-gray-200 cursor-pointer"
+                        onClick={() => window.location.href = route('auth.google', { role: 'teacher' })}
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" preserveAspectRatio="xMidYMid" viewBox="0 0 256 262">
                             <path fill="#4285F4" d="M255.878 133.451c0-10.734-.871-18.567-2.756-26.69H130.55v48.448h71.947c-1.45 12.04-9.283 30.172-26.69 42.356l-.244 1.622 38.755 30.023 2.685.268c24.659-22.774 38.875-56.282 38.875-96.027"></path>
@@ -192,6 +215,7 @@ export default function Register({ success = false, user }: RegisterTeacherProps
                         type="button"
                         variant="outline"
                         className="w-full flex items-center justify-center rounded-full gap-2 cursor-pointer"
+                        onClick={() => window.location.href = route('auth.facebook', { role: 'teacher' })}
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#1877F2" viewBox="0 0 24 24">
                             <path d="M24 12.073c0-5.8-4.703-10.503-10.503-10.503S2.994 6.273 2.994 12.073c0 5.242 3.84 9.598 8.858 10.384v-7.345h-2.668v-3.04h2.668V9.75c0-2.633 1.568-4.085 3.966-4.085 1.15 0 2.35.205 2.35.205v2.584h-1.323c-1.304 0-1.71.81-1.71 1.64v1.97h2.912l-.465 3.04h-2.447v7.345c5.018-.786 8.858-5.142 8.858-10.384"></path>
@@ -200,11 +224,23 @@ export default function Register({ success = false, user }: RegisterTeacherProps
                     </Button>
                 </div>
 
-                <div className="text-start text-sm text-muted-foreground">
-                    Already have an account?{' '}
-                    <TextLink href={route('login')} tabIndex={6} className="text-primary">
-                        Login
-                    </TextLink>
+                <div className="text-center text-sm text-muted-foreground space-y-3">
+                    <div>
+                        Already have an account?{' '}
+                        <TextLink href={route('login')} tabIndex={6} className="text-teal-600 hover:text-teal-700 font-medium">
+                            Login
+                        </TextLink>
+                    </div>
+                    <div className="border-t border-gray-200 pt-3">
+                        <p className="mb-2">Want to learn instead?</p>
+                        <TextLink 
+                            href={route('register.student-guardian')} 
+                            tabIndex={7} 
+                            className="text-teal-600 hover:text-teal-700 font-medium"
+                        >
+                            Join as Student/Guardian
+                        </TextLink>
+                    </div>
                 </div>
             </div>
 

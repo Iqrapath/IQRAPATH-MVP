@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -16,6 +16,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Check, Trash2, Bell, BellOff } from 'lucide-react';
 import { Link, usePage } from '@inertiajs/react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface NotificationDropdownProps {
   className?: string;
@@ -25,6 +26,7 @@ interface NotificationDropdownProps {
 export function NotificationDropdown({ className, iconSize = 24 }: NotificationDropdownProps) {
   const { auth } = usePage().props as any;
   const userRole = auth?.user?.role;
+  
   
   const {
     notifications,
@@ -37,8 +39,9 @@ export function NotificationDropdown({ className, iconSize = 24 }: NotificationD
   } = useNotifications({
     pollingInterval: 30000, // Poll every 30 seconds as fallback
     useWebSockets: true,
-    showToasts: false, // Disable toasts in dropdown to avoid duplicates
+    showToasts: true, // Enable toasts for verification calls
   });
+
 
   const handleMarkAsRead = (notificationId: string) => {
     markAsRead(notificationId);
@@ -66,6 +69,71 @@ export function NotificationDropdown({ className, iconSize = 24 }: NotificationD
     };
   }, [fetchNotifications]);
 
+  // Fallback mechanism: Show toast for verification calls if notifications fail to load
+  useEffect(() => {
+    const checkForVerificationCalls = async () => {
+      try {
+        // If notifications are not loading and we're not in loading state, try to fetch manually
+        if (!isLoading && notifications.length === 0) {
+          const response = await fetch('/api/user/notifications', {
+            credentials: 'include',
+            headers: {
+              'X-Requested-With': 'XMLHttpRequest',
+            },
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            const verificationNotifications = data.data?.filter((notification: any) => 
+              notification.type === 'App\\Notifications\\VerificationCallScheduledNotification' && 
+              !notification.read_at
+            ) || [];
+            
+            // Show toast for unread verification calls
+            verificationNotifications.forEach((notification: any) => {
+              const verificationData = notification.data;
+              const scheduledTime = verificationData.scheduled_at_human || 'the scheduled time';
+              const platform = verificationData.platform_label || 'the video platform';
+              const meetingLink = verificationData.meeting_link;
+              
+              const enhancedMessage = `${verificationData.message}\n\n📅 Scheduled: ${scheduledTime}\n📹 Platform: ${platform}${meetingLink ? '\n🔗 Meeting link available' : ''}\n\n📧 Please check your email for detailed verification instructions.`;
+              
+              toast.success(`📞 ${verificationData.title}`, {
+                description: enhancedMessage,
+                duration: 10000,
+                action: verificationData.action_text ? {
+                  label: verificationData.action_text,
+                  onClick: () => {
+                    if (verificationData.action_url) {
+                      if (verificationData.action_url.startsWith('/')) {
+                        window.location.href = verificationData.action_url;
+                      } else {
+                        window.open(verificationData.action_url, '_blank');
+                      }
+                    }
+                  },
+                } : {
+                  label: 'Check Email',
+                  onClick: () => {
+                    toast.info('📧 Check your email for verification details and meeting link!');
+                  }
+                },
+              });
+            });
+          }
+        }
+      } catch (error) {
+        toast.error('Failed to check for verification calls' + error);
+        // console.error('Failed to check for verification calls:', error);
+      }
+    };
+
+    // Check for verification calls after a delay to allow normal notification loading
+    const timeoutId = setTimeout(checkForVerificationCalls, 5000);
+    
+    return () => clearTimeout(timeoutId);
+  }, [isLoading, notifications.length]);
+
   const getNotificationIcon = (type: string, level?: string) => {
     // You can customize this based on notification types in your system
     switch (type) {
@@ -79,6 +147,10 @@ export function NotificationDropdown({ className, iconSize = 24 }: NotificationD
         return <Bell className="h-4 w-4 text-purple-500" />;
       case 'App\\Notifications\\AvailabilityUpdatedNotification':
         return <Bell className="h-4 w-4 text-emerald-500" />;
+      case 'App\\Notifications\\VerificationCallScheduledNotification':
+        return <Bell className="h-4 w-4 text-indigo-500" />;
+      case 'App\\Notifications\\SystemNotification':
+        return <Bell className="h-4 w-4 text-cyan-500" />;
       case 'new_user_registration':
         return <Bell className="h-4 w-4 text-teal-500" />;
       default:
@@ -233,6 +305,26 @@ export function NotificationDropdown({ className, iconSize = 24 }: NotificationD
                             )}
                             {(notification.data as any).meeting_link && (
                               <p><strong>Meeting Link:</strong> Available</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Special handling for verification call notifications */}
+                      {notification.type === 'App\\Notifications\\VerificationCallScheduledNotification' && (
+                        <div className="mt-2 p-2 bg-indigo-50 rounded border border-indigo-200">
+                          <div className="text-xs text-indigo-800">
+                            {(notification.data as any).scheduled_at_human && (
+                              <p><strong>Scheduled:</strong> {(notification.data as any).scheduled_at_human}</p>
+                            )}
+                            {(notification.data as any).platform_label && (
+                              <p><strong>Platform:</strong> {(notification.data as any).platform_label}</p>
+                            )}
+                            {(notification.data as any).meeting_link && (
+                              <p><strong>Meeting Link:</strong> Available</p>
+                            )}
+                            {(notification.data as any).notes && (
+                              <p><strong>Notes:</strong> {(notification.data as any).notes}</p>
                             )}
                           </div>
                         </div>

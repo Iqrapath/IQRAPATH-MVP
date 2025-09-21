@@ -141,7 +141,7 @@ export function Loader({
       
       {/* Footer */}
       <div className="absolute bottom-4 w-full text-center text-xs text-slate-400 dark:text-slate-500">
-        © {new Date().getFullYear()} IqraPath
+        © {new Date().getFullYear()} IqraQuest
       </div>
     </div>
   );

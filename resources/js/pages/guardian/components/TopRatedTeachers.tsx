@@ -18,13 +18,23 @@ interface TopRatedTeachersProps {
 
 export default function TopRatedTeachers({ teachers }: TopRatedTeachersProps) {
     return (
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-6xl mx-auto scrollbar-hide scrollbar-thin scrollbar-thumb-teal-600"
+            style={{
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none',
+            }}
+        >
             <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-semibold text-gray-900">Top Rated Teachers for You</h3>
             </div>
 
             {teachers.length > 0 ? (
-                <div className="overflow-x-auto pb-4">
+                <div className="overflow-x-auto pb-4"
+                    style={{
+                        scrollbarWidth: 'none',
+                        msOverflowStyle: 'none',
+                    }}
+                >
                     <div className="flex gap-6 min-w-max">
                         {teachers.map(t => (
                             <div key={t.id} className="flex-shrink-0 w-80">

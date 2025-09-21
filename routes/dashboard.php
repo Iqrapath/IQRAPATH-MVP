@@ -137,7 +137,16 @@ Route::middleware(['auth', 'verified', 'role:guardian'])->prefix('guardian')->na
     Route::get('/children', [GuardianDashboardController::class, 'childrenIndex'])->name('children.index');
     Route::get('/children/create', [GuardianDashboardController::class, 'createChild'])->name('children.create');
     Route::post('/children', [GuardianDashboardController::class, 'storeChild'])->name('children.store');
+    Route::get('/children/{child}/edit', [GuardianDashboardController::class, 'editChild'])->name('children.edit');
+    Route::put('/children/{child}', [GuardianDashboardController::class, 'updateChild'])->name('children.update');
     Route::get('/children/{child}/progress', [GuardianDashboardController::class, 'childProgress'])->name('children.progress');
+    Route::get('/children/{child}/progress/refresh', [GuardianDashboardController::class, 'refreshProgress'])->name('children.progress.refresh');
+    
+    // Guardian payment routes
+    Route::get('/payment/publishable-key', [App\Http\Controllers\Guardian\PaymentController::class, 'getPublishableKey'])->name('payment.publishable-key');
+    Route::post('/payment/fund-wallet', [App\Http\Controllers\Guardian\PaymentController::class, 'fundWallet'])->name('payment.fund-wallet');
+    Route::get('/wallet/balance', [App\Http\Controllers\Guardian\PaymentController::class, 'getBalance'])->name('wallet.balance');
+    Route::get('/wallet/funding-config', [App\Http\Controllers\Guardian\PaymentController::class, 'getFundingConfig'])->name('wallet.funding-config');
 });
 
 // User status routes

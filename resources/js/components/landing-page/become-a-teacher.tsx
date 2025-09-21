@@ -29,7 +29,7 @@ export default function BecomeTeacher() {
 
             <p className="text-white/90 mb-12 max-w-lg">
               Earn money by sharing your expertise with students. Sign up
-              today and start teaching online with IqraPath!
+              today and start teaching online with IqraQuest!
             </p>
 
             <div className="space-y-4 mb-12">

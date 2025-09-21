@@ -145,10 +145,12 @@ export default function ChildrenIndex({ guardian, children, topRatedTeachers }: 
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end" className="w-48">
-                                            <DropdownMenuItem className="flex items-center justify-between">
-                                                Edit Profile
-                                                <Edit className="h-5 w-5" />
-                                            </DropdownMenuItem>
+                                            <Link href={route('guardian.children.edit', child.id)}>
+                                                <DropdownMenuItem className="flex items-center justify-between">
+                                                    Edit Profile
+                                                    <Edit className="h-5 w-5" />
+                                                </DropdownMenuItem>
+                                            </Link>
                                             <DropdownMenuItem className="flex items-center justify-between">
                                                 Book Session
                                                 <SessionIcon className="h-5 w-5" />
@@ -189,7 +191,7 @@ export default function ChildrenIndex({ guardian, children, topRatedTeachers }: 
                 </div>
 
                 {/* Top rated teachers */}
-                <div className="mt-6 md:mt-8 mb-12">
+                <div className="mt-6 md:mt-8">
                     <TopRatedTeachers teachers={topRatedTeachers || []} />
                 </div>
             </div>

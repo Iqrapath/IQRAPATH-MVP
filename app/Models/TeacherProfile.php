@@ -32,6 +32,7 @@ class TeacherProfile extends Model
         'join_date',
         'hourly_rate_usd',
         'hourly_rate_ngn',
+        'preferred_currency',
     ];
 
     /**

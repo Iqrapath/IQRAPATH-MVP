@@ -14,6 +14,10 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    // Role selection for OAuth users
+    Route::get('/onboarding/role-selection', [OnboardingController::class, 'roleSelection'])->name('onboarding.role-selection');
+    Route::post('/onboarding/role-selection', [OnboardingController::class, 'storeRoleSelection']);
+    
     // General onboarding (for students/guardians to choose role)
     Route::get('/onboarding', [OnboardingController::class, 'index'])->name('onboarding');
     Route::post('/onboarding', [OnboardingController::class, 'store']);

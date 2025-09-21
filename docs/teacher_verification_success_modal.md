@@ -84,7 +84,7 @@ interface TeacherVerificationSuccessModalProps {
 
 ## Styling
 
-The modal follows the IQRAPATH design system:
+The modal follows the IQRAQUEST design system:
 - **Colors**: Teal (#14B8A6) for primary elements
 - **Typography**: Bold headings, medium body text
 - **Layout**: Centered modal with 2x2 grid for action buttons

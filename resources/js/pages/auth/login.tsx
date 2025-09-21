@@ -49,7 +49,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
             <div className="flex flex-col gap-6 w-full max-w-md mx-auto p-6">
                 <div className="text-start mb-4">
                     <h1 className="text-2xl font-bold mb-1">Login your Account</h1>
-                    <p className="text-sm text-muted-foreground">Join as a Quran Teacher and connect with students worldwide.</p>
+                    {/* <p className="text-sm text-muted-foreground">Join as a Quran Teacher and connect with students worldwide.</p> */}
                 </div>
 
                 <form className="flex flex-col gap-6" onSubmit={submit}>
@@ -147,6 +147,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                         type="button" 
                         variant="outline" 
                         className="w-full flex items-center justify-center gap-2 rounded-full cursor-pointer"
+                        onClick={() => window.location.href = route('auth.google')}
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" preserveAspectRatio="xMidYMid" viewBox="0 0 256 262">
                             <path fill="#4285F4" d="M255.878 133.451c0-10.734-.871-18.567-2.756-26.69H130.55v48.448h71.947c-1.45 12.04-9.283 30.172-26.69 42.356l-.244 1.622 38.755 30.023 2.685.268c24.659-22.774 38.875-56.282 38.875-96.027"></path>
@@ -160,6 +161,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                         type="button" 
                         variant="outline" 
                         className="w-full flex items-center justify-center gap-2 rounded-full cursor-pointer"
+                        onClick={() => window.location.href = route('auth.facebook')}
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#1877F2" viewBox="0 0 24 24">
                             <path d="M24 12.073c0-5.8-4.703-10.503-10.503-10.503S2.994 6.273 2.994 12.073c0 5.242 3.84 9.598 8.858 10.384v-7.345h-2.668v-3.04h2.668V9.75c0-2.633 1.568-4.085 3.966-4.085 1.15 0 2.35.205 2.35.205v2.584h-1.323c-1.304 0-1.71.81-1.71 1.64v1.97h2.912l-.465 3.04h-2.447v7.345c5.018-.786 8.858-5.142 8.858-10.384"></path>
@@ -168,11 +170,25 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                     </Button>
                 </div>
 
-                <div className="text-start text-sm text-muted-foreground">
-                    Don't have an account?{' '}
-                    <TextLink href={route('register')} tabIndex={6} className="text-teal-600">
-                        Sign Up
-                    </TextLink>
+                <div className="text-center text-sm text-muted-foreground space-y-3">
+                    <p>Don't have an account?</p>
+                    <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                        <TextLink 
+                            href={route('register.student-guardian')} 
+                            tabIndex={6} 
+                            className="text-teal-600 hover:text-teal-700 font-medium"
+                        >
+                            Join as Student/Guardian
+                        </TextLink>
+                        <span className="hidden sm:inline text-gray-400">•</span>
+                        <TextLink 
+                            href={route('register.teacher')} 
+                            tabIndex={7} 
+                            className="text-teal-600 hover:text-teal-700 font-medium"
+                        >
+                            Become a Teacher
+                        </TextLink>
+                    </div>
                 </div>
             </div>
 

@@ -43,12 +43,12 @@ return new class extends Migration
             [
                 'page_key' => 'terms_conditions',
                 'title' => 'Terms & Conditions',
-                'content' => 'Welcome to IqraPath – a trusted platform for connecting Quran teachers with students and guardians across the globe. These Terms & Conditions ("Terms") govern your use of the IqraPath website, services, and any associated content provided by IqraPath.',
+                'content' => 'Welcome to IqraQuest – a trusted platform for connecting Quran teachers with students and guardians across the globe. These Terms & Conditions ("Terms") govern your use of the IqraQuest website, services, and any associated content provided by IqraQuest.',
             ],
             [
                 'page_key' => 'privacy_policy',
                 'title' => 'Privacy Policy',
-                'content' => 'At IqraPath, we take your privacy seriously. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our platform.',
+                'content' => 'At IqraQuest, we take your privacy seriously. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our platform.',
             ],
         ];
 

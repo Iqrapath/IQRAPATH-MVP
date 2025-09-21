@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Notifications;
 
 use App\Models\VerificationRequest;
@@ -7,71 +9,69 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
-use Illuminate\Notifications\Messages\BroadcastMessage;
 
-class VerificationCallStartedNotification extends Notification implements ShouldQueue, ShouldBroadcast
+class VerificationCallStartedNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
-    protected VerificationRequest $verificationRequest;
+    public function __construct(
+        private VerificationRequest $verificationRequest
+    ) {}
 
-    /**
-     * Create a new notification instance.
-     */
-    public function __construct(VerificationRequest $verificationRequest)
+    public function via($notifiable): array
     {
-        $this->verificationRequest = $verificationRequest;
+        return ['mail', 'database'];
     }
 
-    /**
-     * Get the notification's delivery channels.
-     *
-     * @return array<int, string>
-     */
-    public function via(object $notifiable): array
+    public function toMail($notifiable): MailMessage
     {
-        return ['database', 'mail', 'broadcast'];
-    }
-
-    /**
-     * Get the mail representation of the notification.
-     */
-    public function toMail(object $notifiable): MailMessage
-    {
-        $currentTime = now()->format('l, F j, Y \a\t g:i A T');
+        $teacher = $this->verificationRequest->teacherProfile->user;
+        $isForTeacher = $notifiable->id === $teacher->id;
         
-        return (new MailMessage)
-            ->subject('LIVE: Your Verification Call Has Started - IqraPath')
-            ->markdown('emails.verification-call-started', [
-                'notifiable' => $notifiable,
-                'verificationRequest' => $this->verificationRequest,
-                'currentTime' => $currentTime,
-            ]);
+        if ($isForTeacher) {
+            $currentTime = now()->format('F j, Y \a\t g:i A');
+            
+            return (new MailMessage)
+                ->subject('Verification Call Started - Join Now!')
+                ->view('emails.verification-call-started', [
+                    'notifiable' => $notifiable,
+                    'verificationRequest' => $this->verificationRequest,
+                    'currentTime' => $currentTime,
+                ]);
+        } else {
+            // Admin notification - keep simple for now
+            return (new MailMessage)
+                ->subject('Video Verification Call Started - ' . $teacher->name)
+                ->greeting('Admin Notification')
+                ->line('The video verification call for ' . $teacher->name . ' has started.')
+                ->line('**Teacher Details:**')
+                ->line('• Name: ' . $teacher->name)
+                ->line('• Email: ' . $teacher->email)
+                ->line('• Platform: ' . ucfirst($this->verificationRequest->video_platform))
+                ->line('• Meeting Link: ' . ($this->verificationRequest->meeting_link ?? 'N/A'))
+                ->action('View Verification', route('admin.verification.show', $this->verificationRequest))
+                ->salutation('IQRAQUEST Admin System');
+        }
     }
 
-    /**
-     * Get the array representation of the notification.
-     *
-     * @return array<string, mixed>
-     */
-    public function toArray(object $notifiable): array
+    public function toDatabase($notifiable): array
     {
+        $teacher = $this->verificationRequest->teacherProfile->user;
+        $isForTeacher = $notifiable->id === $teacher->id;
+        
         return [
-            'title' => 'Verification Call Started',
-            'message' => 'Your verification call is now live. Please join immediately.',
-            'action_text' => $this->verificationRequest->meeting_link ? 'Join Call Now' : null,
-            'action_url' => $this->verificationRequest->meeting_link ?? null,
+            'type' => 'verification_call_started',
+            'title' => $isForTeacher ? 'Video Call Started' : 'Verification Call Started',
+            'message' => $isForTeacher 
+                ? 'Your video verification call has started. Please join using the meeting link.'
+                : 'Video verification call for ' . $teacher->name . ' has started.',
             'verification_request_id' => $this->verificationRequest->id,
-            'started_at' => now()->toIso8601String(),
+            'teacher_id' => $this->verificationRequest->teacherProfile->user_id,
+            'action_url' => $isForTeacher 
+                ? ($this->verificationRequest->meeting_link ?? route('teacher.dashboard'))
+                : route('admin.verification.show', $this->verificationRequest),
+            'icon' => 'video',
+            'color' => 'info',
         ];
-    }
-
-    /**
-     * Get the broadcastable representation of the notification.
-     */
-    public function toBroadcast(object $notifiable): BroadcastMessage
-    {
-        return new BroadcastMessage($this->toArray($notifiable));
     }
 }

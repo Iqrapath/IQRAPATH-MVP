@@ -146,7 +146,7 @@ export default function Register() {
                                 htmlFor="terms"
                                 className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                             >
-                                By signing up, you agree to Iqtranet <TextLink href="#" className="text-red-500">Terms & Condition</TextLink>, <TextLink href="#" className="text-red-500">Privacy</TextLink> and <TextLink href="#" className="text-red-500">Policy</TextLink>.
+                                By signing up, you agree to IqraQuest <TextLink href="#" className="text-red-500">Terms & Condition</TextLink>, <TextLink href="#" className="text-red-500">Privacy</TextLink> and <TextLink href="#" className="text-red-500">Policy</TextLink>.
                             </label>
                         </div>
 
@@ -195,7 +195,7 @@ export default function Register() {
 
                 <div className="text-start text-sm text-muted-foreground">
                     Already have an account?{' '}
-                    <TextLink href={route('login')} tabIndex={6} className="text-primary">
+                    <TextLink href={route('login')} tabIndex={6} className="text-teal-600">
                         Login
                     </TextLink>
                 </div>

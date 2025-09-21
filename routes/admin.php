@@ -1,7 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminRolesController;
-use App\Http\Controllers\Admin\ContentPagesController;
+use App\Http\Controllers\Admin\ContentPageController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\FaqController;
 use App\Http\Controllers\Admin\FeatureControlsController;
@@ -77,6 +77,9 @@ Route::middleware(['auth', 'verified', 'role:super-admin, admin'])->prefix('admi
     // Admin access to subjects
     Route::resource('subjects', SubjectController::class);
     
+    // Content pages management
+    Route::resource('content-pages', ContentPageController::class);
+    
     // Document verification routes
     Route::get('/documents', [DocumentVerificationController::class, 'index'])->name('documents.index');
     Route::get('/documents/{document}', [DocumentVerificationController::class, 'show'])->name('documents.show');
@@ -94,6 +97,21 @@ Route::middleware(['auth', 'verified', 'role:super-admin, admin'])->prefix('admi
     Route::patch('/verification/{verificationRequest}/complete-video', [TeacherVerificationController::class, 'completeVideoVerification'])->name('verification.complete-video');
     Route::post('/verification/{verificationRequest}/generate-meeting', [TeacherVerificationController::class, 'generateMeetingLink'])->name('verification.generate-meeting');
     Route::post('/verification/{verificationRequest}/start-video', [TeacherVerificationController::class, 'startVideoVerification'])->name('verification.start-video');
+    
+// Document verification routes
+Route::patch('/verification/documents/{documentId}/verify', [TeacherVerificationController::class, 'verifyDocument'])->name('verification.document.verify');
+Route::patch('/verification/documents/{documentId}/reject', [TeacherVerificationController::class, 'rejectDocument'])->name('verification.document.reject');
+
+        // Booking management routes
+        Route::resource('bookings', \App\Http\Controllers\Admin\BookingController::class)->except(['create', 'edit']);
+        Route::patch('/bookings/{booking}/status', [\App\Http\Controllers\Admin\BookingController::class, 'updateStatus'])->name('bookings.update-status');
+        Route::patch('/bookings/bulk-update-status', [\App\Http\Controllers\Admin\BookingController::class, 'bulkUpdateStatus'])->name('bookings.bulk-update-status');
+        Route::get('/bookings/{booking}/available-teachers', [\App\Http\Controllers\Admin\BookingController::class, 'getAvailableTeachers'])->name('bookings.available-teachers');
+        Route::get('/bookings/{booking}/available-days', [\App\Http\Controllers\Admin\BookingController::class, 'getAvailableDays'])->name('bookings.available-days');
+        Route::get('/bookings/{booking}/available-slots', [\App\Http\Controllers\Admin\BookingController::class, 'getAvailableSlots'])->name('bookings.available-slots');
+        Route::patch('/bookings/{booking}/reassign', [\App\Http\Controllers\Admin\BookingController::class, 'reassign'])->name('bookings.reassign');
+        Route::patch('/bookings/{booking}/reschedule', [\App\Http\Controllers\Admin\BookingController::class, 'reschedule'])->name('bookings.reschedule');
+        Route::get('/bookings-stats', [\App\Http\Controllers\Admin\BookingController::class, 'getStats'])->name('bookings.stats');
     
     // Teacher management routes
     Route::resource('teachers', TeacherManagementController::class);
@@ -141,13 +159,13 @@ Route::middleware(['auth', 'verified', 'role:super-admin, admin'])->prefix('admi
         Route::post('/roles/assign', [AdminRolesController::class, 'assignRole'])->name('roles.assign');
         
         // Content pages
-        Route::get('/content-pages', [ContentPagesController::class, 'index'])->name('content-pages.index');
-        Route::get('/content-pages/create', [ContentPagesController::class, 'create'])->name('content-pages.create');
-        Route::post('/content-pages', [ContentPagesController::class, 'store'])->name('content-pages.store');
-        Route::get('/content-pages/{page}/edit', [ContentPagesController::class, 'edit'])->name('content-pages.edit');
-        Route::put('/content-pages/{page}', [ContentPagesController::class, 'update'])->name('content-pages.update');
-        Route::delete('/content-pages/{page}', [ContentPagesController::class, 'destroy'])->name('content-pages.destroy');
-        Route::patch('/content-pages/{page}/toggle-published', [ContentPagesController::class, 'togglePublished'])->name('content-pages.toggle-published');
+        Route::get('/content-pages', [ContentPageController::class, 'index'])->name('content-pages.index');
+        Route::get('/content-pages/create', [ContentPageController::class, 'create'])->name('content-pages.create');
+        Route::post('/content-pages', [ContentPageController::class, 'store'])->name('content-pages.store');
+        Route::get('/content-pages/{page}/edit', [ContentPageController::class, 'edit'])->name('content-pages.edit');
+        Route::put('/content-pages/{page}', [ContentPageController::class, 'update'])->name('content-pages.update');
+        Route::delete('/content-pages/{page}', [ContentPageController::class, 'destroy'])->name('content-pages.destroy');
+        Route::patch('/content-pages/{page}/toggle-published', [ContentPageController::class, 'togglePublished'])->name('content-pages.toggle-published');
         
         // FAQs
         Route::get('/faqs', [FaqController::class, 'index'])->name('faqs.index');

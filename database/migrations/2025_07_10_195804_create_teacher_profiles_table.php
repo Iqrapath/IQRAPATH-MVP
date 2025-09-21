@@ -28,6 +28,7 @@ return new class extends Migration
             $table->timestamp('join_date')->useCurrent(); // Track when teacher joined the platform
             $table->decimal('hourly_rate_usd', 8, 2)->nullable(); // Hourly rate in USD
             $table->decimal('hourly_rate_ngn', 10, 2)->nullable(); // Hourly rate in Nigerian Naira
+            $table->string('preferred_currency', 3)->default('NGN'); // Preferred currency: NGN or USD
             $table->timestamps();
         });
     }

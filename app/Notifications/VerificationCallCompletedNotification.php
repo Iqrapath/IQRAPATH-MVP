@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Notifications;
 
 use App\Models\VerificationRequest;
@@ -7,100 +9,89 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
-use Illuminate\Notifications\Messages\BroadcastMessage;
 
-class VerificationCallCompletedNotification extends Notification implements ShouldQueue, ShouldBroadcast
+class VerificationCallCompletedNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
-    protected VerificationRequest $verificationRequest;
-    protected string $result;
-    protected ?string $notes;
+    public function __construct(
+        private VerificationRequest $verificationRequest,
+        private string $result,
+        private ?string $notes = null
+    ) {}
 
-    /**
-     * Create a new notification instance.
-     */
-    public function __construct(VerificationRequest $verificationRequest, string $result, ?string $notes = null)
+    public function via($notifiable): array
     {
-        $this->verificationRequest = $verificationRequest;
-        $this->result = $result;
-        $this->notes = $notes;
+        return ['mail', 'database'];
     }
 
-    /**
-     * Get the notification's delivery channels.
-     *
-     * @return array<int, string>
-     */
-    public function via(object $notifiable): array
+    public function toMail($notifiable): MailMessage
     {
-        return ['database', 'mail', 'broadcast'];
-    }
-
-    /**
-     * Get the mail representation of the notification.
-     */
-    public function toMail(object $notifiable): MailMessage
-    {
-        $isPassed = $this->result === 'passed';
-        $completedTime = now()->format('l, F j, Y \a\t g:i A T');
+        $teacher = $this->verificationRequest->teacherProfile->user;
+        $isForTeacher = $notifiable->id === $teacher->id;
+        $passed = $this->result === 'passed';
         
-        if ($isPassed) {
-            return (new MailMessage)
-                ->subject('Verification Call Passed! Welcome to IqraPath')
-                ->markdown('emails.verification-call-completed-passed', [
-                    'notifiable' => $notifiable,
-                    'verificationRequest' => $this->verificationRequest,
-                    'result' => $this->result,
-                    'notes' => $this->notes,
-                    'isPassed' => $isPassed,
-                    'completedTime' => $completedTime,
-                ]);
+        if ($isForTeacher) {
+            $completedTime = now()->format('F j, Y \a\t g:i A');
+            
+            if ($passed) {
+                return (new MailMessage)
+                    ->subject('Video Verification Completed - Congratulations!')
+                    ->view('emails.verification-call-completed-passed', [
+                        'notifiable' => $notifiable,
+                        'verificationRequest' => $this->verificationRequest,
+                        'completedTime' => $completedTime,
+                        'notes' => $this->notes,
+                    ]);
+            } else {
+                return (new MailMessage)
+                    ->subject('Video Verification Update - Action Required')
+                    ->view('emails.verification-call-completed-failed', [
+                        'notifiable' => $notifiable,
+                        'verificationRequest' => $this->verificationRequest,
+                        'completedTime' => $completedTime,
+                        'notes' => $this->notes,
+                    ]);
+            }
         } else {
+            // Admin notification - keep simple for now
             return (new MailMessage)
-                ->subject('Verification Call Results - Next Steps Available')
-                ->markdown('emails.verification-call-completed-failed', [
-                    'notifiable' => $notifiable,
-                    'verificationRequest' => $this->verificationRequest,
-                    'result' => $this->result,
-                    'notes' => $this->notes,
-                    'isPassed' => $isPassed,
-                    'completedTime' => $completedTime,
-                ]);
+                ->subject('Video Verification Completed - ' . $teacher->name . ' (' . ucfirst($this->result) . ')')
+                ->greeting('Admin Notification')
+                ->line('The video verification call for ' . $teacher->name . ' has been completed.')
+                ->line('**Result:** ' . ucfirst($this->result))
+                ->line('**Teacher Details:**')
+                ->line('• Name: ' . $teacher->name)
+                ->line('• Email: ' . $teacher->email)
+                ->line('• Notes: ' . ($this->notes ?? 'No additional notes'))
+                ->action('View Verification', route('admin.verification.show', $this->verificationRequest))
+                ->salutation('IQRAQUEST Admin System');
         }
     }
 
-
-
-    /**
-     * Get the array representation of the notification.
-     *
-     * @return array<string, mixed>
-     */
-    public function toArray(object $notifiable): array
+    public function toDatabase($notifiable): array
     {
-        $isPassed = $this->result === 'passed';
+        $teacher = $this->verificationRequest->teacherProfile->user;
+        $isForTeacher = $notifiable->id === $teacher->id;
+        $passed = $this->result === 'passed';
         
         return [
-            'title' => $isPassed ? 'Verification Call Passed' : 'Verification Call Failed',
-            'message' => $isPassed 
-                ? 'Your video verification has been completed successfully.' 
-                : 'Your video verification did not meet our requirements.',
+            'type' => 'verification_call_completed',
+            'title' => $isForTeacher ? 'Video Call Completed' : 'Verification Call Completed',
+            'message' => $isForTeacher 
+                ? ($passed 
+                    ? 'Your video verification call has been completed successfully. You passed!'
+                    : 'Your video verification call has been completed. Please review the feedback and reschedule if needed.')
+                : 'Video verification call for ' . $teacher->name . ' has been completed with result: ' . ucfirst($this->result),
+            'verification_request_id' => $this->verificationRequest->id,
+            'teacher_id' => $this->verificationRequest->teacherProfile->user_id,
             'result' => $this->result,
             'notes' => $this->notes,
-            'completed_at' => now()->toIso8601String(),
-            'action_text' => null,
-            'action_url' => null,
-            'verification_request_id' => $this->verificationRequest->id,
+            'action_url' => $isForTeacher 
+                ? route('teacher.profile.edit')
+                : route('admin.verification.show', $this->verificationRequest),
+            'icon' => $passed ? 'check-circle' : 'x-circle',
+            'color' => $passed ? 'success' : 'warning',
         ];
-    }
-
-    /**
-     * Get the broadcastable representation of the notification.
-     */
-    public function toBroadcast(object $notifiable): BroadcastMessage
-    {
-        return new BroadcastMessage($this->toArray($notifiable));
     }
 }

@@ -1,6 +1,0 @@
-@echo off
-echo Starting Reverb WebSocket server...
-start /B php artisan app:start-reverb --background
-
-echo Starting Laravel Scheduler...
-php artisan schedule:work 

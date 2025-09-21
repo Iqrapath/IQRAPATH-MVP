@@ -2,7 +2,7 @@
  * 🎨 FIGMA DESIGN REFERENCE
  * 
  * Component: OngoingClassCard
- * Figma URL: https://www.figma.com/design/jmWnnfdCipxqiQF39Tdb0S/IQRAPATH?node-id=411-27985&t=m6ohX2RrycH79wFY-0
+ * Figma URL: https://www.figma.com/design/jmWnnfdCipxqiQF39Tdb0S/IQRAQUEST?node-id=411-27985&t=m6ohX2RrycH79wFY-0
  * Export: Based on provided image - ongoing class cards with book icons and "In Progress" status
  * 
  * 📏 EXACT SPECIFICATIONS FROM IMAGE:

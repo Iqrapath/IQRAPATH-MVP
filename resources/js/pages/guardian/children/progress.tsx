@@ -1,7 +1,9 @@
 import { Head } from '@inertiajs/react';
+import { useState, useEffect } from 'react';
 import GuardianLayout from '@/layouts/guardian/guardian-layout';
 import { Breadcrumbs } from '@/components/breadcrumbs';
-import { Check, X, Minus } from 'lucide-react';
+import { Check, X, Minus, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import WeeklyClassAttendance from '../components/WeeklyClassAttendance';
 import UpcomingGoal from '../components/UpcomingGoal';
 import LearningProgressCard from '../components/LearningProgressCard';
@@ -90,7 +92,34 @@ const daysOfWeek = [
     { key: 'sunday', label: 'Sun' },
 ];
 
-export default function ChildProgress({ childId, progressData }: ProgressPageProps) {
+export default function ChildProgress({ childId, progressData: initialProgressData }: ProgressPageProps) {
+    const [progressData, setProgressData] = useState(initialProgressData);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [lastUpdated, setLastUpdated] = useState(new Date());
+
+    const refreshData = async () => {
+        setIsRefreshing(true);
+        try {
+            const response = await fetch(route('guardian.children.progress.refresh', childId));
+            const result = await response.json();
+            
+            if (result.success) {
+                setProgressData(result.data);
+                setLastUpdated(new Date(result.lastUpdated));
+            }
+        } catch (error) {
+            console.error('Failed to refresh progress data:', error);
+        } finally {
+            setIsRefreshing(false);
+        }
+    };
+
+    // Auto-refresh every 5 minutes
+    useEffect(() => {
+        const interval = setInterval(refreshData, 5 * 60 * 1000);
+        return () => clearInterval(interval);
+    }, [childId]);
+
     return (
         <GuardianLayout pageTitle="Progress Overview">
             <Head title="Progress Overview" />
@@ -102,12 +131,31 @@ export default function ChildProgress({ childId, progressData }: ProgressPagePro
 
                 {/* Header Section */}
                 <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900 mb-3">
-                        Progress Overview
-                    </h1>
-                    <p className="text-gray-600">
-                        Track your child's Quran learning journey — attendance, memorization, and teacher feedback all in one glance.
-                    </p>
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h1 className="text-3xl font-bold text-gray-900 mb-3">
+                                Progress Overview
+                            </h1>
+                            <p className="text-gray-600">
+                                Track your child's Quran learning journey — attendance, memorization, and teacher feedback all in one glance.
+                            </p>
+                        </div>
+                        <div className="flex items-center space-x-4">
+                            <div className="text-sm text-gray-500">
+                                Last updated: {lastUpdated.toLocaleTimeString()}
+                            </div>
+                            <Button
+                                onClick={refreshData}
+                                disabled={isRefreshing}
+                                variant="outline"
+                                size="sm"
+                                className="flex items-center space-x-2"
+                            >
+                                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                                <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+                            </Button>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Progress Card */}

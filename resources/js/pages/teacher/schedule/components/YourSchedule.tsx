@@ -1,6 +1,6 @@
 /**
  * 🎨 FIGMA REFERENCE
- * URL: https://www.figma.com/design/jmWnnfdCipxqiQF39Tdb0S/IQRAPATH?node-id=200-7399&t=barbCY4Jn7yoOuNr-0
+ * URL: https://www.figma.com/design/jmWnnfdCipxqiQF39Tdb0S/IQRAQUEST?node-id=200-7399&t=barbCY4Jn7yoOuNr-0
  * Export: Your Schedule component with Upcoming and Past sessions
  * 
  * EXACT SPECS FROM FIGMA:

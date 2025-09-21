@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\Booking;
 use App\Models\Dispute;
 use App\Models\Document;
 use App\Models\EvidenceAttachment;
@@ -13,6 +14,7 @@ use App\Models\TeachingSession;
 use App\Models\TicketResponse;
 use App\Models\VerificationRequest;
 use App\Models\TeacherReview;
+use App\Policies\BookingPolicy;
 use App\Policies\DisputePolicy;
 use App\Policies\DocumentPolicy;
 use App\Policies\EvidenceAttachmentPolicy;
@@ -35,6 +37,7 @@ class AuthServiceProvider extends ServiceProvider
      * @var array<class-string, class-string>
      */
     protected $policies = [
+        Booking::class => BookingPolicy::class,
         Document::class => DocumentPolicy::class,
         Subject::class => SubjectPolicy::class,
         Subscription::class => SubscriptionPolicy::class,

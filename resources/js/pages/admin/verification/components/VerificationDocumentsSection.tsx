@@ -276,7 +276,7 @@ export default function VerificationDocumentsSection({ documentsFlat, documentsG
             // Update local state
             updateDocumentInLocalState(documentId, { status: 'rejected' });
             
-            toast.success('Document rejected successfully!');
+            toast.error(`Document rejected. Reason: ${reason}`);
             
             // Use Inertia router to refresh page data in background
             router.reload({ only: ['documents', 'documents_grouped', 'verification_status'] });

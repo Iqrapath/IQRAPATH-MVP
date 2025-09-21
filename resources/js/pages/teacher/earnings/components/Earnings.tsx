@@ -50,7 +50,12 @@ export default function Earnings() {
     const upcomingEarningsData = pageProps.upcomingEarnings || [];
     const recentTransactionsData = pageProps.recentTransactions || [];
     const earningsSettings = pageProps.earningsSettings || { preferredCurrency: 'NGN', automaticPayouts: false };
-    const availableCurrencies = pageProps.availableCurrencies || [];
+    const availableCurrencies = Array.isArray(pageProps.availableCurrencies) ? pageProps.availableCurrencies : [
+        { value: 'NGN', label: 'Nigerian Naira (NGN)', symbol: '₦', is_default: true },
+        { value: 'USD', label: 'US Dollar (USD)', symbol: '$', is_default: false },
+        { value: 'EUR', label: 'Euro (EUR)', symbol: '€', is_default: false },
+        { value: 'GBP', label: 'British Pound (GBP)', symbol: '£', is_default: false }
+    ];
     const teacherRates = pageProps.teacherRates || { hourlyRateUSD: 25, hourlyRateNGN: 37500 };
 
     const [earningsData, setEarningsData] = useState<EarningsData>({

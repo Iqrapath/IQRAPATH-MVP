@@ -2,7 +2,7 @@
  * 🎨 FIGMA DESIGN REFERENCE
  * 
  * Component: UpcomingClassCard
- * Figma URL: https://www.figma.com/design/jmWnnfdCipxqiQF39Tdb0S/IQRAPATH?node-id=409-26933&t=m6ohX2RrycH79wFY-0
+ * Figma URL: https://www.figma.com/design/jmWnnfdCipxqiQF39Tdb0S/IQRAQUEST?node-id=409-26933&t=m6ohX2RrycH79wFY-0
  * Export: Based on provided image - upcoming class cards with book icons
  * 
  * 📏 EXACT SPECIFICATIONS FROM IMAGE:

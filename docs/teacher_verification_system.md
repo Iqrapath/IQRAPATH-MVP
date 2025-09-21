@@ -1,6 +1,6 @@
 # Teacher Verification System
 
-This document outlines the requirements and implementation details for the teacher verification system in the IQRAPATH platform.
+This document outlines the requirements and implementation details for the teacher verification system in the IQRAQUEST platform.
 
 ## Overview
 

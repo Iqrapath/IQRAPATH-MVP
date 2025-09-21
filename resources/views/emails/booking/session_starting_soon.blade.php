@@ -105,7 +105,7 @@
     </div>
     
     <div class="footer">
-        <p>Thank you for choosing IQRAPATH for your learning journey!</p>
+        <p>Thank you for choosing IQRAQUEST for your learning journey!</p>
         <p>If you have any technical issues, please contact our support team immediately.</p>
     </div>
 </body>

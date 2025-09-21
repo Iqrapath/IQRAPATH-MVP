@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Events\UserRegistered;
+use App\Services\ContentPageService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,12 +18,20 @@ use Inertia\Response;
 
 class RegisteredUserController extends Controller
 {
+    public function __construct(
+        private ContentPageService $contentPageService
+    ) {}
+
     /**
      * Show the student/guardian registration page.
      */
     public function createStudentGuardian(): Response
     {
-        return Inertia::render('auth/register-student-guardian');
+        $content = $this->contentPageService->getSignUpContent();
+        
+        return Inertia::render('auth/register-student-guardian', [
+            'content' => $content,
+        ]);
     }
 
     /**
@@ -30,7 +39,11 @@ class RegisteredUserController extends Controller
      */
     public function createTeacher(): Response
     {
-        return Inertia::render('auth/register-teacher');
+        $content = $this->contentPageService->getSignUpContent();
+        
+        return Inertia::render('auth/register-teacher', [
+            'content' => $content,
+        ]);
     }
 
     /**

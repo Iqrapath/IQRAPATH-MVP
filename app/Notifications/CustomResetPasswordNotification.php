@@ -25,7 +25,7 @@ class CustomResetPasswordNotification extends ResetPasswordNotification
             ], false));
         }
         return (new MailMessage)
-            ->subject(Lang::get('IqraPath - Reset Your Password'))
+            ->subject(Lang::get('IqraQuest - Reset Your Password'))
             ->markdown('emails.reset-password', [
                 'url' => $url,
                 'count' => config('auth.passwords.'.config('auth.defaults.passwords').'.expire'),

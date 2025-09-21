@@ -1,6 +1,6 @@
 /**
  * 🎨 FIGMA REFERENCE
- * URL: https://www.figma.com/design/jmWnnfdCipxqiQF39Tdb0S/IQRAPATH?node-id=405-22320&t=O1w7ozri9pYud8IO-0
+ * URL: https://www.figma.com/design/jmWnnfdCipxqiQF39Tdb0S/IQRAQUEST?node-id=405-22320&t=O1w7ozri9pYud8IO-0
  * Export: Teacher Profile Card Component
  * 
  * EXACT SPECS FROM FIGMA:

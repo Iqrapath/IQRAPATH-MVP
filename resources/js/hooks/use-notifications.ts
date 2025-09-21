@@ -157,6 +157,45 @@ export const useNotifications = ({
     const actionText = notification.data.action_text || '';
     const actionUrl = notification.data.action_url || '';
     
+    // Special handling for verification call notifications
+    if (notification.type === 'App\\Notifications\\VerificationCallScheduledNotification') {
+      const verificationData = notification.data as any;
+      const scheduledTime = verificationData.scheduled_at_human || 'the scheduled time';
+      const platform = verificationData.platform_label || 'the video platform';
+      const meetingLink = verificationData.meeting_link;
+      
+      // Enhanced message for verification calls
+      const enhancedMessage = `${message}\n\n📅 Scheduled: ${scheduledTime}\n📹 Platform: ${platform}${meetingLink ? '\n🔗 Meeting link available' : ''}\n\n📧 Please check your email for detailed verification instructions.`;
+      
+      // Helper to handle action URL clicks
+      const handleActionClick = () => {
+        if (actionUrl) {
+          if (actionUrl.startsWith('/')) {
+            window.location.href = actionUrl;
+          } else {
+            window.open(actionUrl, '_blank');
+          }
+        }
+      };
+      
+      // Show special verification call toast
+      toast.success(`📞 ${title}`, {
+        description: enhancedMessage,
+        duration: 10000, // Show for 10 seconds
+        action: actionText ? {
+          label: actionText,
+          onClick: handleActionClick,
+        } : {
+          label: 'Check Email',
+          onClick: () => {
+            // Open email client or show email reminder
+            toast.info('📧 Check your email for verification details and meeting link!');
+          }
+        },
+      });
+      return;
+    }
+    
     // Helper to handle action URL clicks
     const handleActionClick = () => {
       if (!actionUrl) return;
@@ -227,9 +266,42 @@ export const useNotifications = ({
       if (userId) {
         const channel = window.Echo.private(`user.${userId}`);
         
-        // Listen for notification events
+        // Listen for notification events - Laravel broadcasts with the notification class name
+        channel.listen('.App\\Notifications\\VerificationCallScheduledNotification', (data: any) => {
+          
+          // Format the notification properly
+          const notification: Notification = {
+            id: data.id || '',
+            type: 'App\\Notifications\\VerificationCallScheduledNotification',
+            notifiable_type: 'App\\Models\\User',
+            notifiable_id: userId,
+            data: data.data || {},
+            read_at: null,
+            created_at: data.created_at || new Date().toISOString(),
+            level: data.level || 'info'
+          };
+          
+          // Check if notification already exists in the list to prevent duplicates
+          setNotifications(prev => {
+            // Check if this notification already exists
+            const exists = prev.some(n => n.id === notification.id);
+            if (exists) {
+              return prev;
+            }
+            
+            // Only increment unread count if notification is new
+            setUnreadCount(prev => prev + 1);
+            
+            // Show toast notification only if it's new
+            showNotificationToast(notification);
+            
+            // Add the new notification to the list
+            return [notification, ...prev];
+          });
+        });
+        
+        // Listen for general notification events (for other notification types)
         channel.listen('.notification', (data: any) => {
-          console.log('Received notification event:', data);
           
           // Format the notification properly
           const notification: Notification = {
@@ -248,7 +320,6 @@ export const useNotifications = ({
             // Check if this notification already exists
             const exists = prev.some(n => n.id === notification.id);
             if (exists) {
-              console.log('Notification already exists, skipping:', notification.id);
               return prev;
             }
             
@@ -265,7 +336,6 @@ export const useNotifications = ({
         
         // Also listen for UserRegistered event (which might contain a welcome notification)
         channel.listen('.App\\Events\\UserRegistered', (data: any) => {
-          console.log('Received UserRegistered event:', data);
           
           // Fetch notifications to get the welcome notification
           // Use a short delay to ensure the notification is created in the database
@@ -276,7 +346,6 @@ export const useNotifications = ({
         
         // Also listen for UserLoggedIn event (which might contain a login notification)
         channel.listen('.App\\Events\\UserLoggedIn', (data: any) => {
-          console.log('Received UserLoggedIn event:', data);
           
           // Fetch notifications to get the login notification
           // Use a short delay to ensure the notification is created in the database
@@ -287,7 +356,6 @@ export const useNotifications = ({
         
         // Also listen for NotificationCreated event
         channel.listen('.App\\Events\\NotificationCreated', (data: any) => {
-          console.log('Received NotificationCreated event:', data);
           
           if (data.notification) {
             // Format the notification properly
@@ -307,7 +375,6 @@ export const useNotifications = ({
               // Check if this notification already exists
               const exists = prev.some(n => n.id === notification.id);
               if (exists) {
-                console.log('Notification already exists, skipping:', notification.id);
                 return prev;
               }
               
@@ -330,6 +397,7 @@ export const useNotifications = ({
         });
         
         return () => {
+          channel.stopListening('.App\\Notifications\\VerificationCallScheduledNotification');
           channel.stopListening('.notification');
           channel.stopListening('.App\\Events\\UserRegistered');
           channel.stopListening('.App\\Events\\UserLoggedIn');

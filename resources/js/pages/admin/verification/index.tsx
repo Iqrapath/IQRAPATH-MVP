@@ -32,6 +32,7 @@ import AdminLayout from "@/layouts/admin/admin-layout";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { SendIcon } from "@/components/icons/send-icon";
 import { VerifiedIcon } from "@/components/icons/verified-icon";
+import { toast } from "sonner";
 
 interface VerificationRequest {
     id: string;
@@ -384,11 +385,20 @@ export default function VerificationIndex({
                                                             }`}
                                                         onClick={() => {
                                                             if (!request.can_approve) {
-                                                                alert(request.approval_block_reason || 'Cannot approve this teacher');
+                                                                toast.error(request.approval_block_reason || 'Cannot approve this teacher');
                                                                 return;
                                                             }
                                                             if (confirm('Are you sure you want to verify this teacher?')) {
-                                                                router.patch(route('admin.verification.approve', request.id));
+                                                                router.patch(route('admin.verification.approve', request.id), {}, {
+                                                                    onSuccess: () => {
+                                                                        toast.success(
+                                                                            `${request.teacher_profile?.user?.name || 'Teacher'} has been verified and can now start teaching.`
+                                                                        );
+                                                                    },
+                                                                    onError: () => {
+                                                                        toast.error('There was an error verifying the teacher. Please try again.');
+                                                                    }
+                                                                });
                                                             }
                                                         }}
                                                         title={request.approval_block_reason || 'Approve Teacher'}
@@ -433,6 +443,15 @@ export default function VerificationIndex({
                                                             if (reason && reason.trim()) {
                                                                 router.patch(route('admin.verification.reject', request.id), {
                                                                     rejection_reason: reason.trim()
+                                                                }, {
+                                                                    onSuccess: () => {
+                                                                        toast.error(
+                                                                            `${request.teacher_profile?.user?.name || 'Teacher'} has been rejected. Reason: ${reason.trim()}`
+                                                                        );
+                                                                    },
+                                                                    onError: () => {
+                                                                        toast.error('There was an error rejecting the teacher. Please try again.');
+                                                                    }
                                                                 });
                                                             }
                                                         }}

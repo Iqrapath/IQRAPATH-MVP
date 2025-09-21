@@ -62,6 +62,7 @@ export interface User {
     teacherProfile?: TeacherProfile;
     wallet_balance?: number | null;
     wallet?: Wallet;
+    guardianWallet?: GuardianWallet;
 }
 
 export interface Notification {
@@ -291,6 +292,21 @@ export interface GuardianProfile {
     emergency_contact?: string | null;
     secondary_phone?: string | null;
     preferred_contact_method?: string | null;
+}
+
+export interface GuardianWallet {
+    id: number;
+    user_id: number;
+    balance: number;
+    total_spent_on_children: number;
+    total_refunded: number;
+    default_payment_method_id?: number | null;
+    auto_fund_children: boolean;
+    auto_fund_threshold: number;
+    family_spending_limits?: any;
+    child_allowances?: any;
+    created_at: string;
+    updated_at: string;
 }
 
 export type PageProps<T extends Record<string, unknown> = Record<string, unknown>> = T & {

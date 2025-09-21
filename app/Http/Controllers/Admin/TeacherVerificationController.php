@@ -8,11 +8,15 @@ use App\Models\TeacherProfile;
 use App\Models\User;
 use App\Models\VerificationRequest;
 use App\Services\UnifiedWalletService;
+use App\Services\NotificationService;
 use App\Notifications\VerificationCallScheduledNotification;
-use App\Notifications\VerificationCallStartedNotification;
-use App\Notifications\VerificationCallCompletedNotification;
 use App\Notifications\VerificationApprovedNotification;
 use App\Notifications\VerificationRejectedNotification;
+use App\Notifications\VerificationCallStartedNotification;
+use App\Notifications\VerificationCallCompletedNotification;
+use App\Notifications\DocumentUploadedNotification;
+use App\Notifications\DocumentVerifiedNotification;
+use App\Notifications\DocumentRejectedNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -410,6 +414,18 @@ class TeacherVerificationController extends Controller
             ]);
         }
         
+        // Send admin notification
+        try {
+            $admin = $request->user();
+            $admin->notify(new VerificationApprovedNotification($verificationRequest));
+        } catch (\Throwable $e) {
+            \Log::error('Failed to send admin verification approved notification', [
+                'verification_request_id' => $verificationRequest->id,
+                'admin_id' => $request->user()->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+        
         return redirect()->route('admin.verification.index')
             ->with('success', 'Teacher verification approved successfully after complete verification workflow.');
     }
@@ -455,6 +471,21 @@ class TeacherVerificationController extends Controller
             \Log::error('Failed to send verification rejected notification', [
                 'verification_request_id' => $verificationRequest->id,
                 'teacher_id' => $teacher->id ?? null,
+                'error' => $e->getMessage()
+            ]);
+        }
+        
+        // Send admin notification
+        try {
+            $admin = $request->user();
+            $admin->notify(new VerificationRejectedNotification(
+                $verificationRequest,
+                $validated['rejection_reason']
+            ));
+        } catch (\Throwable $e) {
+            \Log::error('Failed to send admin verification rejected notification', [
+                'verification_request_id' => $verificationRequest->id,
+                'admin_id' => $request->user()->id,
                 'error' => $e->getMessage()
             ]);
         }
@@ -619,13 +650,21 @@ class TeacherVerificationController extends Controller
             ]);
         });
 
-        // Send notifications using new notification classes
+        // Send notifications using NotificationService
         try {
             $teacher = $verificationRequest->teacherProfile->user;
+            $admin = $request->user();
             $scheduledAt = $request->input('scheduled_call_at');
             $platform = $request->input('video_platform');
             $meetingLink = $request->input('meeting_link');
             $notes = $request->input('notes');
+            
+            $scheduledDate = \Carbon\Carbon::parse($scheduledAt);
+            $platformLabel = match ($platform) {
+                'zoom' => 'Zoom',
+                'google_meet' => 'Google Meet',
+                default => ucfirst($platform),
+            };
 
             // Send notification to teacher
             $teacher->notify(new VerificationCallScheduledNotification(
@@ -633,18 +672,21 @@ class TeacherVerificationController extends Controller
                 $scheduledAt,
                 $platform,
                 $meetingLink,
-                $notes
+                $notes,
+                true // isForTeacher
             ));
 
             // Send notification to admin
-            $admin = $request->user();
             $admin->notify(new VerificationCallScheduledNotification(
                 $verificationRequest,
                 $scheduledAt,
                 $platform,
                 $meetingLink,
-                $notes
+                $notes,
+                false // isForTeacher
             ));
+
+            // Email notifications are handled by the VerificationCallScheduledNotification class
 
         } catch (\Throwable $e) {
             // Log error but don't block scheduling
@@ -775,7 +817,7 @@ class TeacherVerificationController extends Controller
         $lines = [
             'BEGIN:VCALENDAR',
             'VERSION:2.0',
-            'PRODID:-//IqraPath//Verification Call//EN',
+            'PRODID:-//IqraQuest//Verification Call//EN',
             'CALSCALE:GREGORIAN',
             'METHOD:PUBLISH',
             'BEGIN:VEVENT',
@@ -930,5 +972,147 @@ class TeacherVerificationController extends Controller
         
         // Otherwise, some documents are still pending
         return 'pending';
+    }
+
+    /**
+     * Verify a document.
+     */
+    public function verifyDocument(Request $request, $documentId): RedirectResponse
+    {
+        $document = \App\Models\TeacherDocument::findOrFail($documentId);
+        $verificationRequest = $document->teacherProfile->verificationRequest;
+        
+        Gate::authorize('verifyDocument', $verificationRequest);
+        
+        $validated = $request->validate([
+            'verification_notes' => 'nullable|string|max:1000',
+        ]);
+        
+        DB::transaction(function () use ($document, $request, $validated) {
+            $document->update([
+                'status' => 'verified',
+                'verified_by' => $request->user()->id,
+                'verified_at' => now(),
+                'verification_notes' => $validated['verification_notes'] ?? null,
+            ]);
+            
+            // Create audit log
+            $verificationRequest = $document->teacherProfile->verificationRequest;
+            $verificationRequest->auditLogs()->create([
+                'status' => $verificationRequest->status,
+                'changed_by' => $request->user()->id,
+                'changed_at' => now(),
+                'notes' => 'Document verified: ' . $document->name,
+            ]);
+        });
+
+        // Send notifications
+        try {
+            $teacher = $document->teacherProfile->user;
+            $admin = $request->user();
+            
+            // Notify teacher
+            $teacher->notify(new DocumentVerifiedNotification($document));
+            
+            // Notify admin
+            $admin->notify(new DocumentVerifiedNotification($document));
+            
+        } catch (\Throwable $e) {
+            \Log::error('Failed to send document verified notifications', [
+                'document_id' => $document->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+        
+        return redirect()->route('admin.verification.show', $verificationRequest)
+            ->with('success', 'Document verified successfully.');
+    }
+
+    /**
+     * Reject a document.
+     */
+    public function rejectDocument(Request $request, $documentId): RedirectResponse
+    {
+        $document = \App\Models\TeacherDocument::findOrFail($documentId);
+        $verificationRequest = $document->teacherProfile->verificationRequest;
+        
+        Gate::authorize('rejectDocument', $verificationRequest);
+        
+        $validated = $request->validate([
+            'rejection_reason' => 'required|string|max:1000',
+        ]);
+        
+        DB::transaction(function () use ($document, $request, $validated) {
+            $document->update([
+                'status' => 'rejected',
+                'verified_by' => $request->user()->id,
+                'verified_at' => now(),
+                'verification_notes' => $validated['rejection_reason'],
+            ]);
+            
+            // Create audit log
+            $verificationRequest = $document->teacherProfile->verificationRequest;
+            $verificationRequest->auditLogs()->create([
+                'status' => $verificationRequest->status,
+                'changed_by' => $request->user()->id,
+                'changed_at' => now(),
+                'notes' => 'Document rejected: ' . $document->name . ' - ' . $validated['rejection_reason'],
+            ]);
+        });
+
+        // Send notifications
+        try {
+            $teacher = $document->teacherProfile->user;
+            $admin = $request->user();
+            
+            // Notify teacher
+            $teacher->notify(new DocumentRejectedNotification($document, $validated['rejection_reason']));
+            
+            // Notify admin
+            $admin->notify(new DocumentRejectedNotification($document, $validated['rejection_reason']));
+            
+        } catch (\Throwable $e) {
+            \Log::error('Failed to send document rejected notifications', [
+                'document_id' => $document->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+        
+        return redirect()->route('admin.verification.show', $verificationRequest)
+            ->with('success', 'Document rejected successfully.');
+    }
+
+    /**
+     * Handle document upload (when teacher uploads a document).
+     */
+    public function handleDocumentUpload(\App\Models\TeacherDocument $document): void
+    {
+        try {
+            $teacher = $document->teacherProfile->user;
+            $verificationRequest = $document->teacherProfile->verificationRequest;
+            
+            // Notify teacher
+            $teacher->notify(new DocumentUploadedNotification($document));
+            
+            // Notify all admins
+            $admins = User::whereIn('role', ['admin', 'super-admin'])->get();
+            foreach ($admins as $admin) {
+                $admin->notify(new DocumentUploadedNotification($document));
+            }
+            
+            // Create audit log
+            $verificationRequest->auditLogs()->create([
+                'status' => $verificationRequest->status,
+                'changed_by' => $teacher->id,
+                'changed_at' => now(),
+                'notes' => 'Document uploaded: ' . $document->name,
+            ]);
+            
+        } catch (\Throwable $e) {
+            \Log::error('Failed to send document uploaded notifications', [
+                'document_id' => $document->id,
+                'error' => $e->getMessage()
+            ]);
+        }
     }
 } 

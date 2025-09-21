@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Notifications;
 
 use App\Models\VerificationRequest;
@@ -7,71 +9,47 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
-use Illuminate\Notifications\Messages\BroadcastMessage;
 
-class VerificationApprovedNotification extends Notification implements ShouldQueue, ShouldBroadcast
+class VerificationApprovedNotification extends Notification
 {
     use Queueable;
 
-    protected VerificationRequest $verificationRequest;
+    public function __construct(
+        private VerificationRequest $verificationRequest
+    ) {}
 
-    /**
-     * Create a new notification instance.
-     */
-    public function __construct(VerificationRequest $verificationRequest)
+    public function via($notifiable): array
     {
-        $this->verificationRequest = $verificationRequest;
+        return ['mail', 'database'];
     }
 
-    /**
-     * Get the notification's delivery channels.
-     *
-     * @return array<int, string>
-     */
-    public function via(object $notifiable): array
+    public function toMail($notifiable): MailMessage
     {
-        return ['database', 'mail', 'broadcast'];
-    }
-
-    /**
-     * Get the mail representation of the notification.
-     */
-    public function toMail(object $notifiable): MailMessage
-    {
-        $approvedDate = now()->format('l, F j, Y');
+        $teacher = $this->verificationRequest->teacherProfile->user;
+        $approvedDate = $this->verificationRequest->approved_at ? 
+            $this->verificationRequest->approved_at->format('F j, Y \a\t g:i A') : 
+            now()->format('F j, Y \a\t g:i A');
         
         return (new MailMessage)
-            ->subject('APPROVED! Welcome to IqraPath Teaching Community!')
-            ->markdown('emails.verification-approved', [
+            ->subject('🎉 Teacher Verification Approved - Welcome to IQRAQUEST!')
+            ->view('emails.verification-approved', [
                 'notifiable' => $notifiable,
                 'verificationRequest' => $this->verificationRequest,
                 'approvedDate' => $approvedDate,
             ]);
     }
 
-    /**
-     * Get the array representation of the notification.
-     *
-     * @return array<string, mixed>
-     */
-    public function toArray(object $notifiable): array
+    public function toDatabase($notifiable): array
     {
         return [
-            'title' => '🎉 Verification Approved!',
-            'message' => 'Your teacher verification has been approved. Welcome to IqraPath!',
-            'action_text' => null,
-            'action_url' => null,
+            'type' => 'verification_approved',
+            'title' => 'Teacher Verification Approved',
+            'message' => 'Congratulations! Your teacher verification has been approved. You can now start teaching on IqraQuest.',
             'verification_request_id' => $this->verificationRequest->id,
-            'approved_at' => now()->toIso8601String(),
+            'teacher_id' => $this->verificationRequest->teacherProfile->user_id,
+            'action_url' => route('teacher.dashboard'),
+            'icon' => 'check-circle',
+            'color' => 'success',
         ];
-    }
-
-    /**
-     * Get the broadcastable representation of the notification.
-     */
-    public function toBroadcast(object $notifiable): BroadcastMessage
-    {
-        return new BroadcastMessage($this->toArray($notifiable));
     }
 }

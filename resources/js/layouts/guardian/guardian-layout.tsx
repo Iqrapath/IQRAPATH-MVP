@@ -5,18 +5,30 @@ import GuardianLeftSidebar from './guardian-left-sidebar';
 import GuardianRightSidebar from './guardian-right-sidebar';
 import { AppLoading } from '@/components/app-loading';
 
+interface Notification {
+    id: string;
+    sender: string;
+    message: string;
+    timestamp: string;
+    avatar?: string | null;
+    type: string;
+    is_read: boolean;
+}
+
 interface GuardianLayoutProps {
     children: ReactNode;
     pageTitle: string;
     showRightSidebar?: boolean;
     rightSidebarContent?: ReactNode;
+    notifications?: Notification[];
 }
 
 export default function GuardianLayout({ 
     children, 
     pageTitle,
     showRightSidebar = true,
-    rightSidebarContent
+    rightSidebarContent,
+    notifications = []
 }: GuardianLayoutProps) {
     const [isMobile, setIsMobile] = useState(false);
     const [showLeftSidebar, setShowLeftSidebar] = useState(false);
@@ -100,7 +112,8 @@ export default function GuardianLayout({
                             <GuardianRightSidebar
                                 isMobile={isMobile}
                                 onClose={closeRightSidebar}
-                                className="h-full overflow-y-auto"
+                                className="h-full overflow-y-auto scrollbar-hide"
+                                notifications={notifications}
                             >
                                 {rightSidebarContent}
                             </GuardianRightSidebar>

@@ -7,7 +7,7 @@ import { Head } from '@inertiajs/react';
 const BlogPost: React.FC = () => {
   return (
     <>
-      <Head title="Blog Post - IqraPath" />
+      <Head title="Blog Post - IqraQuest" />
       <div className="bg-[#FDFDFC] min-h-screen flex flex-col">
         <Navigation />
         <main className="flex-grow">

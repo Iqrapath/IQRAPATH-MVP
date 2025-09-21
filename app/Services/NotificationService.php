@@ -22,7 +22,10 @@ class NotificationService
      */
     public function getUserNotifications(User $user, int $perPage = 15): LengthAwarePaginator
     {
-        return Notification::where('notifiable_type', User::class)
+        return Notification::where(function($query) {
+                $query->where('notifiable_type', User::class)
+                      ->orWhere('notifiable_type', 'user');
+            })
             ->where('notifiable_id', $user->id)
             ->orderBy('created_at', 'desc')
             ->paginate($perPage);
@@ -36,7 +39,10 @@ class NotificationService
      */
     public function getUnreadNotifications(User $user): Collection
     {
-        return Notification::where('notifiable_type', User::class)
+        return Notification::where(function($query) {
+                $query->where('notifiable_type', User::class)
+                      ->orWhere('notifiable_type', 'user');
+            })
             ->where('notifiable_id', $user->id)
             ->whereNull('read_at')
             ->orderBy('created_at', 'desc')
@@ -51,7 +57,10 @@ class NotificationService
      */
     public function getUnreadNotificationCount(User $user): int
     {
-        return Notification::where('notifiable_type', User::class)
+        return Notification::where(function($query) {
+                $query->where('notifiable_type', User::class)
+                      ->orWhere('notifiable_type', 'user');
+            })
             ->where('notifiable_id', $user->id)
             ->whereNull('read_at')
             ->count();

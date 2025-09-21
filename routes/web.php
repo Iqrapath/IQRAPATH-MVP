@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Admin\ContentPagesController;
+use App\Http\Controllers\ContentPageController;
 use App\Http\Controllers\Admin\FaqController;
 use App\Http\Controllers\FindTeacherController;
 use Illuminate\Support\Facades\Auth;
@@ -47,6 +47,10 @@ Route::get('/blog-post', function () {
     return Inertia::render('blog-post');
 })->name('blog-post');
 
+// Content pages
+Route::get('/terms', [App\Http\Controllers\ContentPageController::class, 'terms'])->name('content.terms');
+Route::get('/privacy', [App\Http\Controllers\ContentPageController::class, 'privacy'])->name('content.privacy');
+
 Route::get('/about', function () {
     return Inertia::render('about');
 })->name('about');
@@ -64,7 +68,7 @@ Route::get('/test-teacher-sidebar', function () {
 
 
 // Public content pages
-Route::get('/page/{slug}', [ContentPagesController::class, 'show'])->name('pages.show');
+Route::get('/page/{slug}', [ContentPageController::class, 'show'])->name('pages.show');
 
 // Public FAQs
 Route::get('/faqs', function () {

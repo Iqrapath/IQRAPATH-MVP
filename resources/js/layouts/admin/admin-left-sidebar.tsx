@@ -24,6 +24,7 @@ import {
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import LogoutButton from '@/components/logout-button';
+import { toast } from 'sonner';
 
 interface AdminLeftSidebarProps extends React.HTMLAttributes<HTMLDivElement> {
     isMobile?: boolean;
@@ -39,6 +40,7 @@ interface NavItem {
     iconType?: 'lucide' | 'custom';
     divider?: boolean;
     onClick?: (e: React.MouseEvent) => void;
+    isComingSoon?: boolean;
 }
 
 // Parent Management Icon
@@ -130,6 +132,14 @@ export default function AdminLeftSidebar({ className, isMobile = false, isOpen =
         return null;
     }
 
+        // Function to handle missing pages
+        const handleMissingPage = (pageName: string) => {
+            toast.info(`${pageName} is coming soon!`, {
+                description: "This feature is currently under development and will be available soon.",
+                duration: 4000,
+            });
+        };
+
     const navItems: NavItem[] = [
         {
             title: 'Dashboard',
@@ -160,7 +170,7 @@ export default function AdminLeftSidebar({ className, isMobile = false, isOpen =
         },
         {
             title: 'Subscription Plan',
-            href: '/admin/subscription',
+            href: '/admin/subscription-plans',
             icon: SubscriptionPlanIcon,
             iconType: 'custom',
         },
@@ -168,34 +178,64 @@ export default function AdminLeftSidebar({ className, isMobile = false, isOpen =
             title: 'Guardian Management',
             href: '/admin/guardians',
             icon: Users,
+            isComingSoon: true,
+            onClick: (e) => {
+                e.preventDefault();
+                handleMissingPage('Guardian Management');
+            },
         },
         {
             title: 'Payment Management',
             href: '/admin/payments',
             icon: CreditCard,
             divider: true,
+            isComingSoon: true,
+            onClick: (e) => {
+                e.preventDefault();
+                handleMissingPage('Payment Management');
+            },
         },
         {
             title: 'CMS',
             href: '/admin/cms',
             icon: CMSIcon,
             iconType: 'custom',
+            isComingSoon: true,
+            onClick: (e) => {
+                e.preventDefault();
+                handleMissingPage('CMS');
+            },
         },
         {
             title: 'Admin Controls',
             href: '/admin/controls',
             icon: Cog,
+            isComingSoon: true,
+            onClick: (e) => {
+                e.preventDefault();
+                handleMissingPage('Admin Controls');
+            },
         },
         {
             title: 'Referral System',
             href: '/admin/referrals',
             icon: Star,
             divider: true,
+            isComingSoon: true,
+            onClick: (e) => {
+                e.preventDefault();
+                handleMissingPage('Referrals');
+            },
         },
         {
             title: 'Settings & Security',
             href: '/admin/settings',
             icon: Settings,
+            isComingSoon: true,
+            onClick: (e) => {
+                e.preventDefault();
+                handleMissingPage('Settings');
+            },
         },
         {
             title: 'Notification System',
@@ -207,6 +247,11 @@ export default function AdminLeftSidebar({ className, isMobile = false, isOpen =
             href: '/admin/feedback',
             icon: FeedbackSupportIcon,
             iconType: 'custom',
+            isComingSoon: true,
+            onClick: (e) => {
+                e.preventDefault();
+                handleMissingPage('Feedback & support');
+            },
         },
         // Logout item removed from here
     ];

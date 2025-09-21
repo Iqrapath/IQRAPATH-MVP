@@ -17,16 +17,51 @@ class SubscriptionPlanController extends Controller
     /**
      * Display a listing of the subscription plans.
      */
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        $plans = SubscriptionPlan::withCount('subscriptions')
-            ->withCount(['subscriptions as active_subscriptions_count' => function ($query) {
-                $query->where('status', 'active');
-            }])
-            ->get();
+        $query = SubscriptionPlan::withCount('subscriptions');
+
+        // Search functionality
+        if ($request->filled('search')) {
+            $search = $request->get('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        // Filter by status
+        if ($request->filled('status')) {
+            $status = $request->get('status');
+            if ($status === 'active') {
+                $query->where('is_active', true);
+            } elseif ($status === 'inactive') {
+                $query->where('is_active', false);
+            }
+        }
+
+        // Filter by billing cycle
+        if ($request->filled('billing_cycle')) {
+            $query->where('billing_cycle', $request->get('billing_cycle'));
+        }
+
+        $plans = $query->orderBy('created_at', 'desc')->paginate(10);
+
+        // Get statistics
+        $stats = [
+            'total_plans' => SubscriptionPlan::count(),
+            'active_plans' => SubscriptionPlan::where('is_active', true)->count(),
+            'total_subscriptions' => Subscription::count(),
+            'active_subscriptions' => Subscription::where('status', 'active')->count(),
+            'monthly_revenue' => Subscription::where('status', 'active')
+                ->whereMonth('created_at', now()->month)
+                ->sum('amount_paid'),
+        ];
             
-        return Inertia::render('Admin/Subscriptions/Index', [
+        return Inertia::render('admin/subscriptions/index', [
             'plans' => $plans,
+            'stats' => $stats,
+            'filters' => $request->only(['search', 'status', 'billing_cycle']),
         ]);
     }
 
@@ -35,7 +70,7 @@ class SubscriptionPlanController extends Controller
      */
     public function create(): Response
     {
-        return Inertia::render('Admin/Subscriptions/Create');
+        return Inertia::render('admin/subscriptions/create');
     }
 
     /**
@@ -50,11 +85,22 @@ class SubscriptionPlanController extends Controller
             'price_dollar' => 'required|numeric|min:0',
             'billing_cycle' => ['required', Rule::in(['monthly', 'quarterly', 'biannually', 'annually'])],
             'duration_months' => 'required|integer|min:1',
-            'features' => 'nullable|array',
-            'tags' => 'nullable|array',
-            'is_active' => 'boolean',
+            'features' => 'nullable|string', // Changed from array to string
+            'tags' => 'nullable|string', // Changed from array to string
+            'is_active' => 'required|boolean',
             'image' => 'nullable|image|max:2048', // 2MB max
         ]);
+
+        // Parse JSON strings to arrays
+        if ($validated['features']) {
+            $validated['features'] = json_decode($validated['features'], true) ?: [];
+        }
+        if ($validated['tags']) {
+            $validated['tags'] = json_decode($validated['tags'], true) ?: [];
+        }
+
+        // Convert is_active to boolean
+        $validated['is_active'] = filter_var($validated['is_active'], FILTER_VALIDATE_BOOLEAN);
 
         // Handle image upload if provided
         if ($request->hasFile('image')) {
@@ -65,7 +111,7 @@ class SubscriptionPlanController extends Controller
         // Create the plan
         SubscriptionPlan::create($validated);
 
-        return redirect()->route('admin.subscriptions.index')
+        return redirect()->route('admin.subscription-plans.index')
             ->with('success', 'Subscription plan created successfully.');
     }
 
@@ -78,7 +124,7 @@ class SubscriptionPlanController extends Controller
             $query->with('user')->where('status', 'active');
         }]);
         
-        return Inertia::render('Admin/Subscriptions/Show', [
+        return Inertia::render('admin/subscriptions/show', [
             'plan' => $subscriptionPlan,
         ]);
     }
@@ -88,7 +134,7 @@ class SubscriptionPlanController extends Controller
      */
     public function edit(SubscriptionPlan $subscriptionPlan): Response
     {
-        return Inertia::render('Admin/Subscriptions/Edit', [
+        return Inertia::render('admin/subscriptions/edit', [
             'plan' => $subscriptionPlan,
         ]);
     }
@@ -105,11 +151,22 @@ class SubscriptionPlanController extends Controller
             'price_dollar' => 'required|numeric|min:0',
             'billing_cycle' => ['required', Rule::in(['monthly', 'quarterly', 'biannually', 'annually'])],
             'duration_months' => 'required|integer|min:1',
-            'features' => 'nullable|array',
-            'tags' => 'nullable|array',
-            'is_active' => 'boolean',
+            'features' => 'nullable|string', // Changed from array to string
+            'tags' => 'nullable|string', // Changed from array to string
+            'is_active' => 'required|boolean',
             'image' => 'nullable|image|max:2048', // 2MB max
         ]);
+
+        // Parse JSON strings to arrays
+        if ($validated['features']) {
+            $validated['features'] = json_decode($validated['features'], true) ?: [];
+        }
+        if ($validated['tags']) {
+            $validated['tags'] = json_decode($validated['tags'], true) ?: [];
+        }
+
+        // Convert is_active to boolean
+        $validated['is_active'] = filter_var($validated['is_active'], FILTER_VALIDATE_BOOLEAN);
 
         // Handle image upload if provided
         if ($request->hasFile('image')) {
@@ -125,7 +182,7 @@ class SubscriptionPlanController extends Controller
         // Update the plan
         $subscriptionPlan->update($validated);
 
-        return redirect()->route('admin.subscriptions.index')
+        return redirect()->route('admin.subscription-plans.index')
             ->with('success', 'Subscription plan updated successfully.');
     }
 
@@ -149,7 +206,7 @@ class SubscriptionPlanController extends Controller
         // Delete the plan
         $subscriptionPlan->delete();
 
-        return redirect()->route('admin.subscriptions.index')
+        return redirect()->route('admin.subscription-plans.index')
             ->with('success', 'Subscription plan deleted successfully.');
     }
     
@@ -189,7 +246,7 @@ class SubscriptionPlanController extends Controller
         
         $newPlan->save();
         
-        return redirect()->route('admin.subscriptions.edit', $newPlan)
+        return redirect()->route('admin.subscription-plans.edit', $newPlan)
             ->with('success', 'Subscription plan duplicated successfully.');
     }
     
@@ -203,7 +260,7 @@ class SubscriptionPlanController extends Controller
             ->where('status', 'active')
             ->paginate(15);
             
-        return Inertia::render('Admin/Subscriptions/EnrolledUsers', [
+        return Inertia::render('admin/subscriptions/enrolled-users', [
             'plan' => $subscriptionPlan,
             'subscriptions' => $subscriptions,
         ]);

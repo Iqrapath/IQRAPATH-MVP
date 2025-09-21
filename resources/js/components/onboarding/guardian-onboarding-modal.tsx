@@ -162,14 +162,7 @@ export default function GuardianOnboardingModal({ isOpen, onClose, user, guardia
                         <DialogTitle className="text-lg font-semibold text-gray-900">
                             Register Your Child for Quran Learning
                         </DialogTitle>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={onClose}
-                            className="h-6 w-6 p-0"
-                        >
-                            <X className="h-4 w-4" />
-                        </Button>
+                        
                     </div>
                     <p className="text-sm text-gray-600 mt-2">
                         As a Guardian, you can manage multiple children from one account. Add each child's learning preferences to personalize their experience.
@@ -246,21 +239,29 @@ export default function GuardianOnboardingModal({ isOpen, onClose, user, guardia
                                     <Label className="text-sm font-medium text-gray-700">
                                         Preferred Subjects
                                     </Label>
-                                    <div className="mt-3 grid grid-cols-3 gap-x-4 gap-y-3">
-                                        {availableSubjects.map((subject) => (
-                                            <div key={subject} className="flex items-center space-x-2">
-                                                <Checkbox
-                                                    id={`${index}-${subject}`}
-                                                    checked={child.preferred_subjects.includes(subject)}
-                                                    onCheckedChange={(checked) => handleSubjectChange(index, subject, checked as boolean)}
-                                                    className="data-[state=checked]:bg-gray-900 data-[state=checked]:border-gray-900"
-                                                />
-                                                <Label htmlFor={`${index}-${subject}`} className="text-sm text-gray-700 cursor-pointer">
-                                                    {subject}
-                                                </Label>
-                                            </div>
-                                        ))}
-                                    </div>
+                                    {availableSubjects.length > 0 ? (
+                                        <div className="mt-3 grid grid-cols-3 gap-x-4 gap-y-3">
+                                            {availableSubjects.map((subject) => (
+                                                <div key={subject} className="flex items-center space-x-2">
+                                                    <Checkbox
+                                                        id={`${index}-${subject}`}
+                                                        checked={child.preferred_subjects.includes(subject)}
+                                                        onCheckedChange={(checked) => handleSubjectChange(index, subject, checked as boolean)}
+                                                        className="data-[state=checked]:bg-gray-900 data-[state=checked]:border-gray-900"
+                                                    />
+                                                    <Label htmlFor={`${index}-${subject}`} className="text-sm text-gray-700 cursor-pointer">
+                                                        {subject}
+                                                    </Label>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="mt-3 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+                                            <p className="text-sm text-yellow-800">
+                                                No subjects are currently available in the system. Please contact an administrator to add subjects before completing registration.
+                                            </p>
+                                        </div>
+                                    )}
                                     {(errors as any)[`children.${index}.preferred_subjects`] && <span className="text-sm text-red-500">{(errors as any)[`children.${index}.preferred_subjects`]}</span>}
                                 </div>
 
@@ -337,11 +338,16 @@ export default function GuardianOnboardingModal({ isOpen, onClose, user, guardia
                     <div className="pt-4">
                         <Button
                             type="submit"
-                            disabled={processing}
-                            className="w-full bg-teal-600 hover:bg-teal-700 text-white py-3 rounded-lg font-medium"
+                            disabled={processing || availableSubjects.length === 0}
+                            className="w-full bg-teal-600 hover:bg-teal-700 text-white py-3 rounded-lg font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
                         >
-                            {processing ? 'Saving...' : 'Save and Continue'}
+                            {processing ? 'Saving...' : availableSubjects.length === 0 ? 'No Subjects Available' : 'Save and Continue'}
                         </Button>
+                        {availableSubjects.length === 0 && (
+                            <p className="text-xs text-red-500 mt-2 text-center">
+                                Cannot complete registration without available subjects
+                            </p>
+                        )}
                     </div>
                 </form>
             </DialogContent>

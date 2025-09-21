@@ -16,13 +16,15 @@ use Illuminate\Support\Facades\Route;
 
 // Admin subscription plan management
 Route::middleware(['auth', 'verified', 'role:super-admin'])->prefix('admin')->name('admin.')->group(function () {
-    Route::resource('subscriptions', SubscriptionPlanController::class);
-    Route::post('/subscriptions/{subscriptionPlan}/toggle-active', [SubscriptionPlanController::class, 'toggleActive'])
-        ->name('subscriptions.toggle-active');
-    Route::post('/subscriptions/{subscriptionPlan}/duplicate', [SubscriptionPlanController::class, 'duplicate'])
-        ->name('subscriptions.duplicate');
-    Route::get('/subscriptions/{subscriptionPlan}/enrolled-users', [SubscriptionPlanController::class, 'enrolledUsers'])
-        ->name('subscriptions.enrolled-users');
+    Route::resource('subscription-plans', SubscriptionPlanController::class)->parameters([
+    'subscription-plans' => 'subscriptionPlan'
+]);
+    Route::patch('/subscription-plans/{subscriptionPlan}/toggle-active', [SubscriptionPlanController::class, 'toggleActive'])
+        ->name('subscription-plans.toggle-active');
+    Route::post('/subscription-plans/{subscriptionPlan}/duplicate', [SubscriptionPlanController::class, 'duplicate'])
+        ->name('subscription-plans.duplicate');
+    Route::get('/subscription-plans/{subscriptionPlan}/enrolled-users', [SubscriptionPlanController::class, 'enrolledUsers'])
+        ->name('subscription-plans.enrolled-users');
 });
 
 // User subscription routes

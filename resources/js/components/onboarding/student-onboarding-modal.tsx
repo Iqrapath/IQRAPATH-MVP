@@ -1,7 +1,7 @@
 import { useForm } from '@inertiajs/react';
 import { FormEventHandler, useState } from 'react';
 import { type User, type StudentProfile } from '@/types';
-import { X, BookOpen, Target, Clock, Heart } from 'lucide-react';
+import { X, Target, Clock, Heart, BookIcon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -98,46 +98,64 @@ export default function StudentOnboardingModal({ isOpen, onClose, user, studentP
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader>
+            <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
+                <DialogHeader className="flex-shrink-0">
                     <div className="flex items-center justify-between">
                         <DialogTitle className="text-lg font-semibold flex items-center gap-2">
-                            <BookOpen className="w-5 h-5 text-teal-600" />
+                            <BookIcon className="w-5 h-5 text-teal-600" />
                             Quick Setup
                         </DialogTitle>
-                        <Button
+                        {/* <Button
                             variant="ghost"
                             size="sm"
                             onClick={onClose}
                             className="h-6 w-6 p-0"
                         >
                             <X className="h-4 w-4" />
-                        </Button>
+                        </Button> */}
                     </div>
                 </DialogHeader>
 
-                <form onSubmit={submit} className="space-y-4">
+                <div className="flex-1 overflow-y-auto">
+                    <form onSubmit={submit} className="space-y-4">
                     <div className="space-y-4">
                         {/* Preferred Subjects */}
                         <div className="grid gap-2">
                             <Label className="text-sm flex items-center gap-1">
-                                <BookOpen className="w-3 h-3" />
+                                <BookIcon className="w-3 h-3" />
                                 Subjects of Interest
+                                {availableSubjects.length === 0 && (
+                                    <span className="text-xs text-gray-500 ml-1">(Optional - No subjects available)</span>
+                                )}
                             </Label>
-                            <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
-                                {availableSubjects.map((subject) => (
-                                    <div key={subject} className="flex items-center space-x-2">
-                                        <Checkbox
-                                            id={`subject-${subject}`}
-                                            checked={data.preferred_subjects.includes(subject)}
-                                            onCheckedChange={(checked) => handleSubjectChange(subject, checked as boolean)}
-                                        />
-                                        <Label htmlFor={`subject-${subject}`} className="text-xs font-normal">
-                                            {subject}
-                                        </Label>
+                            {availableSubjects.length > 0 ? (
+                                <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-2">
+                                    {availableSubjects.map((subject) => (
+                                        <div key={subject} className="flex items-center space-x-2">
+                                            <Checkbox
+                                                id={`subject-${subject}`}
+                                                checked={data.preferred_subjects.includes(subject)}
+                                                onCheckedChange={(checked) => handleSubjectChange(subject, checked as boolean)}
+                                            />
+                                            <Label htmlFor={`subject-${subject}`} className="text-xs font-normal">
+                                                {subject}
+                                            </Label>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 text-center">
+                                    <div className="flex flex-col items-center gap-2">
+                                        <BookIcon className="w-8 h-8 text-yellow-500" />
+                                        <div>
+                                            <p className="text-sm font-medium text-yellow-800">No subjects available</p>
+                                            <p className="text-xs text-yellow-600 mt-1">
+                                                Subjects will be added by administrators soon. You can continue without selecting subjects.
+                                            </p>
+                                        </div>
                                     </div>
-                                ))}
-                            </div>
+                                </div>
+                            )}
                             {errors.preferred_subjects && <span className="text-sm text-red-500">{errors.preferred_subjects}</span>}
                         </div>
 
@@ -231,8 +249,11 @@ export default function StudentOnboardingModal({ isOpen, onClose, user, studentP
                             {errors.learning_goals && <span className="text-sm text-red-500">{errors.learning_goals}</span>}
                         </div>
                     </div>
+                    </form>
+                </div>
 
-                    <div className="flex gap-2 pt-2">
+                <div className="flex-shrink-0 border-t pt-4 mt-4">
+                    <div className="flex gap-2">
                         <Button
                             type="button"
                             variant="outline"
@@ -244,12 +265,13 @@ export default function StudentOnboardingModal({ isOpen, onClose, user, studentP
                         <Button
                             type="submit"
                             disabled={processing}
+                            onClick={submit}
                             className="flex-1 bg-teal-600 hover:bg-teal-700"
                         >
-                            {processing ? 'Saving...' : 'Get Started'}
+                            {processing ? 'Saving...' : availableSubjects.length === 0 ? 'Continue Without Subjects' : 'Get Started'}
                         </Button>
                     </div>
-                </form>
+                </div>
             </DialogContent>
         </Dialog>
     );

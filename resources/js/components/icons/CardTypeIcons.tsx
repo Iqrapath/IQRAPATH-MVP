@@ -1,6 +1,6 @@
 /**
  * 🎨 FIGMA REFERENCE
- * URL: https://www.figma.com/design/jmWnnfdCipxqiQF39Tdb0S/IQRAPATH?node-id=542-68353&t=O1w7ozri9pYud8IO-0
+ * URL: https://www.figma.com/design/jmWnnfdCipxqiQF39Tdb0S/IQRAQUEST?node-id=542-68353&t=O1w7ozri9pYud8IO-0
  * Export: Card type icons for payment interface
  * 
  * EXACT SPECS FROM FIGMA:

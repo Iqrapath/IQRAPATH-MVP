@@ -1,6 +1,6 @@
 /**
  * 🎨 FIGMA REFERENCE
- * URL: https://www.figma.com/design/jmWnnfdCipxqiQF39Tdb0S/IQRAPATH?node-id=1-2&p=f&t=fS4tJbWVmMTZgUnA-0
+ * URL: https://www.figma.com/design/jmWnnfdCipxqiQF39Tdb0S/IQRAQUEST?node-id=1-2&p=f&t=fS4tJbWVmMTZgUnA-0
  * Export: .cursor/design-references/guardian/guardian-header-layout.png
  * 
  * EXACT SPECS FROM FIGMA:

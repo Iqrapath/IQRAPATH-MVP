@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\PayoutRequest;
 use App\Models\Transaction;
 use App\Services\FinancialService;
+use App\Services\CurrencyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -13,10 +14,12 @@ use Inertia\Inertia;
 class FinancialController extends Controller
 {
     protected $financialService;
+    protected $currencyService;
 
-    public function __construct(FinancialService $financialService)
+    public function __construct(FinancialService $financialService, CurrencyService $currencyService)
     {
         $this->financialService = $financialService;
+        $this->currencyService = $currencyService;
     }
 
     /**
@@ -50,7 +53,9 @@ class FinancialController extends Controller
         $teacherProfile = $teacher->teacherProfile;
         $hourlyRateUSD = $teacherProfile?->hourly_rate_usd ?? 0;
         $hourlyRateNGN = $teacherProfile?->hourly_rate_ngn ?? 0;
-        $preferredCurrency = $teacherWallet->withdrawal_settings['preferred_currency'] ?? 'NGN';
+        
+        // Get preferred currency from teacher profile or platform default
+        $preferredCurrency = $this->currencyService->getTeacherPreferredCurrency($teacher->id);
         
         // HYBRID APPROACH: Use wallet data as primary source, sync with other tables
         $this->syncFinancialData($teacher, $teacherWallet);
@@ -152,30 +157,8 @@ class FinancialController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
         
-        // Get available currencies from actual transactions in the system
-        $usedCurrencies = \App\Models\UnifiedTransaction::select('currency')
-            ->distinct()
-            ->whereNotNull('currency')
-            ->pluck('currency')
-            ->toArray();
-        
-        // Add default currencies if none exist in transactions
-        $defaultCurrencies = ['NGN', 'USD'];
-        $allCurrencies = array_unique(array_merge($usedCurrencies, $defaultCurrencies));
-        
-        $availableCurrencies = collect($allCurrencies)->map(function ($currency) {
-            $currencyLabels = [
-                'NGN' => 'NGN - Nigerian Naira',
-                'USD' => 'USD - US Dollar',
-                'EUR' => 'EUR - Euro',
-                'GBP' => 'GBP - British Pound',
-            ];
-            
-            return [
-                'value' => $currency,
-                'label' => $currencyLabels[$currency] ?? $currency
-            ];
-        })->toArray();
+        // Get available currencies from CurrencyService
+        $availableCurrencies = $this->currencyService->getAvailableCurrencies();
 
         // Get teacher's payment methods
         $paymentMethods = $teacher->paymentMethods()

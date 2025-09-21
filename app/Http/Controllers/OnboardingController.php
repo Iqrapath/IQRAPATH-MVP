@@ -30,6 +30,51 @@ class OnboardingController extends Controller
         private UnifiedWalletService $walletService
     ) {}
     /**
+     * Show the role selection onboarding page for OAuth users.
+     */
+    public function roleSelection(Request $request): Response|RedirectResponse
+    {
+        $user = $request->user();
+        
+        // If user already has a role, redirect to appropriate dashboard
+        if ($user->role !== null && $user->role !== 'unassigned') {
+            return $this->redirectToDashboard($user->role);
+        }
+
+        return Inertia::render('onboarding/role-selection', [
+            'user' => $user,
+        ]);
+    }
+
+    /**
+     * Handle role selection for OAuth users.
+     */
+    public function storeRoleSelection(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'role' => 'required|in:student,guardian',
+        ]);
+
+        $user = $request->user();
+        $role = $request->input('role');
+
+        return DB::transaction(function () use ($user, $role) {
+            // Update user role
+            $user->update(['role' => $role]);
+
+            // Create appropriate profile and wallet
+            $this->createUserProfileAndWallet($user, $role);
+
+            // Redirect to appropriate onboarding
+            return match ($role) {
+                'student' => redirect()->route('onboarding.student'),
+                'guardian' => redirect()->route('onboarding.guardian'),
+                default => redirect()->route('onboarding.role-selection'),
+            };
+        });
+    }
+
+    /**
      * Show the role selection onboarding page.
      */
     public function index(Request $request): Response|RedirectResponse
@@ -83,9 +128,14 @@ class OnboardingController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
+        // Get available currencies from CurrencyService
+        $currencyService = app(\App\Services\CurrencyService::class);
+        $availableCurrencies = $currencyService->getAvailableCurrencies();
+
         return Inertia::render('onboarding/teacher', [
             'user' => $user,
             'subjects' => $subjects,
+            'availableCurrencies' => $availableCurrencies,
         ]);
     }
 
@@ -172,7 +222,7 @@ class OnboardingController extends Controller
     public function storeStudent(Request $request): RedirectResponse
     {
         $request->validate([
-            'preferred_subjects' => 'required|array|min:1',
+            'preferred_subjects' => 'nullable|array',
             'preferred_subjects.*' => 'string|exists:subject_templates,name',
             'preferred_learning_times' => 'required|array',
             'preferred_learning_times.*.enabled' => 'boolean',
@@ -189,7 +239,7 @@ class OnboardingController extends Controller
             $user->studentProfile()->updateOrCreate([
                 'user_id' => $user->id
             ], [
-                'subjects_of_interest' => $request->preferred_subjects,
+                'subjects_of_interest' => $request->preferred_subjects ?? [],
                 'grade_level' => $request->current_level,
                 'learning_goals' => $request->learning_goals,
                 'status' => 'active',
@@ -389,34 +439,74 @@ class OnboardingController extends Controller
         // Map teaching mode to availability type
         $availabilityType = $teachingMode === 'full-time' ? 'Full-Time' : 'Part-Time';
 
-        // Map day names to numbers (0=Sunday, 1=Monday, etc.)
+        // Map day names to proper format and numeric values
         $dayMapping = [
-            'sunday' => 0,
-            'monday' => 1,
-            'tuesday' => 2,
-            'wednesday' => 3,
-            'thursday' => 4,
-            'friday' => 5,
-            'saturday' => 6,
+            'sunday' => ['name' => 'Sunday', 'number' => 0],
+            'monday' => ['name' => 'Monday', 'number' => 1],
+            'tuesday' => ['name' => 'Tuesday', 'number' => 2],
+            'wednesday' => ['name' => 'Wednesday', 'number' => 3],
+            'thursday' => ['name' => 'Thursday', 'number' => 4],
+            'friday' => ['name' => 'Friday', 'number' => 5],
+            'saturday' => ['name' => 'Saturday', 'number' => 6],
         ];
 
-        // Create availability entries for each enabled day
+        $availableDays = [];
+        $daySchedules = [];
+
+        // Process availability for each day
         foreach ($availability as $dayName => $schedule) {
             if (isset($schedule['enabled']) && $schedule['enabled'] && 
                 !empty($schedule['from']) && !empty($schedule['to']) &&
                 isset($dayMapping[$dayName])) {
                 
+                $dayInfo = $dayMapping[$dayName];
+                $dayNameFormatted = $dayInfo['name'];
+                $dayNumber = $dayInfo['number'];
+                
+                $availableDays[] = $dayNameFormatted;
+                
+                $daySchedules[] = [
+                    'day' => $dayNameFormatted,
+                    'enabled' => true,
+                    'fromTime' => $schedule['from'],
+                    'toTime' => $schedule['to']
+                ];
+
+                // Create individual record for backward compatibility
                 TeacherAvailability::create([
                     'teacher_id' => $teacherId,
-                    'day_of_week' => $dayMapping[$dayName],
-                    'start_time' => $schedule['from'] . ':00', // Add seconds
-                    'end_time' => $schedule['to'] . ':00',     // Add seconds
+                    'holiday_mode' => false,
                     'is_active' => true,
+                    'day_of_week' => $dayNumber,
+                    'start_time' => $schedule['from'] . ':00',
+                    'end_time' => $schedule['to'] . ':00',
                     'time_zone' => $timezone,
-                    'availability_type' => $availabilityType, // Now correctly mapped
+                    'availability_type' => $availabilityType,
                 ]);
+            } else {
+                // Add disabled day to schedules
+                $dayInfo = $dayMapping[$dayName];
+                $dayNameFormatted = $dayInfo['name'];
+                
+                $daySchedules[] = [
+                    'day' => $dayNameFormatted,
+                    'enabled' => false,
+                    'fromTime' => '09:00',
+                    'toTime' => '17:00'
+                ];
             }
         }
+
+        // Create main availability record with new format data
+        TeacherAvailability::create([
+            'teacher_id' => $teacherId,
+            'holiday_mode' => false,
+            'is_active' => true,
+            'available_days' => $availableDays, // Will be automatically cast to JSON by the model
+            'day_schedules' => $daySchedules,   // Will be automatically cast to JSON by the model
+            'time_zone' => $timezone,
+            'availability_type' => $availabilityType,
+        ]);
     }
 
     /**
@@ -533,16 +623,34 @@ class OnboardingController extends Controller
     private function saveStep3(Request $request, User $user): \Illuminate\Http\JsonResponse
     {
         $request->validate([
-            'timezone' => 'nullable|string|max:50',
-            'teaching_mode' => 'nullable|string|in:full-time,part-time',
-            'availability' => 'nullable|string', // JSON string
+            'timezone' => 'required|string|max:50',
+            'teaching_mode' => 'required|string|in:full-time,part-time',
+            'availability' => 'required|string', // JSON string
         ]);
 
         try {
-            DB::transaction(function () use ($request, $user) {
-                // Decode availability JSON
-                $availability = json_decode($request->availability, true) ?: [];
-                
+            // Decode availability JSON
+            $availability = json_decode($request->availability, true) ?: [];
+            
+            // Validate that at least one day is enabled
+            $hasEnabledDay = false;
+            foreach ($availability as $dayName => $schedule) {
+                if (isset($schedule['enabled']) && $schedule['enabled'] && 
+                    !empty($schedule['from']) && !empty($schedule['to'])) {
+                    $hasEnabledDay = true;
+                    break;
+                }
+            }
+            
+            if (!$hasEnabledDay) {
+                return response()->json([
+                    'success' => false, 
+                    'message' => 'Please select at least one day and set your available hours to continue.',
+                    'errors' => ['availability' => ['You must select at least one day with available hours.']]
+                ], 422);
+            }
+
+            DB::transaction(function () use ($request, $user, $availability) {
                 // Update teacher profile with teaching mode
                 $teacherProfile = $user->teacherProfile()->first();
                 if ($teacherProfile) {
@@ -568,16 +676,25 @@ class OnboardingController extends Controller
     private function saveStep4(Request $request, User $user): \Illuminate\Http\JsonResponse
     {
         $request->validate([
-            'currency' => 'required|string|in:naira,dollar',
-            'hourly_rate' => 'required|numeric|min:1',
+            'preferred_currency' => 'required|string|in:NGN,USD,EUR,GBP',
+            'hourly_rate_usd' => 'nullable|numeric|min:0|max:1000',
+            'hourly_rate_ngn' => 'nullable|numeric|min:0|max:1000000',
             'withdrawal_method' => 'required|string|in:bank_transfer,paystack,stripe',
             
             // Bank transfer fields (conditional)
             'bank_name' => 'required_if:withdrawal_method,bank_transfer|nullable|string|max:255',
             'custom_bank_name' => 'required_if:bank_name,other|nullable|string|max:255',
-            'account_number' => 'required_if:withdrawal_method,bank_transfer|nullable|string|max:20',
+            'account_number' => 'required_if:withdrawal_method,bank_transfer|nullable|string|max:50',
             'account_name' => 'required_if:withdrawal_method,bank_transfer|nullable|string|max:255',
         ]);
+
+        // Custom validation: At least one hourly rate must be provided
+        if (empty($request->hourly_rate_usd) && empty($request->hourly_rate_ngn)) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Please provide at least one hourly rate (USD or NGN).'
+            ], 422);
+        }
 
         try {
             DB::transaction(function () use ($request, $user) {
@@ -585,8 +702,9 @@ class OnboardingController extends Controller
                 $teacherProfile = $user->teacherProfile()->first();
                 if ($teacherProfile) {
                     $teacherProfile->update([
-                        'hourly_rate_usd' => $request->currency === 'dollar' ? $request->hourly_rate : null,
-                        'hourly_rate_ngn' => $request->currency === 'naira' ? $request->hourly_rate : null,
+                        'preferred_currency' => $request->preferred_currency,
+                        'hourly_rate_usd' => $request->hourly_rate_usd,
+                        'hourly_rate_ngn' => $request->hourly_rate_ngn,
                     ]);
                 }
 
@@ -629,7 +747,7 @@ class OnboardingController extends Controller
 
                 $withdrawalSettings = [
                     'preferred_method' => $request->withdrawal_method,
-                    'currency' => $request->currency,
+                    'preferred_currency' => $request->preferred_currency,
                 ];
 
                 // Create or update teacher wallet
@@ -652,7 +770,7 @@ class OnboardingController extends Controller
                     'user_id' => $user->id,
                     'wallet_id' => $wallet->id,
                     'withdrawal_method' => $request->withdrawal_method,
-                    'currency' => $request->currency,
+                    'preferred_currency' => $request->preferred_currency,
                 ]);
             });
 
@@ -670,5 +788,100 @@ class OnboardingController extends Controller
                 'message' => 'Error setting up payment preferences: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Create user profile and wallet based on role
+     */
+    public function createUserProfileAndWallet(User $user, string $role): void
+    {
+        match ($role) {
+            'student' => $this->createStudentProfileAndWallet($user),
+            'guardian' => $this->createGuardianProfileAndWallet($user),
+            'teacher' => $this->createTeacherProfileAndWallet($user),
+            default => null,
+        };
+    }
+
+    /**
+     * Create student profile and wallet
+     */
+    private function createStudentProfileAndWallet(User $user): void
+    {
+        // Create student profile
+        StudentProfile::create([
+            'user_id' => $user->id,
+            'date_of_birth' => null,
+            'grade_level' => null,
+            'school_name' => null,
+            'learning_goals' => null,
+            'subjects_of_interest' => [],
+            'preferred_learning_style' => null,
+            'availability' => [],
+            'parent_guardian_name' => null,
+            'parent_guardian_phone' => null,
+            'parent_guardian_email' => null,
+            'emergency_contact_name' => null,
+            'emergency_contact_phone' => null,
+            'emergency_contact_relationship' => null,
+            'medical_conditions' => null,
+            'allergies' => null,
+            'special_instructions' => null,
+        ]);
+
+        // Create student wallet
+        $this->walletService->createStudentWallet($user);
+    }
+
+    /**
+     * Create guardian profile and wallet
+     */
+    private function createGuardianProfileAndWallet(User $user): void
+    {
+        // Create guardian profile
+        GuardianProfile::create([
+            'user_id' => $user->id,
+            'relationship_to_students' => null,
+            'emergency_contact_name' => null,
+            'emergency_contact_phone' => null,
+            'emergency_contact_relationship' => null,
+            'preferred_communication_method' => 'email',
+            'communication_preferences' => [],
+            'notification_preferences' => [],
+        ]);
+
+        // Create guardian wallet
+        $this->walletService->createGuardianWallet($user);
+    }
+
+    /**
+     * Create teacher profile and wallet
+     */
+    private function createTeacherProfileAndWallet(User $user): void
+    {
+        // Create teacher profile
+        TeacherProfile::create([
+            'user_id' => $user->id,
+            'status' => 'pending_verification',
+            'bio' => '',
+            'specializations' => [],
+            'languages' => [],
+            'hourly_rate' => 0,
+            'availability' => [],
+            'teaching_experience' => null,
+            'education_background' => null,
+            'certifications' => [],
+            'teaching_philosophy' => null,
+            'video_introduction_url' => null,
+            'sample_lesson_url' => null,
+            'references' => [],
+            'bank_account_details' => null,
+            'tax_information' => null,
+            'withdrawal_settings' => [],
+            'payment_methods' => [],
+        ]);
+
+        // Create teacher wallet
+        $this->walletService->createTeacherWallet($user);
     }
 }

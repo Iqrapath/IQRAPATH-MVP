@@ -3,9 +3,9 @@
  * 
  * Component: MyBookings (Main Page)
  * Figma URLs: 
- * - Upcoming: https://www.figma.com/design/jmWnnfdCipxqiQF39Tdb0S/IQRAPATH?node-id=409-26933&t=m6ohX2RrycH79wFY-0
- * - Ongoing: https://www.figma.com/design/jmWnnfdCipxqiQF39Tdb0S/IQRAPATH?node-id=411-27985&t=m6ohX2RrycH79wFY-0
- * - Completed: https://www.figma.com/design/jmWnnfdCipxqiQF39Tdb0S/IQRAPATH?node-id=412-28472&t=m6ohX2RrycH79wFY-0
+ * - Upcoming: https://www.figma.com/design/jmWnnfdCipxqiQF39Tdb0S/IQRAQUEST?node-id=409-26933&t=m6ohX2RrycH79wFY-0
+ * - Ongoing: https://www.figma.com/design/jmWnnfdCipxqiQF39Tdb0S/IQRAQUEST?node-id=411-27985&t=m6ohX2RrycH79wFY-0
+ * - Completed: https://www.figma.com/design/jmWnnfdCipxqiQF39Tdb0S/IQRAQUEST?node-id=412-28472&t=m6ohX2RrycH79wFY-0
  * Export: .cursor/design-references/student/my-bookings/
  * 
  * 📏 EXACT SPECIFICATIONS:

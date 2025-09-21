@@ -37,6 +37,16 @@ interface Child {
     };
 }
 
+interface Notification {
+    id: string;
+    sender: string;
+    message: string;
+    timestamp: string;
+    avatar?: string | null;
+    type: string;
+    is_read: boolean;
+}
+
 interface GuardianDashboardProps {
     guardianProfile: GuardianProfile;
     children: Child[];
@@ -87,16 +97,17 @@ interface GuardianDashboardProps {
         price: string;
         avatarUrl: string;
     }>;
+    notifications: Notification[];
     availableSubjects: string[];
     showOnboarding?: boolean;
 }
 
-export default function GuardianDashboard({ guardianProfile, children, students, stats, overviewData, upcomingClasses, learningProgressData, topRatedTeachers, availableSubjects, showOnboarding = false }: GuardianDashboardProps) {
+export default function GuardianDashboard({ guardianProfile, children, students, stats, overviewData, upcomingClasses, learningProgressData, topRatedTeachers, notifications, availableSubjects, showOnboarding = false }: GuardianDashboardProps) {
     const { auth } = usePage<SharedData>().props;
     const [isOnboardingOpen, setIsOnboardingOpen] = useState(showOnboarding);
     
     return (
-        <GuardianLayout pageTitle="Guardian Dashboard">
+        <GuardianLayout pageTitle="Guardian Dashboard" notifications={notifications}>
             <Head title="Guardian Dashboard" />
             
             <div className="min-h-screen">
@@ -158,7 +169,7 @@ export default function GuardianDashboard({ guardianProfile, children, students,
                     </div>
 
                     {/* Top rated teachers */}
-                    <div className="mt-6 md:mt-8 mb-12">
+                    <div className="mt-6 md:mt-8">
                         <TopRatedTeachers teachers={topRatedTeachers} />
                     </div>
                 </div>

@@ -21,8 +21,8 @@ export default function Navigation({ auth }: NavigationProps) {
             <Link href="/">
               <div className="flex items-center">
                 <img
-                  src="assets/images/logo/IqraPath-logo.png"
-                  alt="IqraPath"
+                  src="assets/images/logo/IqraQuest-logo.png"
+                  alt="IqraQuest"
                   className="h-20 w-auto"
                 />
               </div>
@@ -90,18 +90,18 @@ export default function Navigation({ auth }: NavigationProps) {
             {auth?.user ? (
               <Link
                 href="/dashboard"
-                className="text-[#2F8D8C] hover:text-[#2F8D8C] px-3 py-2 text-sm font-medium"
+                className="border border-[#2F8D8C] hover:border-[#2F8D8C] hover:text-[#2F8D8C] text-gray-600 rounded-full px-5 py-2 text-base w-full text-center"
               >
                 Dashboard
               </Link>
             ) : (
               <>
-                <Link
+                {/* <Link
                   href="/register"
                   className="bg-[#2F8D8C] hover:bg-[#267373] text-white rounded-full px-4 lg:px-5 py-2 text-sm font-medium whitespace-nowrap"
                 >
                   Sign up
-                </Link>
+                </Link> */}
                 <Link
                   href="/login"
                   className="border border-[#2F8D8C] hover:border-[#2F8D8C] hover:text-[#2F8D8C] text-[#2F8D8C] rounded-full px-4 lg:px-5 py-2 text-sm whitespace-nowrap"
@@ -199,20 +199,20 @@ export default function Navigation({ auth }: NavigationProps) {
               {auth?.user ? (
                 <Link
                   href="/dashboard"
-                  className="text-[#2F8D8C] hover:text-[#2F8D8C] px-3 py-2 text-base font-medium"
+                  className="border border-[#2F8D8C] hover:border-[#2F8D8C] hover:text-[#2F8D8C] text-gray-600 rounded-full px-5 py-2 text-base w-full text-center"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Dashboard
                 </Link>
               ) : (
                 <>
-                  <Link
+                  {/* <Link
                     href="/register"
                     className="bg-[#2F8D8C] hover:bg-[#267373] text-white rounded-full px-5 py-2 text-base font-medium w-full text-center"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Sign up
-                  </Link>
+                  </Link> */}
                   <Link
                     href="/login"
                     className="border border-[#2F8D8C] hover:border-[#2F8D8C] hover:text-[#2F8D8C] text-gray-600 rounded-full px-5 py-2 text-base w-full text-center"

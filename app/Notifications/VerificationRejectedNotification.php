@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Notifications;
 
 use App\Models\VerificationRequest;
@@ -7,45 +9,31 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
-use Illuminate\Notifications\Messages\BroadcastMessage;
 
-class VerificationRejectedNotification extends Notification implements ShouldQueue, ShouldBroadcast
+class VerificationRejectedNotification extends Notification
 {
     use Queueable;
 
-    protected VerificationRequest $verificationRequest;
-    protected string $rejectionReason;
+    public function __construct(
+        private VerificationRequest $verificationRequest,
+        private string $rejectionReason
+    ) {}
 
-    /**
-     * Create a new notification instance.
-     */
-    public function __construct(VerificationRequest $verificationRequest, string $rejectionReason)
+    public function via($notifiable): array
     {
-        $this->verificationRequest = $verificationRequest;
-        $this->rejectionReason = $rejectionReason;
+        return ['mail', 'database'];
     }
 
-    /**
-     * Get the notification's delivery channels.
-     *
-     * @return array<int, string>
-     */
-    public function via(object $notifiable): array
+    public function toMail($notifiable): MailMessage
     {
-        return ['database', 'mail', 'broadcast'];
-    }
-
-    /**
-     * Get the mail representation of the notification.
-     */
-    public function toMail(object $notifiable): MailMessage
-    {
-        $reviewDate = now()->format('l, F j, Y');
+        $teacher = $this->verificationRequest->teacherProfile->user;
+        $reviewDate = $this->verificationRequest->updated_at ? 
+            $this->verificationRequest->updated_at->format('F j, Y \a\t g:i A') : 
+            now()->format('F j, Y \a\t g:i A');
         
         return (new MailMessage)
             ->subject('Verification Application Update - Action Required')
-            ->markdown('emails.verification-rejected', [
+            ->view('emails.verification-rejected', [
                 'notifiable' => $notifiable,
                 'verificationRequest' => $this->verificationRequest,
                 'rejectionReason' => $this->rejectionReason,
@@ -53,29 +41,18 @@ class VerificationRejectedNotification extends Notification implements ShouldQue
             ]);
     }
 
-    /**
-     * Get the array representation of the notification.
-     *
-     * @return array<string, mixed>
-     */
-    public function toArray(object $notifiable): array
+    public function toDatabase($notifiable): array
     {
         return [
-            'title' => 'Verification Update',
-            'message' => 'Your teacher verification application has been reviewed.',
-            'rejection_reason' => $this->rejectionReason,
-            'action_text' => null,
-            'action_url' => null,
+            'type' => 'verification_rejected',
+            'title' => 'Teacher Verification Rejected',
+            'message' => 'Your teacher verification has been rejected. Please review the feedback and resubmit your application.',
             'verification_request_id' => $this->verificationRequest->id,
-            'rejected_at' => now()->toIso8601String(),
+            'teacher_id' => $this->verificationRequest->teacherProfile->user_id,
+            'rejection_reason' => $this->rejectionReason,
+            'action_url' => route('teacher.profile.edit'),
+            'icon' => 'x-circle',
+            'color' => 'error',
         ];
-    }
-
-    /**
-     * Get the broadcastable representation of the notification.
-     */
-    public function toBroadcast(object $notifiable): BroadcastMessage
-    {
-        return new BroadcastMessage($this->toArray($notifiable));
     }
 }

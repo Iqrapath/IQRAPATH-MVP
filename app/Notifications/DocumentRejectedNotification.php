@@ -1,109 +1,96 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Notifications;
 
-use App\Models\Document;
+use App\Models\TeacherDocument;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
-use Illuminate\Notifications\Messages\BroadcastMessage;
 
-class DocumentRejectedNotification extends Notification implements ShouldQueue, ShouldBroadcast
+class DocumentRejectedNotification extends Notification
 {
     use Queueable;
 
-    protected Document $document;
-    protected string $rejectionReason;
-    protected ?string $resubmissionInstructions;
+    public function __construct(
+        private TeacherDocument $document,
+        private ?string $rejectionReason = null
+    ) {}
 
-    /**
-     * Create a new notification instance.
-     */
-    public function __construct(Document $document, string $rejectionReason, ?string $resubmissionInstructions = null)
+    public function via($notifiable): array
     {
-        $this->document = $document;
-        $this->rejectionReason = $rejectionReason;
-        $this->resubmissionInstructions = $resubmissionInstructions;
+        return ['mail', 'database'];
     }
 
-    /**
-     * Get the notification's delivery channels.
-     *
-     * @return array<int, string>
-     */
-    public function via(object $notifiable): array
+    public function toMail($notifiable): MailMessage
     {
-        return ['database', 'mail', 'broadcast'];
-    }
-
-    /**
-     * Get the mail representation of the notification.
-     */
-    public function toMail(object $notifiable): MailMessage
-    {
-        $documentType = $this->getDocumentTypeLabel($this->document->type);
-        $reviewedDate = $this->document->verified_at->format('l, F j, Y \a\t g:i A');
-        $remainingAttempts = $this->document->getRemainingResubmissions();
-        $maxAttempts = $this->document->max_resubmissions;
+        $teacher = $this->document->teacherProfile->user;
+        $isForTeacher = $notifiable->id === $teacher->id;
         
-        return (new MailMessage)
-            ->subject('Document Review Complete - Resubmission Needed')
-            ->markdown('emails.document-rejected', [
-                'notifiable' => $notifiable,
-                'document' => $this->document,
-                'documentType' => $documentType,
-                'rejectionReason' => $this->rejectionReason,
-                'resubmissionInstructions' => $this->resubmissionInstructions,
-                'reviewedDate' => $reviewedDate,
-                'remainingAttempts' => $remainingAttempts,
-                'maxAttempts' => $maxAttempts,
-            ]);
+        if ($isForTeacher) {
+            $documentType = ucfirst(str_replace('_', ' ', $this->document->type));
+            $reviewedDate = $this->document->updated_at ? 
+                $this->document->updated_at->format('F j, Y \a\t g:i A') : 
+                now()->format('F j, Y \a\t g:i A');
+            
+            // Set default values for template
+            $maxAttempts = 3;
+            $remainingAttempts = 2; // This should be calculated based on actual attempts
+            
+            return (new MailMessage)
+                ->subject('Document Review Complete - Resubmission Needed')
+                ->view('emails.document-rejected', [
+                    'notifiable' => $notifiable,
+                    'document' => $this->document,
+                    'documentType' => $documentType,
+                    'rejectionReason' => $this->rejectionReason ?? 'The document does not meet our quality or authenticity requirements.',
+                    'reviewedDate' => $reviewedDate,
+                    'resubmissionInstructions' => 'Please ensure the document is clear, complete, and in the correct format (PDF, JPG, PNG).',
+                    'maxAttempts' => $maxAttempts,
+                    'remainingAttempts' => $remainingAttempts,
+                ]);
+        } else {
+            // Admin notification - keep simple for now
+            return (new MailMessage)
+                ->subject('Document Rejected - ' . $teacher->name)
+                ->greeting('Admin Notification')
+                ->line('A document has been rejected for teacher verification.')
+                ->line('**Teacher Details:**')
+                ->line('• Name: ' . $teacher->name)
+                ->line('• Email: ' . $teacher->email)
+                ->line('**Document Details:**')
+                ->line('• Type: ' . ucfirst(str_replace('_', ' ', $this->document->type)))
+                ->line('• Name: ' . $this->document->name)
+                ->line('• Rejected by: ' . ($this->document->verifiedBy->name ?? 'System'))
+                ->line('• Rejection reason: ' . ($this->rejectionReason ?? 'Not specified'))
+                ->action('View Verification', route('admin.verification.show', $this->document->teacherProfile->verificationRequest))
+                ->salutation('IQRAQUEST Admin System');
+        }
     }
 
-    /**
-     * Get the array representation of the notification.
-     *
-     * @return array<string, mixed>
-     */
-    public function toArray(object $notifiable): array
+    public function toDatabase($notifiable): array
     {
+        $teacher = $this->document->teacherProfile->user;
+        $isForTeacher = $notifiable->id === $teacher->id;
+        
         return [
-            'title' => '❌ Document Update',
-            'message' => 'Your document "' . $this->document->name . '" needs to be resubmitted.',
+            'type' => 'document_rejected',
+            'title' => $isForTeacher ? 'Document Rejected' : 'Document Rejected',
+            'message' => $isForTeacher 
+                ? 'Your ' . str_replace('_', ' ', $this->document->type) . ' has been rejected. Please upload a new document.'
+                : 'Document rejected for ' . $teacher->name,
             'document_id' => $this->document->id,
-            'document_name' => $this->document->name,
+            'teacher_id' => $this->document->teacherProfile->user_id,
             'document_type' => $this->document->type,
-            'document_type_label' => $this->getDocumentTypeLabel($this->document->type),
             'rejection_reason' => $this->rejectionReason,
-            'resubmission_instructions' => $this->resubmissionInstructions,
-            'remaining_attempts' => $this->document->getRemainingResubmissions(),
-            'max_attempts' => $this->document->max_resubmissions,
-            'reviewed_at' => $this->document->verified_at->toIso8601String(),
-            'action_text' => null,
-            'action_url' => null,
+            'rejected_by' => $this->document->verified_by,
+            'action_url' => $isForTeacher 
+                ? route('teacher.documents')
+                : route('admin.verification.show', $this->document->teacherProfile->verificationRequest),
+            'icon' => 'x-circle',
+            'color' => 'error',
         ];
-    }
-
-    /**
-     * Get the broadcastable representation of the notification.
-     */
-    public function toBroadcast(object $notifiable): BroadcastMessage
-    {
-        return new BroadcastMessage($this->toArray($notifiable));
-    }
-
-    /**
-     * Get document type label for display.
-     */
-    private function getDocumentTypeLabel(string $type): string
-    {
-        return match ($type) {
-            'id_verification' => 'Identity Verification',
-            'certificate' => 'Certificate/Qualification',
-            'resume' => 'Resume/CV',
-            default => ucfirst(str_replace('_', ' ', $type)),
-        };
     }
 }

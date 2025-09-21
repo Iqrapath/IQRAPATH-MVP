@@ -3,14 +3,11 @@
 namespace App\Notifications;
 
 use App\Models\Transaction;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class PaymentNotification extends Notification implements ShouldQueue
+class PaymentNotification extends Notification
 {
-    use Queueable;
 
     protected Transaction $transaction;
     protected string $title;

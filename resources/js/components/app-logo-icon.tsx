@@ -7,8 +7,8 @@ interface AppLogoIconProps extends HTMLAttributes<HTMLImageElement> {
 export default function AppLogoIcon({ className, ...props }: AppLogoIconProps) {
   return (
     <img 
-      src="/assets/images/logo/IqraPath-logo.png" 
-      alt="IqraPath Logo"
+      src="/assets/images/logo/IqraQuest-logo.png" 
+      alt="IqraQuest Logo"
       className={className}
       {...props}
     />

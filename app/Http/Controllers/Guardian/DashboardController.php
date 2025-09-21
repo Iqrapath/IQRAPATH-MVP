@@ -8,6 +8,8 @@ use App\Models\StudentProfile;
 use App\Models\StudentLearningProgress;
 use App\Models\SubjectTemplates;
 use App\Models\TeacherProfile;
+use App\Models\TeachingSession;
+use App\Models\SessionProgress;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -22,6 +24,21 @@ class DashboardController extends Controller
     public function index(Request $request): Response
     {
         $user = $request->user();
+        
+        // Ensure guardian wallet exists
+        if (!$user->guardianWallet) {
+            $user->guardianWallet()->create([
+                'balance' => 0,
+                'total_spent_on_children' => 0,
+                'total_refunded' => 0,
+                'auto_fund_children' => false,
+                'auto_fund_threshold' => 0,
+                'family_spending_limits' => [],
+                'child_allowances' => []
+            ]);
+        }
+        
+        $user = $user->load('guardianWallet');
         $guardianProfile = $user->guardianProfile;
         
         // Get children profiles (student profiles managed by this guardian)
@@ -95,6 +112,25 @@ class DashboardController extends Controller
         // Get top rated teachers recommended for this guardian
         $topRatedTeachers = $this->getTopRatedTeachers($guardianStudentIds);
         
+        // Get recent notifications for the guardian
+        $notifications = \App\Models\Notification::where('notifiable_type', \App\Models\User::class)
+            ->where('notifiable_id', $user->id)
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get()
+            ->map(function ($notification) {
+                $data = $notification->data ?? [];
+                return [
+                    'id' => $notification->id,
+                    'sender' => $data['teacher_name'] ?? $data['sender'] ?? 'System Update',
+                    'message' => $data['message'] ?? $data['body'] ?? 'No message',
+                    'timestamp' => $notification->created_at->diffForHumans(),
+                    'avatar' => $data['teacher_avatar'] ?? null,
+                    'type' => $data['level'] ?? 'info',
+                    'is_read' => $notification->read_at !== null,
+                ];
+            });
+
         return Inertia::render('guardian/dashboard', [
             'guardianProfile' => $guardianProfile,
             'children' => $children,
@@ -104,6 +140,7 @@ class DashboardController extends Controller
             'upcomingClasses' => $upcomingClasses,
             'learningProgressData' => $learningProgressData,
             'topRatedTeachers' => $topRatedTeachers,
+            'notifications' => $notifications,
             'availableSubjects' => SubjectTemplates::where('is_active', true)
                                                   ->orderBy('name')
                                                   ->pluck('name')
@@ -133,7 +170,7 @@ class DashboardController extends Controller
             ->map(function ($child) {
                 $subjects = $child->subjects_of_interest ?? [];
                 return [
-                    'id' => $child->id,
+                    'id' => $child->user->id, // Use User ID, not StudentProfile ID
                     'name' => $child->user?->name,
                     'age' => $child->age_group,
                     'status' => $child->status ?? 'active',
@@ -248,21 +285,79 @@ class DashboardController extends Controller
     }
 
     /**
+     * Refresh progress data for a child (API endpoint)
+     */
+    public function refreshProgress(Request $request, $childId)
+    {
+        $user = $request->user();
+        
+        // Verify the child belongs to this guardian
+        $child = StudentProfile::where('id', $childId)
+            ->where('guardian_id', $user->id)
+            ->with(['user'])
+            ->firstOrFail();
+
+        // Get updated progress data
+        $weeklyProgress = $this->getWeeklyProgress($child->user_id);
+        $attendanceStats = $this->calculateAttendanceStats($child->user_id);
+
+        $progressData = [
+            'childName' => $child->user->name,
+            'weeklyProgress' => $weeklyProgress,
+            'weeklyAttendanceData' => $this->getWeeklyAttendanceData($child->user_id),
+            'totalSessions' => $attendanceStats['total'],
+            'attendedSessions' => $attendanceStats['attended'],
+            'missedSessions' => $attendanceStats['missed'],
+            'attendanceRate' => $attendanceStats['rate'],
+            'upcomingGoal' => $this->getUpcomingGoal($child->user_id),
+            'learningProgress' => $this->getLearningProgress($child->user_id),
+        ];
+
+        return response()->json([
+            'success' => true,
+            'data' => $progressData,
+            'lastUpdated' => now()->toISOString()
+        ]);
+    }
+
+    /**
      * Get weekly progress for a child
      */
     private function getWeeklyProgress(int $userId): array
     {
-        // This would typically query actual session/attendance data
-        // For now, returning sample data
-        return [
-            'monday' => 'attended',
-            'tuesday' => 'attended',
-            'wednesday' => 'missed',
-            'thursday' => 'attended',
-            'friday' => 'attended',
+        $startOfWeek = now()->startOfWeek();
+        $endOfWeek = now()->endOfWeek();
+        
+        // Get sessions for this week
+        $sessions = TeachingSession::forStudent($userId)
+            ->whereBetween('session_date', [$startOfWeek, $endOfWeek])
+            ->get();
+        
+        $weeklyProgress = [
+            'monday' => 'no-session',
+            'tuesday' => 'no-session',
+            'wednesday' => 'no-session',
+            'thursday' => 'no-session',
+            'friday' => 'no-session',
             'saturday' => 'no-session',
             'sunday' => 'no-session',
         ];
+        
+        foreach ($sessions as $session) {
+            $dayName = strtolower($session->session_date->format('l'));
+            
+            if ($session->status === 'completed') {
+                if ($session->teacher_marked_present && $session->student_marked_present) {
+                    $weeklyProgress[$dayName] = 'attended';
+                } else {
+                    $weeklyProgress[$dayName] = 'missed';
+                }
+            } elseif ($session->status === 'scheduled') {
+                $weeklyProgress[$dayName] = 'no-session';
+            }
+        }
+        
+        return $weeklyProgress;
     }
 
     /**
@@ -270,13 +365,24 @@ class DashboardController extends Controller
      */
     private function calculateAttendanceStats(int $userId): array
     {
-        // This would typically query actual session data
-        // For now, returning sample data
+        $totalSessions = TeachingSession::forStudent($userId)
+            ->where('status', 'completed')
+            ->count();
+            
+        $attendedSessions = TeachingSession::forStudent($userId)
+            ->where('status', 'completed')
+            ->where('teacher_marked_present', true)
+            ->where('student_marked_present', true)
+            ->count();
+            
+        $missedSessions = $totalSessions - $attendedSessions;
+        $attendanceRate = $totalSessions > 0 ? round(($attendedSessions / $totalSessions) * 100, 2) : 0;
+        
         return [
-            'total' => 5,
-            'attended' => 4,
-            'missed' => 1,
-            'rate' => 80,
+            'total' => $totalSessions,
+            'attended' => $attendedSessions,
+            'missed' => $missedSessions,
+            'rate' => $attendanceRate,
         ];
     }
 
@@ -285,27 +391,74 @@ class DashboardController extends Controller
      */
     private function getWeeklyAttendanceData(int $userId): array
     {
-        // This would typically query actual session data
-        // For now, returning sample data matching the image exactly
-        return [
-            'monday' => 100,    // 100% attendance - tall green bar
-            'tuesday' => 100,   // 100% attendance - tall green bar
-            'wednesday' => 55,  // 55% attendance - shorter red bar
-            'thursday' => 100,  // 100% attendance - tall green bar
-            'friday' => 100,    // 100% attendance - tall green bar
-            'saturday' => 5,    // Very low - barely visible gray bar
-            'sunday' => 5,      // Very low - barely visible gray bar
+        $startOfWeek = now()->startOfWeek();
+        $endOfWeek = now()->endOfWeek();
+        
+        $weeklyData = [
+            'monday' => 0,
+            'tuesday' => 0,
+            'wednesday' => 0,
+            'thursday' => 0,
+            'friday' => 0,
+            'saturday' => 0,
+            'sunday' => 0,
         ];
+        
+        // Get sessions for this week grouped by day
+        $sessions = TeachingSession::forStudent($userId)
+            ->whereBetween('session_date', [$startOfWeek, $endOfWeek])
+            ->where('status', 'completed')
+            ->get()
+            ->groupBy(function ($session) {
+                return strtolower($session->session_date->format('l'));
+            });
+        
+        foreach ($weeklyData as $day => $value) {
+            if (isset($sessions[$day])) {
+                $daySessions = $sessions[$day];
+                $totalSessions = $daySessions->count();
+                $attendedSessions = $daySessions->where('teacher_marked_present', true)
+                    ->where('student_marked_present', true)
+                    ->count();
+                
+                $weeklyData[$day] = $totalSessions > 0 ? round(($attendedSessions / $totalSessions) * 100, 2) : 0;
+            }
+        }
+        
+        return $weeklyData;
     }
 
     /**
-     * Get upcoming goal for the child
+     * Get upcoming goal for the child from database
      */
     private function getUpcomingGoal(int $userId): string
     {
-        // This would typically query actual goal data from the database
-        // For now, returning sample data matching the image
-        return "Complete Surah At-Tariq by next Friday.";
+        // Get the most recent session progress to determine next goal
+        $latestProgress = SessionProgress::whereHas('session', function ($query) use ($userId) {
+            $query->where('student_id', $userId)
+                  ->where('status', 'completed');
+        })
+        ->orderBy('created_at', 'desc')
+        ->first();
+        
+        if ($latestProgress && $latestProgress->next_steps) {
+            return $latestProgress->next_steps;
+        }
+        
+        // If no next steps, check if there are any scheduled sessions
+        $upcomingSession = TeachingSession::forStudent($userId)
+            ->where('status', 'scheduled')
+            ->where('session_date', '>=', now())
+            ->with('subject')
+            ->orderBy('session_date', 'asc')
+            ->first();
+            
+        if ($upcomingSession && $upcomingSession->subject) {
+            return "Next session: " . $upcomingSession->subject->name . " on " . $upcomingSession->session_date->format('M j');
+        }
+        
+        // If no progress data and no upcoming sessions
+        return "No upcoming goal set";
     }
 
     /**
@@ -313,29 +466,143 @@ class DashboardController extends Controller
      */
     private function getLearningProgress(int $userId): array
     {
-        // This would typically query actual learning progress data from the database
-        // For now, returning sample data matching the image
-        return [
-            'currentJuz' => "Juz' Amma",
-            'progressPercentage' => 77,
-            'subjects' => [
-                [
-                    'name' => 'Tajweed',
-                    'status' => 'Intermediate',
-                    'color' => 'yellow'
-                ],
-                [
-                    'name' => 'Quran Recitation',
-                    'status' => 'Good',
-                    'color' => 'green'
-                ],
-                [
-                    'name' => 'Memorization',
-                    'status' => 'In Progress (8 Surahs completed)',
+        // Get recent session progress data
+        $recentProgress = SessionProgress::whereHas('session', function ($query) use ($userId) {
+            $query->where('student_id', $userId)
+                  ->where('status', 'completed');
+        })
+        ->orderBy('created_at', 'desc')
+        ->limit(10)
+        ->get();
+        
+        // Calculate average proficiency level
+        $proficiencyLevels = $recentProgress->pluck('proficiency_level')->filter();
+        $averageProficiency = $proficiencyLevels->isNotEmpty() 
+            ? $proficiencyLevels->mode()[0] ?? 'beginner'
+            : 'beginner';
+        
+        // Calculate progress percentage based on actual session progress
+        $totalSessions = TeachingSession::forStudent($userId)
+            ->where('status', 'completed')
+            ->count();
+            
+        // Calculate progress based on actual proficiency levels from database
+        if ($recentProgress->isNotEmpty()) {
+            $proficiencyProgress = $recentProgress->map(function ($progress) {
+                return match($progress->proficiency_level) {
+                    'beginner' => 25,
+                    'intermediate' => 50,
+                    'advanced' => 75,
+                    default => 0
+                };
+            })->avg();
+            
+            $progressPercentage = round($proficiencyProgress);
+        } else {
+            // If no progress records, calculate based on completed sessions
+            $progressPercentage = min($totalSessions * 5, 100); // 5% per session, max 100%
+        }
+        
+        // Get subjects from recent sessions with their actual progress
+        $subjects = TeachingSession::forStudent($userId)
+            ->where('status', 'completed')
+            ->with(['subject', 'progress'])
+            ->get()
+            ->groupBy('subject.name')
+            ->map(function ($sessions, $subjectName) {
+                // Get the latest progress for this subject
+                $latestProgress = $sessions->sortByDesc('created_at')->first()?->progress;
+                $proficiencyLevel = $latestProgress?->proficiency_level ?? 'beginner';
+                
+                $color = match($proficiencyLevel) {
+                    'beginner' => 'yellow',
+                    'intermediate' => 'yellow', 
+                    'advanced' => 'green',
+                    default => 'none'
+                };
+                
+                $status = match($proficiencyLevel) {
+                    'beginner' => 'Beginner',
+                    'intermediate' => 'Intermediate',
+                    'advanced' => 'Advanced',
+                    default => 'Starting'
+                };
+                
+                // Add session count to status
+                $sessionCount = $sessions->count();
+                if ($sessionCount > 1) {
+                    $status .= " ({$sessionCount} sessions)";
+                }
+                
+                return [
+                    'name' => $subjectName,
+                    'status' => $status,
+                    'color' => $color
+                ];
+            })
+            ->values()
+            ->toArray();
+        
+        // If no subjects, provide default based on student profile
+        if (empty($subjects)) {
+            $studentProfile = StudentProfile::where('user_id', $userId)->first();
+            $subjectsOfInterest = $studentProfile?->subjects_of_interest ?? ['Quran Recitation'];
+            
+            $subjects = array_map(function ($subject) {
+                return [
+                    'name' => $subject,
+                    'status' => 'Not Started',
                     'color' => 'none'
-                ]
-            ]
+                ];
+            }, $subjectsOfInterest);
+        }
+        
+        // Get current Juz based on actual progress
+        $currentJuz = $this->getCurrentJuz($userId);
+        
+        return [
+            'currentJuz' => $currentJuz,
+            'progressPercentage' => $progressPercentage,
+            'subjects' => $subjects
         ];
+    }
+
+    /**
+     * Get current Juz based on student's progress from database
+     */
+    private function getCurrentJuz(int $userId): string
+    {
+        // Get all session progress records for this student
+        $progressRecords = SessionProgress::whereHas('session', function ($query) use ($userId) {
+            $query->where('student_id', $userId)
+                  ->where('status', 'completed');
+        })
+        ->orderBy('created_at', 'desc')
+        ->get();
+        
+        if ($progressRecords->isEmpty()) {
+            return "Not Started";
+        }
+        
+        // Get the most recent progress
+        $latestProgress = $progressRecords->first();
+        
+        if ($latestProgress && $latestProgress->topic_covered) {
+            return $latestProgress->topic_covered;
+        }
+        
+        // If no topic covered, get the most recent session's subject
+        $latestSession = TeachingSession::forStudent($userId)
+            ->where('status', 'completed')
+            ->with('subject')
+            ->orderBy('completion_date', 'desc')
+            ->first();
+            
+        if ($latestSession && $latestSession->subject) {
+            return "Learning: " . $latestSession->subject->name;
+        }
+        
+        return "In Progress";
     }
 
     /**
@@ -663,5 +930,176 @@ class DashboardController extends Controller
                 'avatarUrl' => $teacher->user->avatar,
             ];
         })->filter()->values()->toArray(); // Remove null entries and reindex
+    }
+
+    /**
+     * Show the form for editing a child.
+     */
+    public function editChild(Request $request, $child): Response
+    {
+        $user = $request->user();
+        
+        // Find the child (student) that belongs to this guardian
+        $child = User::where('id', $child)
+            ->where('role', 'student')
+            ->whereHas('studentProfile', function ($query) use ($user) {
+                $query->where('guardian_id', $user->id);
+            })
+            ->with('studentProfile')
+            ->firstOrFail();
+
+        // Get available subjects
+        $availableSubjects = SubjectTemplates::where('is_active', true)
+            ->orderBy('name')
+            ->pluck('name')
+            ->toArray();
+
+        // Format child data for the form
+        $childData = [
+            'id' => $child->id,
+            'name' => $child->name,
+            'age' => (string) ($child->studentProfile->age ?? ''),
+            'gender' => $child->studentProfile->gender ?? '',
+            'preferred_subjects' => $child->studentProfile->subjects_of_interest ?? [],
+            'preferred_learning_times' => [
+                'monday' => [
+                    'enabled' => $child->studentProfile->monday_enabled ?? false,
+                    'from' => $child->studentProfile->monday_from ?? '',
+                    'to' => $child->studentProfile->monday_to ?? '',
+                ],
+                'tuesday' => [
+                    'enabled' => $child->studentProfile->tuesday_enabled ?? false,
+                    'from' => $child->studentProfile->tuesday_from ?? '',
+                    'to' => $child->studentProfile->tuesday_to ?? '',
+                ],
+                'wednesday' => [
+                    'enabled' => $child->studentProfile->wednesday_enabled ?? false,
+                    'from' => $child->studentProfile->wednesday_from ?? '',
+                    'to' => $child->studentProfile->wednesday_to ?? '',
+                ],
+                'thursday' => [
+                    'enabled' => $child->studentProfile->thursday_enabled ?? false,
+                    'from' => $child->studentProfile->thursday_from ?? '',
+                    'to' => $child->studentProfile->thursday_to ?? '',
+                ],
+                'friday' => [
+                    'enabled' => $child->studentProfile->friday_enabled ?? false,
+                    'from' => $child->studentProfile->friday_from ?? '',
+                    'to' => $child->studentProfile->friday_to ?? '',
+                ],
+                'saturday' => [
+                    'enabled' => $child->studentProfile->saturday_enabled ?? false,
+                    'from' => $child->studentProfile->saturday_from ?? '',
+                    'to' => $child->studentProfile->saturday_to ?? '',
+                ],
+                'sunday' => [
+                    'enabled' => $child->studentProfile->sunday_enabled ?? false,
+                    'from' => $child->studentProfile->sunday_from ?? '',
+                    'to' => $child->studentProfile->sunday_to ?? '',
+                ],
+            ],
+        ];
+
+        return Inertia::render('guardian/children/edit', [
+            'child' => $childData,
+            'availableSubjects' => $availableSubjects,
+        ]);
+    }
+
+    /**
+     * Update a child's information.
+     */
+    public function updateChild(Request $request, $child): \Illuminate\Http\RedirectResponse
+    {
+        $user = $request->user();
+        
+        // Find the child (student) that belongs to this guardian
+        $child = User::where('id', $child)
+            ->where('role', 'student')
+            ->whereHas('studentProfile', function ($query) use ($user) {
+                $query->where('guardian_id', $user->id);
+            })
+            ->with('studentProfile')
+            ->firstOrFail();
+
+        $request->validate([
+            'children' => 'required|array|min:1',
+            'children.*.name' => 'required|string|max:255',
+            'children.*.age' => 'required|max:50',
+            'children.*.gender' => 'required|string|in:male,female',
+            'children.*.preferred_subjects' => 'nullable',
+            'children.*.preferred_learning_times' => 'array',
+            'children.*.preferred_learning_times.monday.enabled' => 'boolean',
+            'children.*.preferred_learning_times.monday.from' => 'nullable|date_format:H:i',
+            'children.*.preferred_learning_times.monday.to' => 'nullable|date_format:H:i',
+            'children.*.preferred_learning_times.tuesday.enabled' => 'boolean',
+            'children.*.preferred_learning_times.tuesday.from' => 'nullable|date_format:H:i',
+            'children.*.preferred_learning_times.tuesday.to' => 'nullable|date_format:H:i',
+            'children.*.preferred_learning_times.wednesday.enabled' => 'boolean',
+            'children.*.preferred_learning_times.wednesday.from' => 'nullable|date_format:H:i',
+            'children.*.preferred_learning_times.wednesday.to' => 'nullable|date_format:H:i',
+            'children.*.preferred_learning_times.thursday.enabled' => 'boolean',
+            'children.*.preferred_learning_times.thursday.from' => 'nullable|date_format:H:i',
+            'children.*.preferred_learning_times.thursday.to' => 'nullable|date_format:H:i',
+            'children.*.preferred_learning_times.friday.enabled' => 'boolean',
+            'children.*.preferred_learning_times.friday.from' => 'nullable|date_format:H:i',
+            'children.*.preferred_learning_times.friday.to' => 'nullable|date_format:H:i',
+            'children.*.preferred_learning_times.saturday.enabled' => 'boolean',
+            'children.*.preferred_learning_times.saturday.from' => 'nullable|date_format:H:i',
+            'children.*.preferred_learning_times.saturday.to' => 'nullable|date_format:H:i',
+            'children.*.preferred_learning_times.sunday.enabled' => 'boolean',
+            'children.*.preferred_learning_times.sunday.from' => 'nullable|date_format:H:i',
+            'children.*.preferred_learning_times.sunday.to' => 'nullable|date_format:H:i',
+        ]);
+
+        $childData = $request->children[0]; // We're editing one child at a time
+
+        // Ensure data types are correct
+        $age = is_numeric($childData['age']) ? (string) $childData['age'] : $childData['age'];
+        
+        // Handle preferred_subjects - it might be a JSON string or array
+        $subjects = $childData['preferred_subjects'] ?? [];
+        if (is_string($subjects)) {
+            $subjects = json_decode($subjects, true) ?? [];
+        }
+        if (!is_array($subjects)) {
+            $subjects = [];
+        }
+
+        // Update child's basic information
+        $child->update([
+            'name' => $childData['name'],
+        ]);
+
+        // Update student profile
+        $child->studentProfile->update([
+            'age' => $age,
+            'gender' => $childData['gender'],
+            'subjects_of_interest' => $subjects,
+            'monday_enabled' => $childData['preferred_learning_times']['monday']['enabled'] ?? false,
+            'monday_from' => $childData['preferred_learning_times']['monday']['from'] ?? null,
+            'monday_to' => $childData['preferred_learning_times']['monday']['to'] ?? null,
+            'tuesday_enabled' => $childData['preferred_learning_times']['tuesday']['enabled'] ?? false,
+            'tuesday_from' => $childData['preferred_learning_times']['tuesday']['from'] ?? null,
+            'tuesday_to' => $childData['preferred_learning_times']['tuesday']['to'] ?? null,
+            'wednesday_enabled' => $childData['preferred_learning_times']['wednesday']['enabled'] ?? false,
+            'wednesday_from' => $childData['preferred_learning_times']['wednesday']['from'] ?? null,
+            'wednesday_to' => $childData['preferred_learning_times']['wednesday']['to'] ?? null,
+            'thursday_enabled' => $childData['preferred_learning_times']['thursday']['enabled'] ?? false,
+            'thursday_from' => $childData['preferred_learning_times']['thursday']['from'] ?? null,
+            'thursday_to' => $childData['preferred_learning_times']['thursday']['to'] ?? null,
+            'friday_enabled' => $childData['preferred_learning_times']['friday']['enabled'] ?? false,
+            'friday_from' => $childData['preferred_learning_times']['friday']['from'] ?? null,
+            'friday_to' => $childData['preferred_learning_times']['friday']['to'] ?? null,
+            'saturday_enabled' => $childData['preferred_learning_times']['saturday']['enabled'] ?? false,
+            'saturday_from' => $childData['preferred_learning_times']['saturday']['from'] ?? null,
+            'saturday_to' => $childData['preferred_learning_times']['saturday']['to'] ?? null,
+            'sunday_enabled' => $childData['preferred_learning_times']['sunday']['enabled'] ?? false,
+            'sunday_from' => $childData['preferred_learning_times']['sunday']['from'] ?? null,
+            'sunday_to' => $childData['preferred_learning_times']['sunday']['to'] ?? null,
+        ]);
+
+        return redirect()->route('guardian.children.index')
+            ->with('success', 'Child information updated successfully.');
     }
 }

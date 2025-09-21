@@ -37,10 +37,10 @@ return new class extends Migration
     private function seedDefaultSettings(): void
     {
         $settings = [
-            ['platform_name', 'IQRAPATH'],
+            ['platform_name', 'IQRAQUEST'],
             ['logo_path', 'assets/images/logo/IqraPath-logo.png'],
             ['support_email', 'support@iqrapath.com'],
-            ['office_address', 'IQRAPATH Headquarters, 123 Business Lane, Lagos, Nigeria'],
+            ['office_address', 'IQRAQUEST Headquarters, 123 Business Lane, Lagos, Nigeria'],
             ['contact_number', '+234 700 123 4567'],
             ['whatsapp_number', '+234 700 123 4567'],
             ['platform_language', 'English'],

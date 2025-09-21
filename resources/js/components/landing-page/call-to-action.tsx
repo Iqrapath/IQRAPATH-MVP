@@ -15,7 +15,7 @@ export default function CallToAction() {
 
             <p className="text-gray-600 mb-8 max-w-xl">
               Earn money by sharing your expertise with students. Sign up
-              today and start teaching online with IqraPath!
+              today and start teaching online with IqraQuest!
             </p>
 
             <Link

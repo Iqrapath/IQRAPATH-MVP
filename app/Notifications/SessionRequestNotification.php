@@ -3,14 +3,11 @@
 namespace App\Notifications;
 
 use App\Models\TeachingSession;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class SessionRequestNotification extends Notification implements ShouldQueue
+class SessionRequestNotification extends Notification
 {
-    use Queueable;
 
     protected TeachingSession $session;
 

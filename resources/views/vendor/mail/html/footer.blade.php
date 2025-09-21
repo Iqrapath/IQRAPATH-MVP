@@ -5,7 +5,7 @@
 <td class="content-cell" align="center">
 {{ $slot }}
 <div style="margin-top: 10px; font-size: 12px; color: #718096;">
-    If you have any questions, please contact our support team at <a href="mailto:support@iqrapath.com" style="color: #2B6B65;">support@iqrapath.com</a>
+    If you have any questions, please contact our support team at <a href="mailto:support@iqraquest.com" style="color: #2B6B65;">support@iqraquest.com</a>
 </div>
 </td>
 </tr>

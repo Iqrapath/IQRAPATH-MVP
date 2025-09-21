@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\ConfirmablePasswordController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
 use App\Http\Controllers\Auth\EmailVerificationPromptController;
 use App\Http\Controllers\Auth\NewPasswordController;
+use App\Http\Controllers\Auth\OAuthController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\ResendVerificationController;
@@ -49,6 +50,17 @@ Route::middleware('guest')->group(function () {
 
     Route::post('reset-password', [NewPasswordController::class, 'store'])
         ->name('password.store');
+
+    // OAuth routes
+    Route::get('auth/google', [OAuthController::class, 'redirectToGoogle'])
+        ->name('auth.google');
+    Route::get('auth/google/callback', [OAuthController::class, 'handleGoogleCallback'])
+        ->name('auth.google.callback');
+    
+    Route::get('auth/facebook', [OAuthController::class, 'redirectToFacebook'])
+        ->name('auth.facebook');
+    Route::get('auth/facebook/callback', [OAuthController::class, 'handleFacebookCallback'])
+        ->name('auth.facebook.callback');
 });
 
 Route::middleware('auth')->group(function () {

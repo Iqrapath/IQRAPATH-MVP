@@ -10,9 +10,9 @@ export default function Footer() {
           <div>
             <Link href="/">
               <img
-                src="/assets/images/logo/IqraPath-logo.png"
-                alt="IqraPath Logo"
-                className="h-10 w-auto mb-6"
+                src="/assets/images/logo/IqraQuest-logo.png"
+                alt="IqraQuest Logo"
+                className="h-auto w-30"
               />
             </Link>
             <p className="text-gray-200 mb-6 text-sm">

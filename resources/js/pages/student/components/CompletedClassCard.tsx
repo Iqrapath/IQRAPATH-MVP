@@ -2,7 +2,7 @@
  * 🎨 FIGMA DESIGN REFERENCE
  * 
  * Component: CompletedClassCard
- * Figma URL: https://www.figma.com/design/jmWnnfdCipxqiQF39Tdb0S/IQRAPATH?node-id=412-28472&t=m6ohX2RrycH79wFY-0
+ * Figma URL: https://www.figma.com/design/jmWnnfdCipxqiQF39Tdb0S/IQRAQUEST?node-id=412-28472&t=m6ohX2RrycH79wFY-0
  * Export: Based on provided image - completed class cards with book icons and "Completed" status
  * 
  * 📏 EXACT SPECIFICATIONS FROM IMAGE:

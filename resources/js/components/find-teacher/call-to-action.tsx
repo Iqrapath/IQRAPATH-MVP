@@ -13,7 +13,7 @@ const CallToAction: React.FC = () => {
               <span className="block text-[42px] text-[#64748B] font-semibold leading-tight">Iqrapath Teacher</span>
             </h2>
             <p className="text-gray-600 mb-8 max-w-md text-lg">
-              Earn money by sharing your expertise with students. Sign up today and start teaching online with IqraPath!
+              Earn money by sharing your expertise with students. Sign up today and start teaching online with IqraQuest!
             </p>
             <a href="#" className="inline-flex items-center justify-center px-8 py-3 bg-[#2B6B65] text-white text-base font-medium rounded-full hover:bg-[#235750] transition-colors duration-300">
               Start Teaching Today

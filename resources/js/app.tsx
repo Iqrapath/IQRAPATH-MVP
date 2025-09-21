@@ -30,7 +30,7 @@ createInertiaApp({
     },
     progress: {
         // We'll use our custom loader instead of Inertia's default progress bar
-        color: '#4B5563',
+        color: '#338078',
         showSpinner: false,
     },
 });

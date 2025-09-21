@@ -20,11 +20,18 @@ import {
     Clock,
     MessageSquare,
     X,
-    UserCircle
+    UserCircle,
+    WalletIcon,
+    UserIcon
 } from 'lucide-react';
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import LogoutButton from '@/components/logout-button';
+import { toast } from 'sonner';
+import { TeacherIcon } from '@/components/icons/teacher-icon';
+import MessageUserIcon from '@/components/icons/message-user-icon';
+import ReviewIcon from '@/components/icons/review-icon';
+import LogoutIcon from '@/components/icons/logout-icon';
 
 interface GuardianLeftSidebarProps extends React.HTMLAttributes<HTMLDivElement> {
     isMobile?: boolean;
@@ -40,6 +47,7 @@ interface NavItem {
     iconType?: 'lucide' | 'custom';
     divider?: boolean;
     onClick?: (e: React.MouseEvent) => void;
+    isComingSoon?: boolean;
 }
 
 // Feedback & Support Icon
@@ -71,46 +79,94 @@ export default function GuardianLeftSidebar({ className, isMobile = false, onClo
     const { url } = usePage();
     const currentPath = url;
 
+    // Function to handle missing pages
+    const handleMissingPage = (pageName: string) => {
+        toast.info(`${pageName} is coming soon!`, {
+            description: "This feature is currently under development and will be available soon.",
+            duration: 4000,
+        });
+    };
+
     const navItems: NavItem[] = [
         {
             title: 'Dashboard',
             href: '/guardian/dashboard',
             icon: LayoutDashboard,
         },
+        // {
+        //     title: 'My Children',
+        //     href: '/guardian/children',
+        //     icon: Users,
+        // },
+        {
+            title: 'Browse Teachers',
+            href: '#',
+            icon: TeacherIcon,
+            isComingSoon: true,
+            onClick: (e) => {
+                e.preventDefault();
+                handleMissingPage('Browse Teachers');
+            },
+        },
         {
             title: 'Schedule',
             href: '/guardian/schedule',
             icon: Calendar,
+            isComingSoon: true,
+            onClick: (e) => {
+                e.preventDefault();
+                handleMissingPage('Schedule');
+            },
         },
         {
-            title: 'Requests',
-            href: '/guardian/requests',
-            icon: FileText,
-        },
-        {
-            title: 'Earnings',
-            href: '/guardian/earnings',
-            icon: CreditCard,
+            title: 'Payment',
+            href: '/guardian/payment',
+            icon: WalletIcon,
+            isComingSoon: true,
+            onClick: (e) => {
+                e.preventDefault();
+                handleMissingPage('Payment');
+            },
         },
         {
             title: 'Messages',
             href: '/guardian/messages',
-            icon: MessageSquare,
+            icon: MessageUserIcon,
+            isComingSoon: true,
+            onClick: (e) => {
+                e.preventDefault();
+                handleMissingPage('Messages');
+            },
         },
         {
             title: 'Profile',
             href: '/guardian/profile',
-            icon: UserCircle,
+            icon: UserIcon,
+            isComingSoon: true,
+            onClick: (e) => {
+                e.preventDefault();
+                handleMissingPage('Profile');
+            },
         },
         {
             title: 'Rating & Feedback',
-            href: '/guardian/feedback',
-            icon: Star,
+            href: '/guardian/rating-feedback',
+            icon: ReviewIcon,
+            isComingSoon: true,
+            onClick: (e) => {
+                e.preventDefault();
+                handleMissingPage('Rating & Feedback');
+            },
         },
         {
             title: 'Settings',
             href: '/guardian/settings',
             icon: Settings,
+            isComingSoon: true,
+            onClick: (e) => {
+                e.preventDefault();
+                handleMissingPage('Settings');
+            },
         },
         {
             title: 'Notification',
@@ -134,70 +190,110 @@ export default function GuardianLeftSidebar({ className, isMobile = false, onClo
     };
 
     return (
-        <div
-            className={cn(
-                "flex flex-col p-4 space-y-4 bg-teal-600 text-white rounded-xl overflow-hidden relative",
-                "w-60",
-                isMobile && "shadow-xl",
-                className
-            )}
-            {...props}
-        >
+        <>
+            <style dangerouslySetInnerHTML={{
+                __html: `
+                    .scrollbar-hide::-webkit-scrollbar {
+                        display: none;
+                    }
+                `
+            }} />
+            <div
+                className={cn(
+                    "flex flex-col bg-teal-600 text-white rounded-xl overflow-y-auto",
+                    "w-60 h-full",
+                    "scrollbar-hide", // Hide scrollbar
+                    isMobile && "shadow-xl",
+                    className
+                )}
+                style={{
+                    scrollbarWidth: 'none', /* Firefox */
+                    msOverflowStyle: 'none', /* IE and Edge */
+                }}
+                {...props}
+            >
             {isMobile && (
-                <div className="flex justify-between items-center p-4 border-b border-teal-500">
+                <div className="flex justify-between items-center p-4 border-b border-teal-500 flex-shrink-0">
                     <p className="text-xs uppercase tracking-wider text-white/80 font-medium">MAIN</p>
                     <Button variant="ghost" size="sm" className="text-white p-1 h-auto" onClick={onClose}>
                         <X className="h-4 w-4" />
                     </Button>
                 </div>
             )}
-            <div className="flex-1 overflow-y-auto">
-                <div className={`${isMobile ? '' : 'pt-5'} px-1`}>
-                    {!isMobile && (
-                        <p className="text-xs uppercase tracking-wider text-white/80 font-medium px-3 mb-1.5">
-                            MAIN
-                        </p>
-                    )}
-                    <nav className="space-y-1">
-                        {navItems.map((item, index) => (
-                            <React.Fragment key={item.href || index}>
-                                <Link
-                                    href={item.href}
-                                    onClick={(e) => {
-                                        if (item.onClick) {
-                                            item.onClick(e);
-                                        }
-                                        if (isMobile && onClose) {
-                                            onClose();
-                                        }
-                                    }}
-                                    className={cn(
-                                        'flex items-center px-3 py-1.5 text-sm font-medium rounded-md transition-colors mx-1',
-                                        isActive(item.href)
-                                            ? 'bg-[#F3E5C3]/50 text-white'
-                                            : 'text-white/90 hover:bg-[rgba(255,255,255,0.08)] hover:text-white'
-                                    )}
-                                >
-                                    <span className="mr-2.5 h-5 w-5 flex-shrink-0 inline-flex items-center justify-center">
-                                        <IconRenderer icon={item.icon} size={20} type={item.iconType} />
-                                    </span>
-                                    <span className="text-sm">{item.title}</span>
-                                </Link>
-                                {item.divider && (
-                                    <div className="h-px bg-white/20 my-1 mx-3"></div>
+            
+            <div className="p-4 space-y-6">
+                {!isMobile && (
+                    <p className="text-xs uppercase tracking-wider text-white/80 font-medium px-3 mb-1.5">
+                        MAIN
+                    </p>
+                )}
+                <nav className="space-y-1">
+                    {navItems.map((item, index) => (
+                        <React.Fragment key={item.href || index}>
+                            <Link
+                                href={item.href}
+                                onClick={(e) => {
+                                    if (item.onClick) {
+                                        item.onClick(e);
+                                    }
+                                    if (isMobile && onClose) {
+                                        onClose();
+                                    }
+                                }}
+                                className={cn(
+                                    'flex items-center px-3 py-1.5 text-sm font-medium rounded-md transition-colors mx-1',
+                                    isActive(item.href)
+                                        ? 'bg-[#F3E5C3]/50 text-white'
+                                        : 'text-white/90 hover:bg-[rgba(255,255,255,0.08)] hover:text-white'
                                 )}
-                            </React.Fragment>
-                        ))}
-                    </nav>
-                    {/* Logout Button - Added separately for better control */}
-                    <div className="mx-1 mt-2">
+                            >
+                                <span className="mr-2.5 h-5 w-5 flex-shrink-0 inline-flex items-center justify-center">
+                                    <IconRenderer icon={item.icon} size={20} type={item.iconType} />
+                                </span>
+                                <span className="text-sm">{item.title}</span>
+                            </Link>
+                            {item.divider && (
+                                <div className="h-px bg-white/20 my-1 mx-3"></div>
+                            )}
+                        </React.Fragment>
+                    ))}
+                    
+                    {/* Logout Button - Part of the navigation list */}
+                    <div className="mx-1">
                         <LogoutButton
                             className="flex items-center w-full px-3 py-1.5 text-sm font-medium rounded-md transition-colors text-white/90 hover:bg-[rgba(255,255,255,0.08)] hover:text-white justify-start"
                             variant="ghost"
+                            size="default"
                         />
+                    </div>
+                </nav>
+                
+                {/* Promotional Card */}
+                <div className="mt-6 p-4 bg-gradient-to-t from-[#F3E5C3] to-[#F3E5C3]/0 rounded-xl">
+                    <div className="flex flex-col items-center text-center space-y-3">
+                        <img 
+                            src="/assets/images/quran.png" 
+                            alt="Quran on Rehal" 
+                            className="w-12 h-12 object-contain"
+                        />
+                        <div className="space-y-2">
+                            <h3 className="text-sm font-bold leading-tight bg-gradient-to-r from-[#F3E5C3] to-[#FFFFFF] bg-clip-text text-transparent">
+                                Track Your Child's Quran Journey
+                            </h3>
+                            <p className="text-xs text-[#FFFFFF] leading-relaxed">
+                                Monitor progress, attendance, and achievements as your child learns the Holy Quran.
+                            </p>
+                        </div>
+                        <Button 
+                            className="bg-teal-600 text-white hover:bg-teal-700 font-medium py-2 px-3 rounded-full text-xs"
+                            onClick={() => router.visit('/guardian/children')}
+                        >
+                            View Progress
+                        </Button>
                     </div>
                 </div>
             </div>
         </div>
+        </>
     );
 } 

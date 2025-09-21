@@ -44,6 +44,11 @@ Route::middleware(['auth', 'verified', 'role:teacher', 'teacher.verified'])->pre
     Route::post('/sessions/requests/{booking}/decline', [SessionsController::class, 'declineRequest'])->name('sessions.requests.decline');
     Route::get('/sessions/student/{studentId}/profile', [SessionsController::class, 'getStudentProfile'])->name('sessions.student.profile');
     
+    // Students
+    Route::get('/students', function () {
+        return Inertia::render('teacher/students/index');
+    })->name('students');
+    
     // Requests
     Route::get('/requests', [RequestsController::class, 'index'])->name('requests');
     Route::post('/requests/{request}/accept', [RequestsController::class, 'accept'])->name('requests.accept');

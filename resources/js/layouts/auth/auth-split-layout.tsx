@@ -20,7 +20,7 @@ export default function AuthSplitLayout({ children, title, description }: PropsW
 
     const carouselContent = [
         {
-            heading: "Welcome to IqraPath!",
+            heading: "Welcome to IqraQuest!",
             text: "Find expert Quran teachers for Hifz, Tajweed, Hadith, and more."
         },
         {
@@ -50,8 +50,9 @@ export default function AuthSplitLayout({ children, title, description }: PropsW
     };
 
     return (
-        <div className="relative grid h-dvh flex-col items-center justify-center px-8 sm:px-0 lg:max-w-none lg:grid-cols-2 lg:px-0">
-            <div className="relative hidden h-full flex-col p-10 text-white lg:flex">
+        <div className="relative flex h-dvh flex-col lg:flex-row">
+            {/* Left side - Fixed */}
+            <div className="relative hidden h-full flex-col p-10 text-white lg:flex lg:w-1/2">
                 <div className="absolute inset-0 " />
 
                 {/* Vertical rectangle in the middle of the left side - base image */}
@@ -130,12 +131,18 @@ export default function AuthSplitLayout({ children, title, description }: PropsW
                 </div>
 
             </div>
-            <div className="w-full lg:p-2">
-                <div className="mx-auto flex w-full flex-col justify-start sm:w-[390px] ">
-                    <Link href={route('home')} className="relative z-20 flex items-center justify-center lg:hidden">
-                        <AppLogoIcon className="h-10 w-auto fill-current text-black sm:h-12" />
-                    </Link>
-                    {children}
+            
+            {/* Right side - Scrollable */}
+            <div className="flex-1 overflow-y-auto lg:w-1/2 bg-white scrollbar-hide">
+                <div className="min-h-full flex flex-col justify-center px-8 py-8 sm:px-0 lg:px-8">
+                    <div className="mx-auto flex w-full flex-col justify-start sm:w-[390px] lg:w-full lg:max-w-md">
+                        <Link href={route('home')} className="relative z-20 flex items-center justify-center lg:hidden mb-8">
+                            <AppLogoIcon className="h-auto w-30 fill-current text-black sm:h-auto" />
+                        </Link>
+                        <div className="flex-1">
+                            {children}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

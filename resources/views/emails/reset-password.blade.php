@@ -1,14 +1,14 @@
 @component('mail::message')
 {{-- Header with Logo --}}
 <div style="text-align: center; margin-bottom: 30px;">
-    <img src="{{ asset('assets/images/logo/IqraPath-logo.png') }}" alt="IqraPath Logo" style="max-height: 60px; width: auto;">
+    <img src="{{ asset('assets/images/logo/IqraQuest-logo.png') }}" alt="IqraQuest Logo" style="max-height: 60px; width: auto;">
 </div>
 
 # Assalamu Alaikum, {{ $name }}!
 
 ## Reset Your Password
 
-You are receiving this email because we received a password reset request for your account at IqraPath.
+You are receiving this email because we received a password reset request for your account at IqraQuest.
 
 @component('mail::button', ['url' => $url, 'color' => 'success'])
 Reset Password
@@ -26,10 +26,10 @@ If you're having trouble clicking the "Reset Password" button, copy and paste th
 
 {{-- Footer --}}
 Warm regards,<br>
-The IqraPath Team
+The IqraQuest Team
 
 <div style="margin-top: 30px; font-size: 12px; color: #718096; text-align: center;">
-    <p>© {{ date('Y') }} IqraPath. All rights reserved.</p>
-    <p>If you have any questions, please contact our support team at <a href="mailto:support@iqrapath.com">support@iqrapath.com</a></p>
+    <p>© {{ date('Y') }} IqraQuest. All rights reserved.</p>
+    <p>If you have any questions, please contact our support team at <a href="mailto:support@iqraquest.com">support@iqraquest.com</a></p>
 </div>
 @endcomponent 

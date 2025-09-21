@@ -21,6 +21,12 @@ import AppLayout from '@/layouts/app-layout';
 interface TeacherOnboardingProps {
     user: User;
     subjects: Array<{id: number; name: string}>;
+    availableCurrencies?: Array<{
+        value: string;
+        label: string;
+        symbol: string;
+        is_default: boolean;
+    }>;
 }
 
 type TeacherFormData = {
@@ -52,8 +58,9 @@ type TeacherFormData = {
     };
     
     // Step 4: Payment & Earnings
-    currency: string;
-    hourly_rate: string;
+    preferred_currency: string;
+    hourly_rate_usd: string;
+    hourly_rate_ngn: string;
     payment_method: string;
     
     // Wallet & Earnings Setup
@@ -145,7 +152,14 @@ const sortedCountries = [
     ...WORLD_COUNTRIES.filter(c => !POPULAR_COUNTRIES.includes(c.code))
 ];
 
-export default function TeacherOnboarding({ user, subjects }: TeacherOnboardingProps) {
+export default function TeacherOnboarding({ user, subjects, availableCurrencies = [] }: TeacherOnboardingProps) {
+    // Fallback currency data if not provided
+    const currencies = availableCurrencies.length > 0 ? availableCurrencies : [
+        { value: 'NGN', label: 'Nigerian Naira (NGN)', symbol: '₦', is_default: true },
+        { value: 'USD', label: 'US Dollar (USD)', symbol: '$', is_default: false },
+        { value: 'EUR', label: 'Euro (EUR)', symbol: '€', is_default: false },
+        { value: 'GBP', label: 'British Pound (GBP)', symbol: '£', is_default: false }
+    ];
     const [currentStep, setCurrentStep] = useState(() => {
         // Retrieve step from sessionStorage on component mount
         const savedStep = sessionStorage.getItem('teacher_onboarding_step');
@@ -206,8 +220,9 @@ export default function TeacherOnboarding({ user, subjects }: TeacherOnboardingP
         },
         
         // Step 4
-        currency: '',
-        hourly_rate: '',
+        preferred_currency: 'NGN',
+        hourly_rate_usd: '',
+        hourly_rate_ngn: '',
         payment_method: '',
         
         // Wallet & Earnings Setup
@@ -224,6 +239,67 @@ export default function TeacherOnboarding({ user, subjects }: TeacherOnboardingP
             fetchCities(data.country);
         }
     }, [data.country]);
+
+    // Check for verification call notifications
+    useEffect(() => {
+        const checkForVerificationCalls = async () => {
+            try {
+                const response = await fetch('/api/user/notifications', {
+                    credentials: 'include',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const verificationNotifications = data.data?.filter((notification: any) => 
+                        notification.type === 'App\\Notifications\\VerificationCallScheduledNotification' && 
+                        !notification.read_at
+                    ) || [];
+                    
+                    // Show toast for unread verification calls
+                    verificationNotifications.forEach((notification: any) => {
+                        const verificationData = notification.data;
+                        const scheduledTime = verificationData.scheduled_at_human || 'the scheduled time';
+                        const platform = verificationData.platform_label || 'the video platform';
+                        const meetingLink = verificationData.meeting_link;
+                        
+                        const enhancedMessage = `${verificationData.message}\n\n📅 Scheduled: ${scheduledTime}\n📹 Platform: ${platform}${meetingLink ? '\n🔗 Meeting link available' : ''}\n\n📧 Please check your email for detailed verification instructions.`;
+                        
+                        toast.success(`📞 ${verificationData.title}`, {
+                            description: enhancedMessage,
+                            duration: 10000,
+                            action: verificationData.action_text ? {
+                                label: verificationData.action_text,
+                                onClick: () => {
+                                    if (verificationData.action_url) {
+                                        if (verificationData.action_url.startsWith('/')) {
+                                            window.location.href = verificationData.action_url;
+                                        } else {
+                                            window.open(verificationData.action_url, '_blank');
+                                        }
+                                    }
+                                },
+                            } : {
+                                label: 'Check Email',
+                                onClick: () => {
+                                    toast.info('📧 Check your email for verification details and meeting link!');
+                                }
+                            },
+                        });
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to check for verification calls:', error);
+            }
+        };
+
+        // Check for verification calls after a delay
+        const timeoutId = setTimeout(checkForVerificationCalls, 3000);
+        
+        return () => clearTimeout(timeoutId);
+    }, []);
 
     const fetchCities = async (countryName: string) => {
         setLoadingCities(true);
@@ -361,8 +437,9 @@ export default function TeacherOnboarding({ user, subjects }: TeacherOnboardingP
                     formData.append('availability', JSON.stringify(data.availability || {}));
                     break;
                 case 4:
-                    formData.append('currency', data.currency || '');
-                    formData.append('hourly_rate', data.hourly_rate || '');
+                    formData.append('preferred_currency', data.preferred_currency || 'NGN');
+                    formData.append('hourly_rate_usd', data.hourly_rate_usd || '');
+                    formData.append('hourly_rate_ngn', data.hourly_rate_ngn || '');
                     formData.append('payment_method', data.payment_method || '');
                     formData.append('withdrawal_method', data.withdrawal_method || '');
                     formData.append('bank_name', data.bank_name || '');
@@ -479,7 +556,7 @@ export default function TeacherOnboarding({ user, subjects }: TeacherOnboardingP
             sessionStorage.removeItem('teacher_onboarding_step');
             
             // Show final success toast
-            toast.success('🎉 Teacher onboarding completed successfully! Welcome to IqraPath!', {
+            toast.success('🎉 Teacher onboarding completed successfully! Welcome to IqraQuest!', {
                 duration: 5000,
             });
         } else {
@@ -716,42 +793,65 @@ export default function TeacherOnboarding({ user, subjects }: TeacherOnboardingP
             <div className="space-y-6">
                 <div>
                     <Label>Preferred Currency</Label>
-                    <div className="flex space-x-4 mt-2">
-                        <div className="flex items-center space-x-2">
-                            <Checkbox
-                                id="naira"
-                                checked={data.currency === 'naira'}
-                                onCheckedChange={(checked) => checked && setData('currency', 'naira')}
-                            />
-                            <Label htmlFor="naira" className="cursor-pointer">Nigerian Naira (₦)</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <Checkbox
-                                id="dollar"
-                                checked={data.currency === 'dollar'}
-                                onCheckedChange={(checked) => checked && setData('currency', 'dollar')}
-                            />
-                            <Label htmlFor="dollar" className="cursor-pointer">US Dollar ($)</Label>
-                        </div>
+                    <div className="grid grid-cols-2 gap-4 mt-2">
+                        {currencies.map((currency) => (
+                            <div key={currency.value} className="flex items-center space-x-2">
+                                <Checkbox
+                                    id={currency.value}
+                                    checked={data.preferred_currency === currency.value}
+                                    onCheckedChange={(checked) => checked && setData('preferred_currency', currency.value)}
+                                />
+                                <Label htmlFor={currency.value} className="cursor-pointer flex items-center space-x-2">
+                                    <span>{currency.symbol}</span>
+                                    <span>{currency.label}</span>
+                                    {currency.is_default && (
+                                        <Badge variant="secondary" className="text-xs">Default</Badge>
+                                    )}
+                                </Label>
+                            </div>
+                        ))}
                     </div>
-                    {errors.currency && <p className="text-red-500 text-sm mt-1">{errors.currency}</p>}
+                    {errors.preferred_currency && <p className="text-red-500 text-sm mt-1">{errors.preferred_currency}</p>}
+                </div>
+
+                <div className="bg-blue-50 p-4 rounded-lg mb-6">
+                    <p className="text-sm text-blue-800">
+                        <strong>💡 Tip:</strong> You can set rates in both currencies to attract international students. 
+                        At least one rate is required. Consider setting competitive rates based on your experience and subject expertise.
+                    </p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <Label htmlFor="hourly_rate">Hourly Rate</Label>
+                        <Label htmlFor="hourly_rate_usd">Hourly Rate (USD)</Label>
                         <Input
-                            id="hourly_rate"
+                            id="hourly_rate_usd"
                             type="number"
-                            value={data.hourly_rate}
-                            onChange={(e) => setData('hourly_rate', e.target.value)}
-                            placeholder={data.currency === 'dollar' ? 'e.g., 25' : 'e.g., 5000'}
+                            value={data.hourly_rate_usd}
+                            onChange={(e) => setData('hourly_rate_usd', e.target.value)}
+                            placeholder="e.g., 25"
+                            min="0"
+                            max="1000"
                             className="mt-1"
                         />
-                        <p className="text-sm text-gray-500 mt-1">
-                            {data.currency === 'dollar' ? 'USD per hour' : 'NGN per hour'}
-                        </p>
-                        {errors.hourly_rate && <p className="text-red-500 text-sm mt-1">{errors.hourly_rate}</p>}
+                        <p className="text-sm text-gray-500 mt-1">USD per hour (max: $1,000)</p>
+                        {errors.hourly_rate_usd && <p className="text-red-500 text-sm mt-1">{errors.hourly_rate_usd}</p>}
+                    </div>
+                    
+                    <div>
+                        <Label htmlFor="hourly_rate_ngn">Hourly Rate (NGN)</Label>
+                        <Input
+                            id="hourly_rate_ngn"
+                            type="number"
+                            value={data.hourly_rate_ngn}
+                            onChange={(e) => setData('hourly_rate_ngn', e.target.value)}
+                            placeholder="e.g., 5000"
+                            min="0"
+                            max="1000000"
+                            className="mt-1"
+                        />
+                        <p className="text-sm text-gray-500 mt-1">NGN per hour (max: ₦1,000,000)</p>
+                        {errors.hourly_rate_ngn && <p className="text-red-500 text-sm mt-1">{errors.hourly_rate_ngn}</p>}
                     </div>
 
                     <div>

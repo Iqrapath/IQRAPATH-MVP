@@ -124,6 +124,18 @@ class NotificationController extends Controller
     }
 
     /**
+     * Get the count of unread notifications for the authenticated user.
+     */
+    public function count(Request $request): JsonResponse
+    {
+        $unreadCount = $this->notificationService->getUnreadNotificationCount($request->user());
+        
+        return response()->json([
+            'count' => $unreadCount
+        ]);
+    }
+
+    /**
      * Mark all notifications as read for the authenticated user.
      */
     public function markAllAsRead(Request $request): JsonResponse

@@ -1,6 +1,6 @@
 /**
  * 🎨 FIGMA REFERENCE
- * URL: https://www.figma.com/design/jmWnnfdCipxqiQF39Tdb0S/IQRAPATH?node-id=542-68353&t=O1w7ozri9pYud8IO-0
+ * URL: https://www.figma.com/design/jmWnnfdCipxqiQF39Tdb0S/IQRAQUEST?node-id=542-68353&t=O1w7ozri9pYud8IO-0
  * Export: Fund Account Modal with exact payment interface design
  * 
  * EXACT SPECS FROM FIGMA:
@@ -66,8 +66,12 @@ export default function FundAccountModal({
     useEffect(() => {
         const initializeStripe = async () => {
             try {
+                // Determine API endpoint based on user role
+                const isGuardian = window.location.pathname.includes('/guardian/');
+                const endpoint = isGuardian ? '/guardian/payment/publishable-key' : '/student/payment/publishable-key';
+                
                 // Get publishable key from backend
-                const response = await window.axios.get('/student/payment/publishable-key');
+                const response = await window.axios.get(endpoint);
                 const key = response.data.publishable_key;
                 setPublishableKey(key);
 
@@ -186,7 +190,7 @@ export default function FundAccountModal({
         
         // Check if funding amount is valid
         const amount = parseFloat(fundingAmount);
-        if (!fundingAmount.trim() || isNaN(amount) || amount < 100) {
+        if (!fundingAmount.trim() || isNaN(amount) || amount < 1000) {
             return false;
         }
         
@@ -226,7 +230,11 @@ export default function FundAccountModal({
 
             console.log('Payment method created:', paymentMethod.id);
             
-            const response = await window.axios.post('/student/payment/fund-wallet', {
+            // Determine API endpoint based on user role
+            const isGuardian = window.location.pathname.includes('/guardian/');
+            const endpoint = isGuardian ? '/guardian/payment/fund-wallet' : '/student/payment/fund-wallet';
+            
+            const response = await window.axios.post(endpoint, {
                 amount: paymentAmount,
                 gateway: 'stripe',
                 payment_method_id: paymentMethod.id,
@@ -310,12 +318,12 @@ export default function FundAccountModal({
                             value={fundingAmount}
                             onChange={(e) => setFundingAmount(e.target.value)}
                             placeholder="Enter amount"
-                            min="100"
+                            min="1000"
                             max="1000000"
                             className="w-full pl-8 sm:pl-10 pr-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C7870] focus:border-transparent text-sm sm:text-base"
                         />
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">Minimum: ₦100, Maximum: ₦1,000,000</p>
+                    <p className="text-xs text-gray-500 mt-1">Minimum: ₦1,000, Maximum: ₦1,000,000</p>
                 </div>
 
                 {/* Two-Column Layout */}

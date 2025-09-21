@@ -29,7 +29,7 @@ export default function Dashboard({ message }: DashboardProps) {
                     </Alert>
                 )}
                 <div className="text-center py-10">
-                    <h1 className="text-3xl font-bold mb-4">Welcome to IqraPath</h1>
+                    <h1 className="text-3xl font-bold mb-4">Welcome to IqraQuest</h1>
                     <p className="text-gray-600">You will be redirected to your role-specific dashboard momentarily...</p>
                 </div>
             </div>

@@ -42,7 +42,7 @@ class SendWelcomeNotification implements ShouldQueue
                 $user,
                 'welcome',
                 [
-                    'title' => 'Welcome to IqraPath, ' . $user->name . '!',
+                    'title' => 'Welcome to IqraQuest, ' . $user->name . '!',
                     'message' => 'Hello ' . $user->name . ', thank you for joining our platform. We are excited to have you with us.',
                     'action_text' => 'Explore Dashboard',
                     'action_url' => route('dashboard'),

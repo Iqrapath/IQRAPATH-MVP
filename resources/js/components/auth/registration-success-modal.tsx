@@ -33,7 +33,7 @@ export default function RegistrationSuccessModal({ isOpen, user }: RegistrationS
         <Dialog open={isOpen} onOpenChange={() => { }}>
             <DialogContent className="sm:max-w-md border-0 p-10">
                 <div className="text-center space-y-6">
-                    {/* IqraPath Logo */}
+                    {/* IqraQuest Logo */}
                     <div className="flex items-center justify-center">
                         <div className="flex items-center -mt-6">
                             <AppLogoIcon className="w-auto h-30" />

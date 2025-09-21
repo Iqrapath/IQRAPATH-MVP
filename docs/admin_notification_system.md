@@ -2,7 +2,7 @@
 
 ## Overview
 
-The IQRAPATH platform now includes a comprehensive notification system that automatically notifies super-admin and assigned admin users when new users create accounts. This system is built on Laravel's event-driven architecture and provides real-time notifications through multiple channels.
+The IQRAQUEST platform now includes a comprehensive notification system that automatically notifies super-admin and assigned admin users when new users create accounts. This system is built on Laravel's event-driven architecture and provides real-time notifications through multiple channels.
 
 ## How It Works
 
