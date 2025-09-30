@@ -30,6 +30,11 @@ Route::middleware(['auth', 'verified', 'role:teacher', 'teacher.verified'])->pre
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
+    // Onboarding redirect
+    Route::get('/onboarding', function () {
+        return redirect()->route('onboarding.teacher');
+    })->name('onboarding');
+    
     // Schedule
     Route::get('/schedule', function () {
         return Inertia::render('teacher/schedule/index');

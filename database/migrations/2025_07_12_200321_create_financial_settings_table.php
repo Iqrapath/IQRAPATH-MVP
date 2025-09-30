@@ -44,6 +44,38 @@ return new class extends Migration
             ['minimum_withdrawal_amount', '10000'],
             ['instant_payouts_enabled', 'true'],
             ['multi_currency_mode', 'true'],
+            
+            // Withdrawal limits
+            ['daily_withdrawal_limit', '500000'],
+            ['monthly_withdrawal_limit', '5000000'],
+            
+            // Withdrawal fees by method
+            ['bank_transfer_fee_type', 'flat'],
+            ['bank_transfer_fee_amount', '100'],
+            ['mobile_money_fee_type', 'percentage'],
+            ['mobile_money_fee_amount', '2.5'],
+            ['cryptocurrency_fee_type', 'flat'],
+            ['cryptocurrency_fee_amount', '500'],
+            ['paypal_fee_type', 'percentage'],
+            ['paypal_fee_amount', '3.5'],
+            ['skrill_fee_type', 'percentage'],
+            ['skrill_fee_amount', '2.9'],
+            ['flutterwave_fee_type', 'flat'],
+            ['flutterwave_fee_amount', '50'],
+            ['paystack_fee_type', 'flat'],
+            ['paystack_fee_amount', '100'],
+            ['stripe_fee_type', 'percentage'],
+            ['stripe_fee_amount', '2.9'],
+            
+            // Processing times
+            ['bank_transfer_processing_time', '1-3 business days'],
+            ['mobile_money_processing_time', 'Instant'],
+            ['cryptocurrency_processing_time', '30 minutes - 2 hours'],
+            ['paypal_processing_time', 'Instant'],
+            ['skrill_processing_time', 'Instant'],
+            ['flutterwave_processing_time', '1-2 business days'],
+            ['paystack_processing_time', '1-2 business days'],
+            ['stripe_processing_time', '1-2 business days'],
         ];
 
         $now = now();

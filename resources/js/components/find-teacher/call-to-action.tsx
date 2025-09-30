@@ -10,7 +10,7 @@ const CallToAction: React.FC = () => {
           <div className="p-12 lg:pl-40">
             <h2 className="mb-4">
               <span className="block text-[42px] text-[#2B6B65] font-semibold leading-tight">Become a</span>
-              <span className="block text-[42px] text-[#64748B] font-semibold leading-tight">Iqrapath Teacher</span>
+              <span className="block text-[42px] text-[#64748B] font-semibold leading-tight">IqraQuest Teacher</span>
             </h2>
             <p className="text-gray-600 mb-8 max-w-md text-lg">
               Earn money by sharing your expertise with students. Sign up today and start teaching online with IqraQuest!

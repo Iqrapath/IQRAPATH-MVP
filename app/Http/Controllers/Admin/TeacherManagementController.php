@@ -45,21 +45,30 @@ class TeacherManagementController extends Controller
         // Filter by status if provided
         if ($request->has('status') && $request->status && $request->status !== 'all') {
             $status = $request->status;
-            $query->whereHas('teacherProfile', function ($q) use ($status) {
-                if ($status === 'verified') {
+            if ($status === 'verified') {
+                $query->whereHas('teacherProfile', function ($q) {
                     $q->where('verified', true);
-                } elseif ($status === 'pending') {
+                });
+            } elseif ($status === 'pending') {
+                $query->whereHas('teacherProfile', function ($q) {
                     $q->where('verified', false)
                       ->whereHas('verificationRequests', function($vq) {
                           $vq->where('status', 'pending');
                       });
-                } elseif ($status === 'inactive') {
-                    $q->where('verified', false)
-                      ->whereDoesntHave('verificationRequests', function($vq) {
-                          $vq->where('status', 'pending');
+                });
+            } elseif ($status === 'inactive') {
+                $query->where(function($q) {
+                    // Teachers without profiles
+                    $q->whereDoesntHave('teacherProfile')
+                      // OR teachers with profiles but not verified and no pending requests
+                      ->orWhereHas('teacherProfile', function($profileQuery) {
+                          $profileQuery->where('verified', false)
+                            ->whereDoesntHave('verificationRequests', function($vq) {
+                                $vq->where('status', 'pending');
+                            });
                       });
-                }
-            });
+                });
+            }
         }
         
         // Filter by subject if provided
@@ -110,11 +119,16 @@ class TeacherManagementController extends Controller
                     if ($teacher->teacherProfile->verified) {
                         $status = 'Approved';
                     } else {
-                        $hasRequest = $teacher->teacherProfile->verificationRequests()
-                            ->where('status', 'pending')
-                            ->exists();
-                        if ($hasRequest) {
-                            $status = 'Pending';
+                        // Check the latest verification request status
+                        $latestRequest = $teacher->teacherProfile->verificationRequests()
+                            ->latest()
+                            ->first();
+                        if ($latestRequest) {
+                            if ($latestRequest->status === 'pending') {
+                                $status = 'Pending';
+                            } elseif ($latestRequest->status === 'rejected') {
+                                $status = 'Inactive';
+                            }
                         }
                     }
                 }
@@ -189,7 +203,14 @@ class TeacherManagementController extends Controller
      */
     public function create(): Response
     {
-        return Inertia::render('admin/teachers/create');
+        // Get available subjects for selection
+        $subjects = SubjectTemplates::where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return Inertia::render('admin/teachers/create', [
+            'subjects' => $subjects,
+        ]);
     }
 
     /**
@@ -529,12 +550,83 @@ class TeacherManagementController extends Controller
             abort(404, 'Teacher not found');
         }
 
-        // Load teacher profile
-        $teacher->load(['teacherProfile']);
+        // Load teacher profile with related data
+        $teacher->load([
+            'teacherProfile',
+            'teacherProfile.subjects',
+            'teacherProfile.documents',
+            'availabilities',
+        ]);
+        
+        // Get real-time earnings data from FinancialService
+        $earningsData = $this->financialService->getTeacherEarningsRealTime($teacher);
+        
+        // Get teaching sessions stats from teaching_sessions table
+        $sessionsStats = [
+            'total' => TeachingSession::where('teacher_id', $teacher->id)->count(),
+            'completed' => TeachingSession::where('teacher_id', $teacher->id)
+                ->where('status', 'completed')
+                ->count(),
+            'upcoming' => TeachingSession::where('teacher_id', $teacher->id)
+                ->whereIn('status', ['scheduled'])
+                ->where('session_date', '>=', now()->format('Y-m-d'))
+                ->count(),
+            'cancelled' => TeachingSession::where('teacher_id', $teacher->id)
+                ->where('status', 'cancelled')
+                ->count(),
+        ];
+        
+        // Get upcoming sessions
+        $upcomingSessions = TeachingSession::where('teacher_id', $teacher->id)
+            ->whereIn('status', ['scheduled'])
+            ->where('session_date', '>=', now()->format('Y-m-d'))
+            ->with(['student', 'subject'])
+            ->orderBy('session_date', 'asc')
+            ->orderBy('start_time', 'asc')
+            ->limit(5)
+            ->get()
+            ->map(function ($session) {
+                return [
+                    'id' => $session->id,
+                    'session_date' => $session->session_date,
+                    'start_time' => $session->start_time,
+                    'end_time' => $session->end_time,
+                    'status' => $session->status,
+                    'student' => [
+                        'id' => $session->student->id,
+                        'name' => $session->student->name,
+                    ],
+                    'subject' => [
+                        'id' => $session->subject->id,
+                        'name' => $session->subject->name,
+                    ],
+                ];
+            });
+
+        // Get documents
+        $documents = $teacher->teacherProfile?->documents ?? collect();
+
+        // Get verification status
+        $verificationStatus = null;
+        if ($teacher->teacherProfile) {
+            $verificationRequest = $teacher->teacherProfile->verificationRequests()->latest()->first();
+            if ($verificationRequest) {
+                $verificationStatus = [
+                    'docs_status' => $verificationRequest->docs_status,
+                    'video_status' => $verificationRequest->video_status,
+                ];
+            }
+        }
 
         return Inertia::render('admin/teachers/edit', [
             'teacher' => $teacher,
             'profile' => $teacher->teacherProfile,
+            'earnings' => $earningsData,
+            'availabilities' => $teacher->availabilities ?? [],
+            'documents' => $documents,
+            'sessions_stats' => $sessionsStats,
+            'upcoming_sessions' => $upcomingSessions,
+            'verification_status' => $verificationStatus,
         ]);
     }
 
@@ -780,21 +872,21 @@ class TeacherManagementController extends Controller
      */
     private function notifyTeacherRejected(User $teacher, string $rejectionReason): void
     {
-        // Send in-app notification
-        $teacher->receivedNotifications()->create([
-            'id' => \Illuminate\Support\Str::uuid()->toString(),
-            'type' => 'teacher_rejected',
-            'notifiable_type' => User::class,
-            'notifiable_id' => $teacher->id,
-            'data' => [
-                'rejection_reason' => $rejectionReason,
-                'message' => "Your teacher application was rejected. Reason: {$rejectionReason}",
-                'support_contact' => 'support@iqrapath.com'
-            ]
-        ]);
-
-        // TODO: Send email notification when email system is implemented
-        // $teacher->notify(new TeacherRejectedNotification($rejectionReason));
+        // Send email notification (which also creates database notification)
+        try {
+            $verificationRequest = $teacher->teacherProfile->verificationRequests()->latest()->first();
+            if ($verificationRequest) {
+                $teacher->notify(new \App\Notifications\VerificationRejectedNotification(
+                    $verificationRequest,
+                    $rejectionReason
+                ));
+            }
+        } catch (\Exception $e) {
+            \Log::error('Failed to send teacher rejection email', [
+                'teacher_id' => $teacher->id,
+                'error' => $e->getMessage()
+            ]);
+        }
     }
 
     /**

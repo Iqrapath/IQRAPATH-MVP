@@ -50,7 +50,7 @@ class VerificationRejectedNotification extends Notification
             'verification_request_id' => $this->verificationRequest->id,
             'teacher_id' => $this->verificationRequest->teacherProfile->user_id,
             'rejection_reason' => $this->rejectionReason,
-            'action_url' => route('teacher.profile.edit'),
+            'action_url' => route('onboarding.teacher'),
             'icon' => 'x-circle',
             'color' => 'error',
         ];

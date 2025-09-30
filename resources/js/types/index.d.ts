@@ -89,6 +89,7 @@ export interface Notification {
         rejection_reason?: string;
         resubmission_instructions?: string;
         remaining_attempts?: number;
+        support_contact?: string;
     };
     read_at: string | null;
     created_at: string;

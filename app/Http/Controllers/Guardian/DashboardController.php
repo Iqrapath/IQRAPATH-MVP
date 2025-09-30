@@ -610,14 +610,14 @@ class DashboardController extends Controller
      */
     private function generateChildEmail(string $childName, int $guardianId): string
     {
-        $baseEmail = strtolower(str_replace(' ', '.', $childName)) . '.child' . $guardianId . '@iqrapath.com';
+        $baseEmail = strtolower(str_replace(' ', '.', $childName)) . '.child' . $guardianId . '@iqraquest.com';
         
         // Check if email exists and append number if needed
         $counter = 1;
         $email = $baseEmail;
         
         while (User::where('email', $email)->exists()) {
-            $email = str_replace('@iqrapath.com', $counter . '@iqrapath.com', $baseEmail);
+            $email = str_replace('@iqraquest.com', $counter . '@iqraquest.com', $baseEmail);
             $counter++;
         }
         
@@ -958,7 +958,7 @@ class DashboardController extends Controller
         $childData = [
             'id' => $child->id,
             'name' => $child->name,
-            'age' => (string) ($child->studentProfile->age ?? ''),
+            'age' => (string) ($child->studentProfile->age_group ?? ''),
             'gender' => $child->studentProfile->gender ?? '',
             'preferred_subjects' => $child->studentProfile->subjects_of_interest ?? [],
             'preferred_learning_times' => [
@@ -1073,7 +1073,7 @@ class DashboardController extends Controller
 
         // Update student profile
         $child->studentProfile->update([
-            'age' => $age,
+            'age_group' => $age,
             'gender' => $childData['gender'],
             'subjects_of_interest' => $subjects,
             'monday_enabled' => $childData['preferred_learning_times']['monday']['enabled'] ?? false,

@@ -813,7 +813,7 @@ class TeacherVerificationController extends Controller
     {
         $dtStart = $start->copy()->utc()->format('Ymd\THis\Z');
         $dtEnd = $start->copy()->addMinutes($durationMinutes)->utc()->format('Ymd\THis\Z');
-        $uid = \Illuminate\Support\Str::uuid()->toString() . '@iqrapath';
+        $uid = \Illuminate\Support\Str::uuid()->toString() . '@iqraquest';
         $lines = [
             'BEGIN:VCALENDAR',
             'VERSION:2.0',

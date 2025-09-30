@@ -1,6 +1,6 @@
 import { Head, useForm } from '@inertiajs/react';
 import { Eye, EyeOff, LoaderCircle } from 'lucide-react';
-import { FormEventHandler, useState } from 'react';
+import { FormEventHandler, useState, useEffect } from 'react';
 import { type User } from '@/types';
 
 import InputError from '@/components/input-error';
@@ -30,6 +30,12 @@ interface RegisterStudentGuardianProps {
 }
 
 export default function RegisterStudentGuardian({ success = false, user, content }: RegisterStudentGuardianProps) {
+    const [showSuccessModal, setShowSuccessModal] = useState(success);
+    
+    // Update modal state when success prop changes
+    useEffect(() => {
+        setShowSuccessModal(success);
+    }, [success]);
     const { data, setData, post, processing, errors, reset } = useForm<Required<RegisterForm>>({
         name: '',
         email: '',
@@ -245,10 +251,11 @@ export default function RegisterStudentGuardian({ success = false, user, content
             </div>
 
             {/* Success Modal */}
-            {success && user && (
+            {showSuccessModal && user && (
                 <RegistrationSuccessModal 
-                    isOpen={success} 
+                    isOpen={showSuccessModal} 
                     user={user}
+                    onClose={() => setShowSuccessModal(false)}
                 />
             )}
         </AuthLayout>

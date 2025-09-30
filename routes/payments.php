@@ -41,6 +41,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Paystack wallet funding
     Route::get('/wallet/paystack/initialize', [App\Http\Controllers\PaymentController::class, 'initializePaystackWalletFunding'])
         ->name('wallet.paystack.initialize');
+    
+    // Withdrawal routes
+    Route::post('/withdrawal/process', [App\Http\Controllers\WithdrawalController::class, 'processWithdrawal'])
+        ->name('withdrawal.process');
+    Route::get('/withdrawal/callback/{method}', [App\Http\Controllers\WithdrawalController::class, 'handleCallback'])
+        ->name('withdrawal.callback');
+    Route::get('/withdrawal/fee-preview', [App\Http\Controllers\WithdrawalController::class, 'getFeePreview'])
+        ->name('withdrawal.fee-preview');
+    Route::get('/withdrawal/status/{id}', [App\Http\Controllers\WithdrawalController::class, 'getWithdrawalStatus'])
+        ->name('withdrawal.status');
 });
 
 // Payment webhooks (no auth required)

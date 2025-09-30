@@ -38,8 +38,8 @@ return new class extends Migration
     {
         $settings = [
             ['platform_name', 'IQRAQUEST'],
-            ['logo_path', 'assets/images/logo/IqraPath-logo.png'],
-            ['support_email', 'support@iqrapath.com'],
+            ['logo_path', 'assets/images/logo/IqraQuest-logo.png'],
+            ['support_email', 'support@iqraquest.com'],
             ['office_address', 'IQRAQUEST Headquarters, 123 Business Lane, Lagos, Nigeria'],
             ['contact_number', '+234 700 123 4567'],
             ['whatsapp_number', '+234 700 123 4567'],

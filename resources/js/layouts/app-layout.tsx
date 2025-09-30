@@ -9,7 +9,7 @@ interface AppLayoutProps {
 }
 
 export default ({ children, breadcrumbs, pageTitle, ...props }: AppLayoutProps) => (
-    <AppLayoutTemplate breadcrumbs={breadcrumbs} pageTitle={pageTitle} {...props}>
+    <AppLayoutTemplate breadcrumbs={breadcrumbs} pageTitle={pageTitle} {...props} scrollbar={true}>
         {children}
     </AppLayoutTemplate>
 );

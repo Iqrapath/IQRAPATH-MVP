@@ -40,19 +40,19 @@ return new class extends Migration
     {
         $faqs = [
             [
-                'title' => 'What is Iqrapath?',
-                'content' => 'Iqrapath is an online platform connecting Quran teachers with students worldwide. Our mission is to make quality Quranic education accessible to everyone, regardless of location.',
+                'title' => 'What is IqraQuest?',
+                'content' => 'IqraQuest is an online platform connecting Quran teachers with students worldwide. Our mission is to make quality Quranic education accessible to everyone, regardless of location.',
                 'status' => 'published',
                 'order_index' => 1,
             ],
             [
-                'title' => 'How do register as a teacher on Iqrapath?',
+                'title' => 'How do register as a teacher on IqraQuest?',
                 'content' => 'To register as a teacher, click on "Become a Teacher" on the homepage, fill out the application form, upload your credentials, and submit for verification. Our team will review your application and contact you within 48 hours.',
                 'status' => 'published',
                 'order_index' => 2,
             ],
             [
-                'title' => 'How to book a class session on Iqrapath?',
+                'title' => 'How to book a class session on IqraQuest?',
                 'content' => 'To book a class, log in to your student account, browse available teachers, select your preferred teacher, choose an available time slot, and confirm your booking. Payment will be processed, and both you and the teacher will receive confirmation.',
                 'status' => 'published',
                 'order_index' => 3,
@@ -65,7 +65,7 @@ return new class extends Migration
             ],
             [
                 'title' => 'Is live verification mandatory for teachers?',
-                'content' => 'Yes, all teachers must complete a live verification call before they can start teaching on Iqrapath. This ensures the safety and quality of our platform.',
+                'content' => 'Yes, all teachers must complete a live verification call before they can start teaching on IqraQuest. This ensures the safety and quality of our platform.',
                 'status' => 'draft',
                 'order_index' => 5,
             ],

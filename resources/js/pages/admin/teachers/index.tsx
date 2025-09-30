@@ -33,6 +33,17 @@ import AdminLayout from "@/layouts/admin/admin-layout";
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink } from "@/components/ui/breadcrumb";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { CancelIcon } from "@/components/icons/cancel-icon";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 
 interface Teacher {
   id: number;
@@ -72,6 +83,12 @@ export default function TeachersIndex({
   const [status, setStatus] = useState(filters.status);
   const [subject, setSubject] = useState(filters.subject);
   const [rating, setRating] = useState(filters.rating);
+  
+  // Reject modal state
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [isRejecting, setIsRejecting] = useState(false);
 
   const handleSearch = debounce((value: string) => {
     router.get(
@@ -167,6 +184,51 @@ export default function TeachersIndex({
     }
     
     return `${subjectList[0]}, ${subjectList[1]}, ...`;
+  };
+
+  const handleRejectClick = (teacher: Teacher) => {
+    setSelectedTeacher(teacher);
+    setRejectionReason("");
+    setRejectModalOpen(true);
+  };
+
+  const handleRejectSubmit = async () => {
+    if (!selectedTeacher || !rejectionReason.trim()) {
+      toast.error("Please provide a reason for rejection");
+      return;
+    }
+
+    setIsRejecting(true);
+    try {
+      router.patch(
+        route("admin.teachers.reject", selectedTeacher.id),
+        { rejection_reason: rejectionReason.trim() },
+        {
+          onSuccess: () => {
+            toast.success("Teacher rejected successfully");
+            setRejectModalOpen(false);
+            setSelectedTeacher(null);
+            setRejectionReason("");
+          },
+          onError: (errors) => {
+            toast.error("Failed to reject teacher");
+            console.error("Rejection errors:", errors);
+          },
+          onFinish: () => {
+            setIsRejecting(false);
+          }
+        }
+      );
+    } catch (error) {
+      toast.error("An error occurred while rejecting the teacher");
+      setIsRejecting(false);
+    }
+  };
+
+  const handleRejectCancel = () => {
+    setRejectModalOpen(false);
+    setSelectedTeacher(null);
+    setRejectionReason("");
   };
 
   const breadcrumbs = [
@@ -402,11 +464,7 @@ export default function TeachersIndex({
                           {teacher.status !== "Inactive" && (
                             <DropdownMenuItem 
                               className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 cursor-pointer"
-                              onClick={() => {
-                                // Show a modal for rejection reason
-                                // This would need to be implemented
-                                alert("Implement rejection modal");
-                              }}
+                              onClick={() => handleRejectClick(teacher)}
                             >
                               <span>Reject</span>
                               <CancelIcon className="h-5 w-5 text-red-600" />
@@ -437,6 +495,63 @@ export default function TeachersIndex({
           />
         )}
       </div>
+
+      {/* Reject Teacher Modal */}
+      <Dialog open={rejectModalOpen} onOpenChange={setRejectModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reject Teacher</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to reject {selectedTeacher?.name}? Please provide a reason for the rejection.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="rejection-reason">Rejection Reason *</Label>
+              <Textarea
+                id="rejection-reason"
+                placeholder="Please provide a detailed reason for rejecting this teacher..."
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                className="min-h-[100px] resize-none"
+                maxLength={500}
+              />
+              <div className="text-xs text-gray-500 text-right">
+                {rejectionReason.length}/500 characters
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleRejectCancel}
+              disabled={isRejecting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleRejectSubmit}
+              disabled={isRejecting || !rejectionReason.trim()}
+              className="flex items-center gap-2"
+            >
+              {isRejecting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Rejecting...
+                </>
+              ) : (
+                <>
+                  <X className="h-4 w-4" />
+                  Reject Teacher
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 } 

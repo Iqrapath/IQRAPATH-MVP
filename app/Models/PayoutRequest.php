@@ -28,6 +28,10 @@ class PayoutRequest extends Model
         'processed_by_id',
         'notes',
         'transaction_id',
+        'currency',
+        'exchange_rate_used',
+        'fee_amount',
+        'fee_currency',
     ];
 
     /**
@@ -40,6 +44,8 @@ class PayoutRequest extends Model
         'payment_details' => 'array',
         'request_date' => 'date',
         'processed_date' => 'date',
+        'exchange_rate_used' => 'decimal:6',
+        'fee_amount' => 'decimal:2',
     ];
 
     /**
@@ -90,6 +96,9 @@ class PayoutRequest extends Model
                     'transaction_type' => 'withdrawal',
                     'description' => 'Payout request #' . $payoutRequest->request_uuid,
                     'amount' => $payoutRequest->amount,
+                    'currency' => $payoutRequest->currency ?? 'NGN',
+                    'exchange_rate_used' => $payoutRequest->exchange_rate_used,
+                    'exchange_rate_date' => now(),
                     'status' => 'completed',
                     'transaction_date' => now()->format('Y-m-d'),
                     'created_by_id' => $payoutRequest->processed_by_id,

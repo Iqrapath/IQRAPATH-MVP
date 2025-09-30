@@ -33,8 +33,12 @@ export default function TeacherDocumentsSection({ documents = { id_verifications
         return <span className="inline-flex items-center gap-1 text-xs text-yellow-700">Pending</span>;
     };
 
-    const getIdFront = documents.id_verifications.find(d => d.metadata?.side === 'front');
-    const getIdBack = documents.id_verifications.find(d => d.metadata?.side === 'back');
+    // Ensure documents and its properties exist
+    const safeDocuments = documents || { id_verifications: [], certificates: [], resume: null };
+    const idVerifications = safeDocuments.id_verifications || [];
+    
+    const getIdFront = idVerifications.find(d => d.metadata?.side === 'front');
+    const getIdBack = idVerifications.find(d => d.metadata?.side === 'back');
 
     const idHeaderStatus = (() => {
         const docs = [getIdFront?.status, getIdBack?.status].filter(Boolean) as string[];
@@ -113,7 +117,7 @@ export default function TeacherDocumentsSection({ documents = { id_verifications
     };
 
     const verifyAllCertificates = async () => {
-        const ids = (documents.certificates || []).filter(c => c.status !== 'verified').map(c => c.id);
+        const ids = (safeDocuments.certificates || []).filter(c => c.status !== 'verified').map(c => c.id);
         for (const id of ids) {
             await verifyDocument(id);
         }
@@ -187,14 +191,14 @@ export default function TeacherDocumentsSection({ documents = { id_verifications
                                 <div className="flex items-center justify-between mb-4">
                                     <div className="text-gray-900 font-semibold">Certificates:</div>
                                     <div className="flex items-center gap-4">
-                                        <span className="text-xs text-gray-600">{(documents.certificates || []).length > 0 ? 'Uploaded' : 'Not Uploaded'}</span>
-                                        {(documents.certificates || []).some(c => c.status !== 'verified') && (
+                                        <span className="text-xs text-gray-600">{(safeDocuments.certificates || []).length > 0 ? 'Uploaded' : 'Not Uploaded'}</span>
+                                        {(safeDocuments.certificates || []).some(c => c.status !== 'verified') && (
                                             <Button variant="link" className="p-0 h-auto text-teal-600" onClick={verifyAllCertificates}>Verify certificates</Button>
                                         )}
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-6">
-                                    {(documents.certificates || []).map((cert) => (
+                                    {(safeDocuments.certificates || []).map((cert) => (
                                         <div key={cert.id} className="rounded-xl border border-gray-200 p-4 bg-white text-center">
                                             <div className="h-28 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 flex items-center justify-center">
                                                 <CertificateIcon className="text-gray-400" />
@@ -221,13 +225,13 @@ export default function TeacherDocumentsSection({ documents = { id_verifications
                             <div className="flex items-center">
                                 <ResumeIcon className="text-gray-500 mr-2" />
                                 <span className="text-gray-900 font-medium">CV/Resume:</span>
-                                <span className="ml-2 text-sm text-gray-500">{documents.resume ? 'Uploaded' : 'Not Uploaded'}</span>
+                                <span className="ml-2 text-sm text-gray-500">{safeDocuments.resume ? 'Uploaded' : 'Not Uploaded'}</span>
                             </div>
-                            {documents.resume ? (
+                            {safeDocuments.resume ? (
                                 <div className="flex items-center gap-4">
-                                    <Button variant="link" className="p-0 h-auto text-teal-600" onClick={() => documents.resume?.documentUrl && window.open(documents.resume.documentUrl, '_blank')}>Download {documents.resume.name}</Button>
-                                    <Button variant="link" className="p-0 h-auto text-blue-600" onClick={() => verifyDocument(documents.resume?.id)} disabled={documents.resume?.status === 'verified'}>Verify</Button>
-                                    <Button variant="link" className="p-0 h-auto text-gray-600" onClick={() => openUpload('resume', undefined, documents.resume?.id)} disabled={documents.resume?.status === 'verified'}>Re-Upload</Button>
+                                    <Button variant="link" className="p-0 h-auto text-teal-600" onClick={() => safeDocuments.resume?.documentUrl && window.open(safeDocuments.resume.documentUrl, '_blank')}>Download {safeDocuments.resume.name}</Button>
+                                    <Button variant="link" className="p-0 h-auto text-blue-600" onClick={() => verifyDocument(safeDocuments.resume?.id)} disabled={safeDocuments.resume?.status === 'verified'}>Verify</Button>
+                                    <Button variant="link" className="p-0 h-auto text-gray-600" onClick={() => openUpload('resume', undefined, safeDocuments.resume?.id)} disabled={safeDocuments.resume?.status === 'verified'}>Re-Upload</Button>
                                 </div>
                             ) : (
                                 <Button variant="link" className="p-0 h-auto text-gray-600" onClick={() => openUpload('resume')}>Upload Resume</Button>

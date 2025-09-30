@@ -23,6 +23,9 @@ class Transaction extends Model
         'transaction_type',
         'description',
         'amount',
+        'currency',
+        'exchange_rate_used',
+        'exchange_rate_date',
         'status',
         'transaction_date',
         'created_by_id',
@@ -38,6 +41,8 @@ class Transaction extends Model
      */
     protected $casts = [
         'amount' => 'decimal:2',
+        'exchange_rate_used' => 'decimal:6',
+        'exchange_rate_date' => 'datetime',
         'transaction_date' => 'date',
         'metadata' => 'array',
     ];

@@ -42,7 +42,7 @@ export default function RoleSelection({ user }: RoleSelectionProps) {
                             How do you want to use this platform?
                         </h1>
                         <p className="text-gray-600 text-sm">
-                            Kindly select how you like to use Iqrapath for learning
+                            Kindly select how you like to use IqraQuest for learning
                         </p>
                     </div>
 

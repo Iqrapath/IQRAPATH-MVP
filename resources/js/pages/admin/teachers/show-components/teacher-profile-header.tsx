@@ -182,28 +182,28 @@ export default function TeacherProfileHeader({ teacher, profile, earnings, verif
       </div>
 
       {/* Main content area - White background */}
-      <div className=" rounded-b-xl p-6 -mt-16">
-        {/* Avatar and Teacher Info - Left side */}
-        <div className="flex justify-between items-start">
+      <div className="rounded-b-xl p-4 sm:p-6 -mt-16">
+        {/* Avatar and Teacher Info - Responsive layout */}
+        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-6">
           {/* Left side: Avatar and Teacher Information */}
-          <div className="flex flex-col items-start gap-4 ml-4">
+          <div className="flex flex-col items-center lg:items-start gap-4">
             {/* Profile Picture - Overlaps green header */}
-            <div className="flex-shrink-0 -mt-6 ml-10">
-              <Avatar className="h-40 w-40 border-4 border-white shadow-lg">
+            <div className="flex-shrink-0 -mt-6">
+              <Avatar className="h-32 w-32 sm:h-40 sm:w-40 border-4 border-white shadow-lg">
                 <AvatarImage src={teacher.avatar || undefined} alt={teacher.name} />
-                <AvatarFallback className="text-2xl font-semibold bg-white text-teal-600">
+                <AvatarFallback className="text-xl sm:text-2xl font-semibold bg-white text-teal-600">
                   {getInitials(teacher.name)}
                 </AvatarFallback>
               </Avatar>
             </div>
 
             {/* Teacher Information - Below avatar on white background */}
-            <div className="text-gray-900 flex flex-col items-center">
-              <h1 className="text-2xl font-bold mb-1">{teacher.name}</h1>
-              <p className="text-lg mb-0 text-gray-600">Teacher</p>
+            <div className="text-gray-900 flex flex-col items-center lg:items-start text-center lg:text-left">
+              <h1 className="text-xl sm:text-2xl font-bold mb-1">{teacher.name}</h1>
+              <p className="text-base sm:text-lg mb-0 text-gray-600">Teacher</p>
               <div className="flex items-center gap-1 mb-1">
                 <MapPin className="h-4 w-4 text-gray-500" />
-                <span className="text-gray-700">{teacher.location || 'Location not specified'}</span>
+                <span className="text-gray-700 text-sm sm:text-base">{teacher.location || 'Location not specified'}</span>
               </div>
               
               {/* Enhanced Verification Status Display */}
@@ -224,60 +224,62 @@ export default function TeacherProfileHeader({ teacher, profile, earnings, verif
           </div>
 
           {/* Right side: Earnings Card - Also overlaps green header */}
-          <div className="flex-shrink-0 -mt-4 mr-20">
+          <div className="flex-shrink-0 -mt-4 lg:-mt-4 w-full lg:w-auto">
             {earnings ? (
-              <Card className="w-auto shadow-xl bg-white">
+              <Card className="w-full lg:w-auto shadow-xl bg-white">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-lg font-semibold">Earnings</CardTitle>
+                  <CardTitle className="text-base sm:text-lg font-semibold">Earnings</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                                     <div className="grid grid-cols-3 gap-3">
-                     <div className="text-center p-3 bg-blue-50 rounded-lg">
-                       <div className="flex items-center justify-between mb-1">
-                         <PeopleIcon className="h-5 w-4 text-blue-600" />
-                         <span className="font-bold text-blue-600">
-                           {formatCurrency(earnings.wallet_balance)}
-                         </span>
-                       </div>
-                       <div className="text-xs text-gray-600">Wallet Balance</div>
-                     </div>
-                     <div className="text-center p-3 bg-green-50 rounded-lg">
-                       <div className="flex items-center justify-between mb-1">
-                         <PeopleIcon className="h-5 w-4 text-green-600" />
-                         <span className="font-bold text-green-600">
-                           {formatCurrency(earnings.total_earned)}
-                         </span>
-                       </div>
-                       <div className="text-xs text-gray-600">Total Earned</div>
-                     </div>
-                     <div className="text-center p-3 bg-yellow-50 rounded-lg">
-                       <div className="flex items-center justify-between mb-1">
-                         <ProgressCheckIcon className="h-5 w-4 text-yellow-600" />
-                         <span className="font-bold text-yellow-600">
-                           {formatCurrency(earnings.pending_payouts)}
-                         </span>
-                       </div>
-                       <div className="text-xs text-gray-600">Pending Payouts</div>
-                     </div>
-                   </div>
-                  <div className="text-right">
-                    <Button 
-                      variant="link" 
-                      className="text-sm p-0 h-auto text-teal-600 hover:text-teal-700"
-                      onClick={() => window.location.href = route('admin.teachers.earnings', teacher.id)}
-                    >
-                      View Teacher Earnings
-                    </Button>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="text-center p-3 bg-blue-50 rounded-lg">
+                      <div className="flex items-center justify-between mb-1">
+                        <PeopleIcon className="h-4 w-4 sm:h-5 sm:w-4 text-blue-600" />
+                        <span className="font-bold text-blue-600 text-sm sm:text-base">
+                          {formatCurrency(earnings.wallet_balance)}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-600">Wallet Balance</div>
+                    </div>
+                    <div className="text-center p-3 bg-green-50 rounded-lg">
+                      <div className="flex items-center justify-between mb-1">
+                        <PeopleIcon className="h-4 w-4 sm:h-5 sm:w-4 text-green-600" />
+                        <span className="font-bold text-green-600 text-sm sm:text-base">
+                          {formatCurrency(earnings.total_earned)}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-600">Total Earned</div>
+                    </div>
+                    <div className="text-center p-3 bg-yellow-50 rounded-lg">
+                      <div className="flex items-center justify-between mb-1">
+                        <ProgressCheckIcon className="h-4 w-4 sm:h-5 sm:w-4 text-yellow-600" />
+                        <span className="font-bold text-yellow-600 text-sm sm:text-base">
+                          {formatCurrency(earnings.pending_payouts)}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-600">Pending Payouts</div>
+                    </div>
                   </div>
+                  {teacher.id > 0 && (
+                    <div className="text-center lg:text-right">
+                      <Button 
+                        variant="link" 
+                        className="text-sm p-0 h-auto text-teal-600 hover:text-teal-700"
+                        onClick={() => window.location.href = route('admin.teachers.earnings', teacher.id)}
+                      >
+                        View Teacher Earnings
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ) : (
-              <Card className="w-auto shadow-xl bg-white">
+              <Card className="w-full lg:w-auto shadow-xl bg-white">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-lg font-semibold">Earnings</CardTitle>
+                  <CardTitle className="text-base sm:text-lg font-semibold">Earnings</CardTitle>
                 </CardHeader>
-                <CardContent className="p-6 text-center">
-                  <p className="text-gray-500">No earnings data available</p>
+                <CardContent className="p-4 sm:p-6 text-center">
+                  <p className="text-gray-500 text-sm sm:text-base">No earnings data available</p>
                 </CardContent>
               </Card>
             )}

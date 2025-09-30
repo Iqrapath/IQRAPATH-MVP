@@ -45,7 +45,7 @@ class AdminSeeder extends Seeder
                     'payments' => ['create', 'read', 'update', 'delete'],
                     'reports' => ['create', 'read', 'update', 'delete'],
                 ]),
-                'bio' => 'Main system administrator for IQRAPATH platform with full access to all system features.',
+                'bio' => 'Main system administrator for IQRAQUEST platform with full access to all system features.',
             ]);
         }
         

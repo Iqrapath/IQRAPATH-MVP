@@ -61,6 +61,14 @@ return [
         'base_url' => env('PAYSTACK_BASE_URL', 'https://api.paystack.co'),
     ],
 
+    'paypal' => [
+        'client_id' => env('PAYPAL_CLIENT_ID'),
+        'client_secret' => env('PAYPAL_CLIENT_SECRET'),
+        'mode' => env('PAYPAL_MODE', 'sandbox'), // sandbox or live
+        'base_url' => env('PAYPAL_BASE_URL', 'https://api.sandbox.paypal.com'),
+        'webhook_id' => env('PAYPAL_WEBHOOK_ID'),
+    ],
+
     'google_meet' => [
         'client_id' => env('GOOGLE_MEET_CLIENT_ID'),
         'client_secret' => env('GOOGLE_MEET_CLIENT_SECRET'),
@@ -79,6 +87,14 @@ return [
         'client_id' => env('FACEBOOK_CLIENT_ID'),
         'client_secret' => env('FACEBOOK_CLIENT_SECRET'),
         'redirect' => env('FACEBOOK_REDIRECT_URI'),
+    ],
+
+    'fixer' => [
+        'api_key' => env('FIXER_API_KEY'),
+    ],
+
+    'currencylayer' => [
+        'api_key' => env('CURRENCYLAYER_API_KEY'),
     ],
 
 ];

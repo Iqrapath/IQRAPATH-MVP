@@ -842,6 +842,15 @@ class BookingController extends Controller
                     $endTime = \Carbon\Carbon::parse($availability->end_time);
                     $durationMinutes = $startTime->diffInMinutes($endTime);
 
+                    // Get teacher's current rates and lock them
+                    $teacher = User::find($teacherId);
+                    $teacherProfile = $teacher->teacherProfile;
+                    $currencyService = app(\App\Services\CurrencyService::class);
+                    
+                    $hourlyRateNGN = $teacherProfile->hourly_rate_ngn ?? 0;
+                    $hourlyRateUSD = $teacherProfile->hourly_rate_usd ?? 0;
+                    $exchangeRate = $currencyService->getExchangeRate('NGN', 'USD');
+                    
                     $booking = Booking::create([
                         'student_id' => $student->id,
                         'teacher_id' => $teacherId,
@@ -853,6 +862,11 @@ class BookingController extends Controller
                         'status' => 'pending',
                         'notes' => $noteToTeacher,
                         'created_by_id' => $student->id,
+                        'hourly_rate_ngn' => $hourlyRateNGN,
+                        'hourly_rate_usd' => $hourlyRateUSD,
+                        'rate_currency' => $teacherProfile->preferred_currency ?? 'NGN',
+                        'exchange_rate_used' => $exchangeRate,
+                        'rate_locked_at' => now(),
                     ]);
 
                     // Send notifications for booking creation

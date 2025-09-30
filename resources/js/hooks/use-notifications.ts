@@ -141,6 +141,10 @@ export const useNotifications = ({
         return '📅';
       case 'App\\Notifications\\BookingNotification':
         return '📚';
+      case 'teacher_rejected':
+        return '❌';
+      case 'App\\Notifications\\VerificationRejectedNotification':
+        return '❌';
       default:
         return '🔔';
     }
@@ -300,6 +304,40 @@ export const useNotifications = ({
           });
         });
         
+        // Listen for teacher rejection notifications
+        channel.listen('.App\\Notifications\\VerificationRejectedNotification', (data: any) => {
+          
+          // Format the notification properly
+          const notification: Notification = {
+            id: data.id || '',
+            type: 'App\\Notifications\\VerificationRejectedNotification',
+            notifiable_type: 'App\\Models\\User',
+            notifiable_id: userId,
+            data: data.data || {},
+            read_at: null,
+            created_at: data.created_at || new Date().toISOString(),
+            level: data.level || 'error'
+          };
+          
+          // Check if notification already exists in the list to prevent duplicates
+          setNotifications(prev => {
+            // Check if this notification already exists
+            const exists = prev.some(n => n.id === notification.id);
+            if (exists) {
+              return prev;
+            }
+            
+            // Only increment unread count if notification is new
+            setUnreadCount(prev => prev + 1);
+            
+            // Show toast notification only if it's new
+            showNotificationToast(notification);
+            
+            // Add the new notification to the list
+            return [notification, ...prev];
+          });
+        });
+
         // Listen for general notification events (for other notification types)
         channel.listen('.notification', (data: any) => {
           

@@ -44,12 +44,13 @@ interface AppHeaderLayoutProps {
     children: React.ReactNode;
     breadcrumbs?: BreadcrumbItem[];
     pageTitle?: string;
-    
+    scrollbar?: boolean;
 }
 
 export default function AppHeaderLayout({ 
     children, 
     pageTitle,
+    scrollbar = false,
 }: AppHeaderLayoutProps) {
     const [isMobile, setIsMobile] = useState(false);
 
@@ -85,7 +86,7 @@ export default function AppHeaderLayout({
                 <div className="flex flex-1 relative overflow-hidden">
 
                     {/* Main Content */}
-                    <main className="flex-1 p-6 overflow-y-auto">
+                    <main className={`flex-1 p-6 overflow-y-auto ${scrollbar ? 'scrollbar-hide scrollbar-thin scrollbar-thumb-teal-600' : ''}`}>
                         {children}
                     </main>
 

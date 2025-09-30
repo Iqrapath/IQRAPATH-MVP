@@ -113,4 +113,52 @@ class FinancialSetting extends Model
     {
         return (float) static::get('minimum_withdrawal_amount', 10000);
     }
+
+    /**
+     * Get daily withdrawal limit.
+     *
+     * @return float
+     */
+    public static function getDailyWithdrawalLimit(): float
+    {
+        return (float) static::get('daily_withdrawal_limit', 500000);
+    }
+
+    /**
+     * Get monthly withdrawal limit.
+     *
+     * @return float
+     */
+    public static function getMonthlyWithdrawalLimit(): float
+    {
+        return (float) static::get('monthly_withdrawal_limit', 5000000);
+    }
+
+    /**
+     * Get withdrawal fee for a specific method.
+     *
+     * @param string $method
+     * @return array
+     */
+    public static function getWithdrawalFee(string $method): array
+    {
+        $feeType = static::get("{$method}_fee_type", 'flat');
+        $feeAmount = (float) static::get("{$method}_fee_amount", 0);
+        
+        return [
+            'type' => $feeType,
+            'amount' => $feeAmount
+        ];
+    }
+
+    /**
+     * Get processing time for a specific method.
+     *
+     * @param string $method
+     * @return string
+     */
+    public static function getProcessingTime(string $method): string
+    {
+        return static::get("{$method}_processing_time", '1-3 business days');
+    }
 }

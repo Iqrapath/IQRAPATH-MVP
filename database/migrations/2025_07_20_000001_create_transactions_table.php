@@ -33,6 +33,12 @@ return new class extends Migration
             $table->string('gateway')->nullable();
             $table->string('gateway_reference')->nullable();
             $table->json('metadata')->nullable();
+            
+            // Multi-currency support
+            $table->string('currency', 3)->default('NGN');
+            $table->decimal('exchange_rate_used', 10, 6)->nullable();
+            $table->timestamp('exchange_rate_date')->nullable();
+            
             $table->timestamps();
         });
     }

@@ -59,7 +59,7 @@ export default function TeacherPerformanceStats({
           </div>
           <div className="flex">
             <span className="text-gray-700 w-48">Average Rating:</span>
-            <span className="text-gray-600">{averageRating.toFixed(1)}</span>
+            <span className="text-gray-600">{Number(averageRating || 0).toFixed(1)}</span>
           </div>
           <div className="flex">
             <span className="text-gray-700 w-48">Total Reviews:</span>

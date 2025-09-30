@@ -123,6 +123,23 @@ class OnboardingController extends Controller
             return redirect()->route('onboarding');
         }
 
+        $teacherProfile = $user->teacherProfile;
+        
+        // If teacher is already verified, redirect to dashboard
+        if ($teacherProfile && $teacherProfile->verified) {
+            return redirect()->route('teacher.dashboard');
+        }
+        
+        // Check if teacher has completed onboarding (has verification request)
+        $verificationRequest = null;
+        $onboardingCompleted = false;
+        
+        if ($teacherProfile) {
+            $verificationRequest = $teacherProfile->verificationRequests()->latest()->first();
+            // Only show completion screen if the latest request is not rejected
+            $onboardingCompleted = $verificationRequest !== null && $verificationRequest->status !== 'rejected';
+        }
+
         // Fetch available subjects from database
         $subjects = SubjectTemplates::where('is_active', true)
             ->orderBy('name')
@@ -132,10 +149,44 @@ class OnboardingController extends Controller
         $currencyService = app(\App\Services\CurrencyService::class);
         $availableCurrencies = $currencyService->getAvailableCurrencies();
 
+        // Prepare teacher profile data for form pre-filling
+        $teacherData = [];
+        if ($teacherProfile) {
+            $teacherData = [
+                'name' => $user->name,
+                'phone' => $teacherProfile->phone,
+                'country' => $teacherProfile->country,
+                'country_code' => $teacherProfile->country_code,
+                'calling_code' => $teacherProfile->calling_code,
+                'city' => $teacherProfile->city,
+                'subjects' => $teacherProfile->subjects ?? [],
+                'experience_years' => $teacherProfile->experience_years,
+                'qualification' => $teacherProfile->qualification,
+                'bio' => $teacherProfile->bio,
+                'timezone' => $teacherProfile->timezone,
+                'teaching_mode' => $teacherProfile->teaching_mode,
+                'availability' => $teacherProfile->availability ?? [],
+                'preferred_currency' => $teacherProfile->preferred_currency,
+                'hourly_rate_usd' => $teacherProfile->hourly_rate_usd,
+                'hourly_rate_ngn' => $teacherProfile->hourly_rate_ngn,
+            ];
+        }
+
         return Inertia::render('onboarding/teacher', [
             'user' => $user,
             'subjects' => $subjects,
             'availableCurrencies' => $availableCurrencies,
+            'onboardingCompleted' => $onboardingCompleted,
+            'teacherData' => $teacherData,
+            'verificationRequest' => $verificationRequest ? [
+                'id' => $verificationRequest->id,
+                'status' => $verificationRequest->status,
+                'docs_status' => $verificationRequest->docs_status,
+                'video_status' => $verificationRequest->video_status,
+                'submitted_at' => $verificationRequest->submitted_at->toISOString(),
+                'reviewed_at' => $verificationRequest->reviewed_at?->toISOString(),
+                'rejection_reason' => $verificationRequest->rejection_reason,
+            ] : null,
         ]);
     }
 
@@ -576,10 +627,21 @@ class OnboardingController extends Controller
             'qualification' => 'nullable|string|max:500',
             'bio' => 'nullable|string|max:1000',
         ]);
+        
+        // Additional validation for custom subjects
+        $subjects = json_decode($request->subjects, true) ?: [];
+        foreach ($subjects as $subjectName) {
+            if (empty(trim($subjectName)) || strlen(trim($subjectName)) < 2) {
+                return response()->json(['success' => false, 'message' => 'Subject names must be at least 2 characters long'], 400);
+            }
+            if (strlen(trim($subjectName)) > 100) {
+                return response()->json(['success' => false, 'message' => 'Subject names cannot exceed 100 characters'], 400);
+            }
+        }
 
         try {
             DB::transaction(function () use ($request, $user) {
-                // Decode subjects JSON
+                // Decode subjects JSON (already validated above)
                 $subjects = json_decode($request->subjects, true) ?: [];
                 
                 // Create or update teacher profile
@@ -598,15 +660,22 @@ class OnboardingController extends Controller
                 // Clear existing subjects and create new ones
                 $teacherProfile->subjects()->delete();
                 foreach ($subjects as $subjectName) {
-                    $subjectTemplate = SubjectTemplates::where('name', $subjectName)->first();
-                    if ($subjectTemplate) {
-                        Subject::create([
-                            'teacher_profile_id' => $teacherProfile->id,
-                            'subject_template_id' => $subjectTemplate->id,
-                            'teacher_notes' => 'Teaching ' . $subjectName,
-                            'is_active' => true,
-                        ]);
-                    }
+                    // Trim and validate subject name
+                    $subjectName = trim($subjectName);
+                    if (empty($subjectName)) continue;
+                    
+                    // Create subject template if it doesn't exist (auto-create custom subjects)
+                    $subjectTemplate = SubjectTemplates::firstOrCreate(
+                        ['name' => $subjectName],
+                        ['is_active' => true]
+                    );
+                    
+                    Subject::create([
+                        'teacher_profile_id' => $teacherProfile->id,
+                        'subject_template_id' => $subjectTemplate->id,
+                        'teacher_notes' => 'Teaching ' . $subjectName,
+                        'is_active' => true,
+                    ]);
                 }
             });
 
@@ -679,13 +748,20 @@ class OnboardingController extends Controller
             'preferred_currency' => 'required|string|in:NGN,USD,EUR,GBP',
             'hourly_rate_usd' => 'nullable|numeric|min:0|max:1000',
             'hourly_rate_ngn' => 'nullable|numeric|min:0|max:1000000',
-            'withdrawal_method' => 'required|string|in:bank_transfer,paystack,stripe',
+            'withdrawal_method' => 'required|string|in:bank_transfer,mobile_money,paypal',
             
             // Bank transfer fields (conditional)
             'bank_name' => 'required_if:withdrawal_method,bank_transfer|nullable|string|max:255',
             'custom_bank_name' => 'required_if:bank_name,other|nullable|string|max:255',
             'account_number' => 'required_if:withdrawal_method,bank_transfer|nullable|string|max:50',
             'account_name' => 'required_if:withdrawal_method,bank_transfer|nullable|string|max:255',
+            
+            // Mobile money fields (conditional)
+            'mobile_provider' => 'required_if:withdrawal_method,mobile_money|nullable|string|max:255',
+            'mobile_number' => 'required_if:withdrawal_method,mobile_money|nullable|string|max:50',
+            
+            // PayPal fields (conditional)
+            'paypal_email' => 'required_if:withdrawal_method,paypal|nullable|email|max:255',
         ]);
 
         // Custom validation: At least one hourly rate must be provided
@@ -723,27 +799,33 @@ class OnboardingController extends Controller
                 $paymentMethods = [];
                 
                 // Add withdrawal method to payment methods
-                if ($request->withdrawal_method === 'bank_transfer') {
-                    $bankName = $request->bank_name === 'other' ? $request->custom_bank_name : $request->bank_name;
-                    
-                    $paymentMethods[] = [
-                        'id' => 'bank_' . uniqid(),
-                        'type' => 'bank_transfer',
-                        'bank_name' => $bankName,
-                        'account_number' => $request->account_number,
-                        'account_name' => $request->account_name,
-                        'is_default' => true,
-                        'created_at' => now()->toDateTimeString(),
-                    ];
-                } else {
-                    // For paystack, stripe
-                    $paymentMethods[] = [
-                        'id' => $request->withdrawal_method . '_' . uniqid(),
-                        'type' => $request->withdrawal_method,
-                        'is_default' => true,
-                        'created_at' => now()->toDateTimeString(),
-                    ];
-                }
+                $paymentMethodData = [
+                    'id' => $request->withdrawal_method . '_' . uniqid(),
+                    'type' => $request->withdrawal_method,
+                    'is_default' => true,
+                    'created_at' => now()->toDateTimeString(),
+                ];
+                
+                // Add method-specific details
+                switch ($request->withdrawal_method) {
+                    case 'bank_transfer':
+                        $bankName = $request->bank_name === 'other' ? $request->custom_bank_name : $request->bank_name;
+                        $paymentMethodData['bank_name'] = $bankName;
+                        $paymentMethodData['account_number'] = $request->account_number;
+                        $paymentMethodData['account_name'] = $request->account_name;
+                        break;
+                        
+            case 'mobile_money':
+                $paymentMethodData['provider'] = $request->mobile_provider;
+                $paymentMethodData['mobile_number'] = $request->mobile_number;
+                break;
+                
+            case 'paypal':
+                $paymentMethodData['email'] = $request->paypal_email;
+                break;
+        }
+                
+                $paymentMethods[] = $paymentMethodData;
 
                 $withdrawalSettings = [
                     'preferred_method' => $request->withdrawal_method,
@@ -771,6 +853,19 @@ class OnboardingController extends Controller
                     'wallet_id' => $wallet->id,
                     'withdrawal_method' => $request->withdrawal_method,
                     'preferred_currency' => $request->preferred_currency,
+                ]);
+
+                // Create verification request for admin review (for both new and reapplying teachers)
+                $teacherProfile->verificationRequests()->create([
+                    'status' => 'pending',
+                    'docs_status' => 'pending',
+                    'video_status' => 'not_scheduled',
+                    'submitted_at' => now(),
+                ]);
+
+                \Log::info('Verification request created for teacher', [
+                    'user_id' => $user->id,
+                    'teacher_profile_id' => $teacherProfile->id,
                 ]);
             });
 

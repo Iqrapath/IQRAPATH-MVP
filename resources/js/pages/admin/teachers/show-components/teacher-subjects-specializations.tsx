@@ -386,18 +386,23 @@ export default function TeacherSubjectsSpecializations({ profile, availabilities
 
   // Format day ranges (e.g., ["Monday", "Tuesday", "Wednesday"] becomes "Mon-Wed")
   const formatDayRange = (days: string[]): string => {
-    if (days.length === 0) return '';
-    if (days.length === 1) return days[0].substring(0, 3); // Mon, Tue, etc.
+    if (!days || days.length === 0) return '';
+    
+    // Filter out invalid days and ensure they are strings
+    const validDays = days.filter(day => day && typeof day === 'string' && day.trim() !== '');
+    if (validDays.length === 0) return '';
+    
+    if (validDays.length === 1) return validDays[0].substring(0, 3); // Mon, Tue, etc.
 
     // Sort days by order
     const dayOrder: Record<string, number> = { 'Sunday': 0, 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3, 'Thursday': 4, 'Friday': 5, 'Saturday': 6 };
-    const sortedDays = [...days].sort((a, b) => dayOrder[a] - dayOrder[b]);
+    const sortedDays = [...validDays].sort((a, b) => (dayOrder[a] || 0) - (dayOrder[b] || 0));
 
     // Check if days are consecutive
     const isConsecutive = (dayList: string[]): boolean => {
       for (let i = 1; i < dayList.length; i++) {
-        const prevIndex = dayOrder[dayList[i - 1]];
-        const currentIndex = dayOrder[dayList[i]];
+        const prevIndex = dayOrder[dayList[i - 1]] || 0;
+        const currentIndex = dayOrder[dayList[i]] || 0;
         if (currentIndex !== prevIndex + 1) {
           return false;
         }

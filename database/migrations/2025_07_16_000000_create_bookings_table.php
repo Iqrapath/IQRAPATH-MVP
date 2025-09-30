@@ -31,6 +31,14 @@ return new class extends Migration
             $table->timestamp('approved_at')->nullable();
             $table->foreignId('cancelled_by_id')->nullable()->constrained('users');
             $table->timestamp('cancelled_at')->nullable();
+            
+            // Rate locking fields
+            $table->decimal('hourly_rate_ngn', 10, 2)->nullable();
+            $table->decimal('hourly_rate_usd', 8, 2)->nullable();
+            $table->string('rate_currency', 3)->default('NGN');
+            $table->decimal('exchange_rate_used', 10, 6)->nullable();
+            $table->timestamp('rate_locked_at')->nullable();
+            
             $table->timestamps();
         });
     }

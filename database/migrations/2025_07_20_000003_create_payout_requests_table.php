@@ -24,6 +24,13 @@ return new class extends Migration
             $table->foreignId('processed_by_id')->nullable()->constrained('users')->nullOnDelete();
             $table->text('notes')->nullable();
             $table->foreignId('transaction_id')->nullable()->constrained('transactions')->nullOnDelete();
+            
+            // Multi-currency support
+            $table->string('currency', 3)->default('NGN');
+            $table->decimal('exchange_rate_used', 10, 6)->nullable();
+            $table->decimal('fee_amount', 10, 2)->nullable();
+            $table->string('fee_currency', 3)->default('NGN');
+            
             $table->timestamps();
         });
     }

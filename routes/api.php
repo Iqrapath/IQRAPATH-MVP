@@ -138,4 +138,17 @@ Route::middleware(['auth'])
     Route::middleware(['web', 'auth', 'role:teacher'])->group(function () {
         Route::get('/teacher/availability/{teacherId}', [AvailabilityController::class, 'getAvailability']);
         Route::post('/teacher/availability/{teacherId}', [AvailabilityController::class, 'updateAvailability']);
-    }); 
+    });
+
+// Exchange rate API endpoint
+Route::get('/exchange-rate/{from}/{to}', function (string $from, string $to) {
+    $currencyService = app(\App\Services\CurrencyService::class);
+    $rate = $currencyService->getExchangeRate($from, $to);
+    
+    return response()->json([
+        'from' => $from,
+        'to' => $to,
+        'rate' => $rate,
+        'timestamp' => now()->toISOString()
+    ]);
+}); 

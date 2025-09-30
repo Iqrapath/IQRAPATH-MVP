@@ -24,7 +24,7 @@ export default function BecomeTeacher() {
               backgroundClip: 'text'
             }}>
               Become a<br />
-              Iqrapath Teacher
+              IqraQuest Teacher
             </h2>
 
             <p className="text-white/90 mb-12 max-w-lg">

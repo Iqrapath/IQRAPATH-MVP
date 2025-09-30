@@ -65,7 +65,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                                 autoComplete="email"
                                 value={data.login}
                                 onChange={(e) => setData('login', e.target.value)}
-                                placeholder="zakirsoft@gmail.com or +1234567890"
+                                placeholder="zakirsoft@gmail.com"
                             />
                             <InputError message={errors.login} />
                         </div>

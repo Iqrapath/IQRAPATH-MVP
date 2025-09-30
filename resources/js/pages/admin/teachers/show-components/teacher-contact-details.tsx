@@ -139,7 +139,7 @@ export default function TeacherContactDetails({ teacher, profile, totalSessions 
                                 <div className="flex items-center gap-3">
                                     <Star className="h-5 w-5 text-teal-600" />
                                     <span className="text-gray-700">
-                                        {profile?.rating ? `${profile.rating.toFixed(1)} (${profile.reviews_count || 0} Reviews)` : 'No reviews yet'}
+                                        {profile?.rating ? `${Number(profile.rating).toFixed(1)} (${profile.reviews_count || 0} Reviews)` : 'No reviews yet'}
                                     </span>
                                 </div>
                             </div>

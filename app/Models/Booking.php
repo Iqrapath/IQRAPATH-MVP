@@ -32,6 +32,11 @@ class Booking extends Model
         'approved_at',
         'cancelled_by_id',
         'cancelled_at',
+        'hourly_rate_ngn',
+        'hourly_rate_usd',
+        'rate_currency',
+        'exchange_rate_used',
+        'rate_locked_at',
     ];
 
     /**
@@ -46,6 +51,10 @@ class Booking extends Model
         'duration_minutes' => 'integer',
         'approved_at' => 'datetime',
         'cancelled_at' => 'datetime',
+        'hourly_rate_ngn' => 'decimal:2',
+        'hourly_rate_usd' => 'decimal:2',
+        'exchange_rate_used' => 'decimal:6',
+        'rate_locked_at' => 'datetime',
     ];
 
     /**

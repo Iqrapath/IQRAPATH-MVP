@@ -35,14 +35,22 @@ class FinancialService
         // Calculate payment amount (this could be based on session duration, fixed rate, etc.)
         $amount = $this->calculateSessionPayment($session);
 
-        // Create transaction record
+        // Create transaction record with currency and exchange rate info
         $transaction = DB::transaction(function () use ($session, $amount, $admin) {
+            $booking = $session->booking;
+            $currency = $booking && $booking->rate_currency ? $booking->rate_currency : 'NGN';
+            $exchangeRate = $booking && $booking->exchange_rate_used ? $booking->exchange_rate_used : 1.0;
+            $exchangeRateDate = $booking && $booking->rate_locked_at ? $booking->rate_locked_at : now();
+            
             $transaction = Transaction::create([
                 'teacher_id' => $session->teacher_id,
                 'session_id' => $session->id,
                 'transaction_type' => 'session_payment',
                 'description' => 'Payment for session #' . $session->session_uuid,
                 'amount' => $amount,
+                'currency' => $currency,
+                'exchange_rate_used' => $exchangeRate,
+                'exchange_rate_date' => $exchangeRateDate,
                 'status' => 'completed',
                 'transaction_date' => now()->format('Y-m-d'),
                 'created_by_id' => $admin ? $admin->id : null,
@@ -55,8 +63,7 @@ class FinancialService
     }
 
     /**
-     * Calculate payment amount for a session.
-     * This could be based on various factors like session duration, teacher rate, etc.
+     * Calculate payment amount for a session using locked rates from booking.
      */
     protected function calculateSessionPayment(TeachingSession $session): float
     {
@@ -64,9 +71,28 @@ class FinancialService
         $durationMinutes = $session->actual_duration_minutes ?? 
             (strtotime($session->end_time) - strtotime($session->start_time)) / 60;
 
-        // For now, use a simple calculation (e.g., ₦1000 per hour)
-        $hourlyRate = 1000;
-        $amount = ($durationMinutes / 60) * $hourlyRate;
+        $durationHours = $durationMinutes / 60;
+
+        // Use locked rates from booking
+        $booking = $session->booking;
+        if ($booking && $booking->rate_locked_at) {
+            // Use the locked rate from booking time
+            $hourlyRate = $booking->rate_currency === 'NGN' 
+                ? $booking->hourly_rate_ngn 
+                : $booking->hourly_rate_usd;
+            
+            $amount = $durationHours * $hourlyRate;
+        } else {
+            // Fallback to current teacher rates if no locked rate
+            $teacher = $session->teacher;
+            $teacherProfile = $teacher->teacherProfile;
+            
+            $hourlyRate = $teacherProfile->preferred_currency === 'NGN' 
+                ? $teacherProfile->hourly_rate_ngn 
+                : $teacherProfile->hourly_rate_usd;
+            
+            $amount = $durationHours * $hourlyRate;
+        }
 
         // Round to 2 decimal places
         return round($amount, 2);
@@ -111,11 +137,40 @@ class FinancialService
             ]
         );
 
-        // Get recent transactions
+        // Get recent transactions with currency info
         $recentTransactions = Transaction::where('teacher_id', $teacher->id)
             ->orderBy('created_at', 'desc')
             ->take(10)
-            ->get();
+            ->get()
+            ->map(function ($transaction) {
+                $currency = $transaction->currency ?? 'NGN';
+                $currencyService = app(\App\Services\CurrencyService::class);
+                
+                // Calculate amount in both currencies
+                $amountNGN = $currency === 'NGN' ? $transaction->amount : 
+                    $currencyService->convertAmount($transaction->amount, $currency, 'NGN');
+                $amountUSD = $currency === 'USD' ? $transaction->amount : 
+                    $currencyService->convertAmount($transaction->amount, $currency, 'USD');
+                
+                return [
+                    'id' => $transaction->id,
+                    'uuid' => $transaction->transaction_uuid,
+                    'type' => $transaction->transaction_type,
+                    'amount' => $transaction->amount,
+                    'currency' => $currency,
+                    'amount_ngn' => round($amountNGN, 2),
+                    'amount_usd' => round($amountUSD, 2),
+                    'exchange_rate_used' => $transaction->exchange_rate_used,
+                    'exchange_rate_date' => $transaction->exchange_rate_date,
+                    'status' => $transaction->status,
+                    'description' => $transaction->description,
+                    'date' => $transaction->transaction_date,
+                    'session_info' => $transaction->session ? [
+                        'uuid' => $transaction->session->session_uuid,
+                        'subject' => $transaction->session->subject->name ?? 'Unknown',
+                    ] : null,
+                ];
+            });
 
         // Get pending payout requests
         $pendingPayouts = $teacher->payoutRequests()
@@ -139,17 +194,36 @@ class FinancialService
      */
     public function getTeacherEarningsRealTime(User $teacher): array
     {
-        // Calculate total earned from completed transactions
-        $totalEarned = Transaction::where('teacher_id', $teacher->id)
+        // Calculate total earned from completed transactions (in NGN)
+        $totalEarnedNGN = Transaction::where('teacher_id', $teacher->id)
             ->whereIn('transaction_type', ['session_payment', 'referral_bonus'])
             ->where('status', 'completed')
-            ->sum('amount');
+            ->get()
+            ->sum(function ($transaction) {
+                $currency = $transaction->currency ?? 'NGN';
+                if ($currency === 'NGN') {
+                    return $transaction->amount;
+                }
+                $currencyService = app(\App\Services\CurrencyService::class);
+                return $currencyService->convertAmount($transaction->amount, $currency, 'NGN');
+            });
 
-        // Calculate total withdrawn from withdrawal transactions
-        $totalWithdrawn = Transaction::where('teacher_id', $teacher->id)
+        // Calculate total withdrawn from withdrawal transactions (in NGN)
+        $totalWithdrawnNGN = Transaction::where('teacher_id', $teacher->id)
             ->where('transaction_type', 'withdrawal')
             ->where('status', 'completed')
-            ->sum('amount');
+            ->get()
+            ->sum(function ($transaction) {
+                $currency = $transaction->currency ?? 'NGN';
+                if ($currency === 'NGN') {
+                    return $transaction->amount;
+                }
+                $currencyService = app(\App\Services\CurrencyService::class);
+                return $currencyService->convertAmount($transaction->amount, $currency, 'NGN');
+            });
+
+        $totalEarned = $totalEarnedNGN;
+        $totalWithdrawn = $totalWithdrawnNGN;
 
         // Calculate pending payouts from pending payout requests
         $pendingPayouts = PayoutRequest::where('teacher_id', $teacher->id)
@@ -203,11 +277,22 @@ class FinancialService
                 ];
             });
 
+        // Calculate amounts in both currencies
+        $currencyService = app(\App\Services\CurrencyService::class);
+        $totalEarnedUSD = $currencyService->convertAmount($totalEarned, 'NGN', 'USD');
+        $totalWithdrawnUSD = $currencyService->convertAmount($totalWithdrawn, 'NGN', 'USD');
+        $walletBalanceUSD = $currencyService->convertAmount($walletBalance, 'NGN', 'USD');
+        $pendingPayoutsUSD = $currencyService->convertAmount($pendingPayouts, 'NGN', 'USD');
+
         return [
             'wallet_balance' => $walletBalance,
+            'wallet_balance_usd' => round($walletBalanceUSD, 2),
             'total_earned' => $totalEarned,
+            'total_earned_usd' => round($totalEarnedUSD, 2),
             'total_withdrawn' => $totalWithdrawn,
+            'total_withdrawn_usd' => round($totalWithdrawnUSD, 2),
             'pending_payouts' => $pendingPayouts,
+            'pending_payouts_usd' => round($pendingPayoutsUSD, 2),
             'recent_transactions' => $recentTransactions,
             'pending_payout_requests' => $pendingPayoutRequests,
             'calculated_at' => now()->toDateTimeString(),

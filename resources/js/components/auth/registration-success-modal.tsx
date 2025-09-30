@@ -1,6 +1,6 @@
 import { Mail, LoaderCircle } from 'lucide-react';
 import { useState } from 'react';
-import { useForm } from '@inertiajs/react';
+import { useForm, router } from '@inertiajs/react';
 import { type User } from '@/types';
 
 import { Button } from '@/components/ui/button';
@@ -10,9 +10,10 @@ import AppLogoIcon from '@/components/app-logo-icon';
 interface RegistrationSuccessModalProps {
     isOpen: boolean;
     user: User;
+    onClose?: () => void;
 }
 
-export default function RegistrationSuccessModal({ isOpen, user }: RegistrationSuccessModalProps) {
+export default function RegistrationSuccessModal({ isOpen, user, onClose }: RegistrationSuccessModalProps) {
     const [resendStatus, setResendStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const { post, processing } = useForm({
         email: user.email || '',
@@ -30,7 +31,18 @@ export default function RegistrationSuccessModal({ isOpen, user }: RegistrationS
     };
 
     return (
-        <Dialog open={isOpen} onOpenChange={() => { }}>
+        <Dialog open={isOpen} onOpenChange={(open) => {
+            if (!open) {
+                // Log out the user when modal is closed
+                router.post(route('logout'), {}, {
+                    onSuccess: () => {
+                        if (onClose) {
+                            onClose();
+                        }
+                    }
+                });
+            }
+        }}>
             <DialogContent className="sm:max-w-md border-0 p-10">
                 <div className="text-center space-y-6">
                     {/* IqraQuest Logo */}

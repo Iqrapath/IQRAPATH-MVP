@@ -181,7 +181,7 @@ export default function EditChild({ child, availableSubjects }: EditChildProps) 
                                             Child's Full Name
                                         </Label>
                                         <Input
-                                            value={child.name}
+                                            value={data.children[index].name}
                                             onChange={(e) => updateChild(index, 'name', e.target.value)}
                                             placeholder="e.g. Fatima Bello"
                                             className="mt-1 bg-gray-50 border-gray-200"
@@ -196,7 +196,7 @@ export default function EditChild({ child, availableSubjects }: EditChildProps) 
                                                 Age
                                             </Label>
                                             <Input
-                                                value={child.age}
+                                                value={data.children[index].age}
                                                 onChange={(e) => updateChild(index, 'age', e.target.value)}
                                                 placeholder="e.g. 7 years"
                                                 className="mt-1 bg-gray-50 border-gray-200"
@@ -207,7 +207,7 @@ export default function EditChild({ child, availableSubjects }: EditChildProps) 
                                             <Label className="text-sm font-medium text-gray-700">
                                                 Gender
                                             </Label>
-                                            <Select value={child.gender} onValueChange={(value) => updateChild(index, 'gender', value)}>
+                                            <Select value={data.children[index].gender} onValueChange={(value) => updateChild(index, 'gender', value)}>
                                                 <SelectTrigger className="mt-1 bg-gray-50 border-gray-200">
                                                     <SelectValue placeholder="Select gender" />
                                                 </SelectTrigger>
@@ -230,7 +230,7 @@ export default function EditChild({ child, availableSubjects }: EditChildProps) 
                                                 <div key={subject} className="flex items-center space-x-2">
                                                     <Checkbox
                                                         id={`${index}-${subject}`}
-                                                        checked={child.preferred_subjects.includes(subject)}
+                                                        checked={data.children[index].preferred_subjects.includes(subject)}
                                                         onCheckedChange={(checked) => handleSubjectChange(index, subject, checked as boolean)}
                                                         className="data-[state=checked]:bg-gray-900 data-[state=checked]:border-gray-900"
                                                     />
@@ -253,7 +253,7 @@ export default function EditChild({ child, availableSubjects }: EditChildProps) 
                                         </p>
                                         
                                         <div className="mt-3 space-y-4">
-                                            {Object.entries(child.preferred_learning_times).map(([day, schedule]) => (
+                                            {Object.entries(data.children[index].preferred_learning_times).map(([day, schedule]) => (
                                                 <div key={day} className="space-y-2">
                                                     <div className="flex items-center space-x-2">
                                                         <Checkbox

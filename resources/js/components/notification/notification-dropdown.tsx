@@ -147,6 +147,9 @@ export function NotificationDropdown({ className, iconSize = 24 }: NotificationD
         return <Bell className="h-4 w-4 text-purple-500" />;
       case 'App\\Notifications\\AvailabilityUpdatedNotification':
         return <Bell className="h-4 w-4 text-emerald-500" />;
+      case 'teacher_rejected':
+      case 'App\\Notifications\\VerificationRejectedNotification':
+        return <Bell className="h-4 w-4 text-red-500" />;
       case 'App\\Notifications\\VerificationCallScheduledNotification':
         return <Bell className="h-4 w-4 text-indigo-500" />;
       case 'App\\Notifications\\SystemNotification':
@@ -343,6 +346,20 @@ export function NotificationDropdown({ className, iconSize = 24 }: NotificationD
                             )}
                             {notification.data.registration_time && (
                               <p><strong>Registered:</strong> {notification.data.registration_time}</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Special handling for teacher rejection notifications */}
+                      {(notification.type === 'teacher_rejected' || notification.type === 'App\\Notifications\\VerificationRejectedNotification') && (
+                        <div className="mt-2 p-2 bg-red-50 rounded border border-red-200">
+                          <div className="text-xs text-red-800">
+                            {notification.data.rejection_reason && (
+                              <p><strong>Reason:</strong> {notification.data.rejection_reason}</p>
+                            )}
+                            {notification.data.support_contact && (
+                              <p><strong>Support:</strong> {notification.data.support_contact}</p>
                             )}
                           </div>
                         </div>
