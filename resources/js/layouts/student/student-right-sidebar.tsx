@@ -6,6 +6,13 @@ import { usePage } from '@inertiajs/react';
 import { PageProps } from '@/types';
 import FundAccountModal from '@/components/student/FundAccountModal';
 import { toast } from 'sonner';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 interface StudentRightSidebarProps {
     children?: ReactNode;
@@ -22,10 +29,12 @@ export default function StudentRightSidebar({
 }: StudentRightSidebarProps) {
     const { auth } = usePage<PageProps>().props;
     const [showFundModal, setShowFundModal] = useState(false);
+    const { selectedCurrency, currencyRates, currencySymbols, setSelectedCurrency, formatBalance } = useCurrency();
+    
     // Get wallet balance from wallet relationship (preferred) or fallback to wallet_balance
-    const walletBalance = auth.user?.wallet?.balance || auth.user?.wallet_balance || 0;
+    const walletBalanceNGN = (auth.user as { wallet?: { balance: number } })?.wallet?.balance || auth.user?.wallet_balance || 0;
     // Payment ID from wallet - now guaranteed to be unique
-    const paymentId = auth.user?.wallet?.payment_id || "IQR-STU-LOADING...";
+    const paymentId = (auth.user as { wallet?: { payment_id: string } })?.wallet?.payment_id || "IQR-STU-LOADING...";
 
     const handleCopyPaymentId = () => {
         navigator.clipboard.writeText(paymentId);
@@ -63,7 +72,7 @@ export default function StudentRightSidebar({
 
             toast.success('Payment successful!', {
                 duration: 5000,
-                description: `₦${paymentData.amount?.toLocaleString() || '0'} added to your wallet`,
+                description: `${formatBalance(paymentData.amount || 0)} added to your wallet`,
                 action: {
                     label: 'View Balance',
                     onClick: () => {
@@ -88,10 +97,30 @@ export default function StudentRightSidebar({
                         </div>
                         <h3 className="text-lg font-semibold text-gray-900">Your Balance</h3>
                     </div>
-                    <div className="flex items-center gap-1 text-[#338078]">
-                        <span className="text-sm font-medium">NGN</span>
-                        <ChevronDown className="w-4 h-4" />
-                    </div>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="flex items-center gap-1 text-[#338078] hover:text-[#236158] p-1 h-auto">
+                                <span className="text-sm font-medium">{selectedCurrency}</span>
+                                <ChevronDown className="w-4 h-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-32">
+                            {Object.keys(currencyRates).map((currency) => (
+                                <DropdownMenuItem
+                                    key={currency}
+                                    onClick={() => setSelectedCurrency(currency)}
+                                    className={`cursor-pointer ${
+                                        selectedCurrency === currency ? 'bg-[#E8F5F3] text-[#338078]' : ''
+                                    }`}
+                                >
+                                    <div className="flex items-center justify-between w-full">
+                                        <span className="font-medium">{currency}</span>
+                                        <span className="text-sm text-gray-500">{currencySymbols[currency as keyof typeof currencySymbols]}</span>
+                                    </div>
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
 
                 {/* Payment ID */}
@@ -108,7 +137,7 @@ export default function StudentRightSidebar({
                 {/* Balance Amount */}
                 <div className="mb-6 pt-2">
                     <span className="text-3xl font-bold text-gray-900">
-                        ₦{walletBalance.toLocaleString()}
+                        {formatBalance(walletBalanceNGN)}
                     </span>
                 </div>
 

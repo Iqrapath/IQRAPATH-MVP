@@ -6,8 +6,14 @@ import { router, usePage } from '@inertiajs/react';
 import { PageProps } from '@/types';
 import FundAccountModal from '@/components/student/FundAccountModal';
 import { toast } from 'sonner';
-import MessageCircleStudentIcon from '@/components/icons/message-circle-student-icon';
 import MessageUserIcon from '@/components/icons/message-user-icon';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 interface Notification {
     id: string;
@@ -36,8 +42,11 @@ export default function GuardianRightSidebar({
 }: GuardianRightSidebarProps) {
     const { auth } = usePage<PageProps>().props;
     const [showFundModal, setShowFundModal] = useState(false);
+    const { selectedCurrency, currencyRates, currencySymbols, setSelectedCurrency, formatBalance } = useCurrency();
+    
     // Get wallet balance from guardian wallet relationship (preferred) or fallback to wallet_balance
-    const walletBalance = (auth.user as any)?.guardianWallet?.balance || auth.user?.wallet_balance || 0;
+    const walletBalanceNGN = (auth.user as any)?.guardianWallet?.balance || auth.user?.wallet_balance || 0;
+    
     // Generate stable payment ID for guardian (based on user ID, doesn't change on re-renders)
     const paymentId = (auth.user as any)?.guardianWallet ? `IQR-GUA-${String(auth.user.id).padStart(4, '0')}-${String(auth.user.id * 7).slice(-6)}` : "IQR-GUA-LOADING...";
 
@@ -77,7 +86,7 @@ export default function GuardianRightSidebar({
 
             toast.success('Payment successful!', {
                 duration: 5000,
-                description: `₦${paymentData.amount?.toLocaleString() || '0'} added to your wallet`,
+                description: `${formatBalance(paymentData.amount || 0)} added to your wallet`,
                 action: {
                     label: 'View Balance',
                     onClick: () => {
@@ -108,10 +117,30 @@ export default function GuardianRightSidebar({
                             </div>
                             <h3 className="text-lg font-semibold text-gray-900">Your Balance</h3>
                         </div>
-                        <div className="flex items-center gap-1 text-[#338078]">
-                            <span className="text-sm font-medium">NGN</span>
-                            <ChevronDown className="w-4 h-4" />
-                        </div>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="flex items-center gap-1 text-[#338078] hover:text-[#236158] p-1 h-auto">
+                                    <span className="text-sm font-medium">{selectedCurrency}</span>
+                                    <ChevronDown className="w-4 h-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-32">
+                                {Object.keys(currencyRates).map((currency) => (
+                                    <DropdownMenuItem
+                                        key={currency}
+                                        onClick={() => setSelectedCurrency(currency)}
+                                        className={`cursor-pointer ${
+                                            selectedCurrency === currency ? 'bg-[#E8F5F3] text-[#338078]' : ''
+                                        }`}
+                                    >
+                                        <div className="flex items-center justify-between w-full">
+                                            <span className="font-medium">{currency}</span>
+                                            <span className="text-sm text-gray-500">{currencySymbols[currency as keyof typeof currencySymbols]}</span>
+                                        </div>
+                                    </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
 
                     {/* Payment ID */}
@@ -128,7 +157,7 @@ export default function GuardianRightSidebar({
                     {/* Balance Amount */}
                     <div className="mb-6 pt-2">
                         <span className="text-3xl font-bold text-gray-900">
-                            ₦{walletBalance.toLocaleString()}
+                            {formatBalance(walletBalanceNGN)}
                         </span>
                     </div>
 

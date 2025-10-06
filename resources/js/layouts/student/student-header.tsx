@@ -13,7 +13,7 @@
 import AppLogoIcon from '@/components/app-logo-icon';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { UserMenuContent } from '@/components/user-menu-content';
 import { useInitials } from '@/hooks/use-initials';
 import { type SharedData } from '@/types';
@@ -21,6 +21,7 @@ import { Link, usePage } from '@inertiajs/react';
 import { ChevronDown, Menu, PanelRight } from 'lucide-react';
 import { NotificationDropdown } from '@/components/notification/notification-dropdown';
 import { MessageDropdown } from '@/components/message/message-dropdown';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 interface StudentHeaderProps {
     pageTitle?: string; // Made optional since we're not using it for display anymore
@@ -30,7 +31,7 @@ interface StudentHeaderProps {
 }
 
 export default function StudentHeader({ 
-    pageTitle, 
+    pageTitle: _pageTitle, 
     toggleLeftSidebar, 
     toggleRightSidebar, 
     isMobile = false 
@@ -38,6 +39,10 @@ export default function StudentHeader({
     const page = usePage<SharedData>();
     const { auth } = page.props;
     const getInitials = useInitials();
+    const { selectedCurrency, currencyRates, currencySymbols, setSelectedCurrency, formatBalance } = useCurrency();
+    
+    // Get wallet balance from student wallet relationship (preferred) or fallback to wallet_balance
+    const walletBalanceNGN = (auth.user as { wallet?: { balance: number } })?.wallet?.balance || auth.user?.wallet_balance || 0;
 
     return (
         <header className="bg-gradient-to-r from-[#FFF7E4]/30 to-[#FFF7E4]/30 border-b border-gray-200 h-16 flex items-center px-6">
@@ -58,10 +63,35 @@ export default function StudentHeader({
             {/* Wallet balance in center */}
             <div className="flex-1 flex justify-center">
                 <div className="flex items-center space-x-2 bg-gradient-to-r from-[#FFF7E4]/0 to-[#FFF7E4]/100 backdrop-blur-sm rounded-full px-4 py-2">
-                    <span className="text-sm font-medium text-gray-600">Earnings:</span>
-                    <span className="text-lg font-semibold text-gray-900">
-                        ₦{auth.user.wallet_balance?.toLocaleString() || '0.00'}
-                    </span>
+                    <span className="text-sm font-medium text-gray-600">
+                        Balance: 
+                        {/* Earnings:  */}
+                        {selectedCurrency}
+                        </span>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="flex items-center gap-1 text-lg font-semibold text-gray-900 hover:text-gray-700 p-1 h-auto">
+                                <span>{formatBalance(walletBalanceNGN)}</span>
+                                <ChevronDown className="w-4 h-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="center" className="w-32">
+                            {Object.keys(currencyRates).map((currency) => (
+                                <DropdownMenuItem
+                                    key={currency}
+                                    onClick={() => setSelectedCurrency(currency)}
+                                    className={`cursor-pointer ${
+                                        selectedCurrency === currency ? 'bg-[#E8F5F3] text-[#338078]' : ''
+                                    }`}
+                                >
+                                    <div className="flex items-center justify-between w-full">
+                                        <span className="font-medium">{currency}</span>
+                                        <span className="text-sm text-gray-500">{currencySymbols[currency as keyof typeof currencySymbols]}</span>
+                                    </div>
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </div>
             

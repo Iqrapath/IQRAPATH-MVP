@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import GuardianLeftSidebar from './guardian-left-sidebar';
 import GuardianRightSidebar from './guardian-right-sidebar';
 import { AppLoading } from '@/components/app-loading';
+import { CurrencyProvider } from '@/contexts/CurrencyContext';
 
 interface Notification {
     id: string;
@@ -69,7 +70,7 @@ export default function GuardianLayout({
         if (showLeftSidebar) setShowLeftSidebar(false);
     };
 
-    const closeLeftSidebar = () => {
+    const _closeLeftSidebar = () => {
         setShowLeftSidebar(false);
     };
 
@@ -78,7 +79,7 @@ export default function GuardianLayout({
     };
 
     return (
-        <>
+        <CurrencyProvider>
             <AppLoading />
             <div className="flex flex-col h-screen w-full overflow-hidden bg-gray-50">
                 <GuardianHeader 
@@ -132,6 +133,6 @@ export default function GuardianLayout({
                     />
                 )}
             </div>
-        </>
+        </CurrencyProvider>
     );
 } 
