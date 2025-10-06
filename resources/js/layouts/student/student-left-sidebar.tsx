@@ -199,7 +199,7 @@ export default function StudentLeftSidebar({ className, isMobile = false, onClos
                 )}
                 <nav className="space-y-1">
                     {navItems.map((item, index) => (
-                        <React.Fragment key={item.href || index}>
+                        <React.Fragment key={`nav-item-${index}`}>
                             <Link
                                 href={item.href}
                                 onClick={(e) => {

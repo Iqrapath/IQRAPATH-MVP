@@ -4,7 +4,7 @@ import { useForm, router } from '@inertiajs/react';
 import { type User } from '@/types';
 
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import AppLogoIcon from '@/components/app-logo-icon';
 
 interface RegistrationSuccessModalProps {
@@ -43,6 +43,13 @@ export default function RegistrationSuccessModal({ isOpen, user, onClose }: Regi
                 });
             }
         }}>
+            <DialogHeader>
+                <DialogTitle>Thank you for signing up!</DialogTitle>
+                <DialogDescription>
+                    A message with a confirmation link has been sent to your email address.
+                    Kindly open the link to activate your account.
+                </DialogDescription>
+            </DialogHeader>
             <DialogContent className="sm:max-w-md border-0 p-10">
                 <div className="text-center space-y-6">
                     {/* IqraQuest Logo */}
@@ -82,6 +89,16 @@ export default function RegistrationSuccessModal({ isOpen, user, onClose }: Regi
                         </p>
                     </div>
                 </div>
+                <DialogFooter className="flex-1 justify-center items-center gap-2">
+                    <Button
+                        variant="outline"
+                        onClick={handleResendEmail}
+                        className="w-full"
+                        disabled={processing}
+                    >
+                        {processing ? 'Sending...' : 'Resend Email'}
+                    </Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     );

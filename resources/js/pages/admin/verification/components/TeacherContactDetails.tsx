@@ -22,6 +22,7 @@ interface TeacherContactDetailsProps {
   verificationRequest: {
     id: number | string;
     created_at: string;
+    status: string;
   };
   verification_status: {
     video_status: string;
@@ -161,12 +162,60 @@ export default function TeacherContactDetails({
 
               {/* Action Button */}
               <div className="flex justify-center">
-                <Button 
-                  className="bg-white text-teal-700 border border-teal-700 hover:bg-teal-50 px-4 py-2 rounded-lg text-sm"
-                  onClick={() => setOpenSchedule(true)}
-                >
-                  Schedule Verification Call
-                </Button>
+                {verificationRequest.status === 'rejected' ? (
+                  <div className="text-center">
+                    <div className="text-red-600 text-sm font-medium mb-2">
+                      ❌ Verification Request Rejected
+                    </div>
+                    <div className="text-gray-600 text-xs mb-3">
+                      Cannot schedule video verification for rejected requests.
+                    </div>
+                    <div className="space-y-2">
+                      <Button 
+                        variant="outline"
+                        className="text-gray-600 border-gray-300 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm w-full"
+                        disabled
+                      >
+                        Schedule Verification Call
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        className="text-blue-600 border-blue-300 hover:bg-blue-50 px-4 py-2 rounded-lg text-sm w-full"
+                        onClick={() => {
+                          if (confirm('Are you sure you want to reopen this verification request? This will allow the teacher to resubmit documents and schedule video verification.')) {
+                            // TODO: Implement reopen functionality
+                            alert('Reopen functionality will be implemented');
+                          }
+                        }}
+                      >
+                        Reopen Verification Request
+                      </Button>
+                    </div>
+                  </div>
+                ) : verificationRequest.status === 'verified' ? (
+                  <div className="text-center">
+                    <div className="text-green-600 text-sm font-medium mb-2">
+                      ✅ Verification Completed
+                    </div>
+                    <div className="text-gray-600 text-xs mb-3">
+                      Teacher has been successfully verified.
+                    </div>
+                    <Button 
+                      variant="outline"
+                      className="text-gray-600 border-gray-300 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm"
+                      disabled
+                    >
+                      Schedule Verification Call
+                    </Button>
+                  </div>
+                ) : (
+                  <Button 
+                    className="bg-white text-teal-700 border border-teal-700 hover:bg-teal-50 px-4 py-2 rounded-lg text-sm"
+                    onClick={() => setOpenSchedule(true)}
+                  >
+                    Schedule Verification Call
+                  </Button>
+                )}
               </div>
             </div>
             <div className="text-right">
@@ -182,6 +231,7 @@ export default function TeacherContactDetails({
         isOpen={openSchedule}
         onOpenChange={setOpenSchedule}
         verificationRequestId={verificationRequest.id}
+        verificationStatus={verificationRequest.status}
         onScheduled={handleScheduled}
       />
     </>

@@ -142,7 +142,7 @@ const Teachers: React.FC<TeachersProps> = ({
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
+    <div id="teachers" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
       <div className="relative bg-[#2EBCAE] rounded-[32px] pb-12 lg:pb-16 overflow-hidden">
         {/* Curved Accent */}
         <div className="absolute top-0 right-0 w-1/2 hidden md:block">
@@ -238,7 +238,6 @@ const Teachers: React.FC<TeachersProps> = ({
                     type="range" 
                     min="100" 
                     max="10000" 
-                    defaultValue="5000" 
                     className="w-full accent-[#2EBCAE]"
                     value={filters.budget || 5000}
                     onChange={handleBudgetChange}
@@ -290,7 +289,7 @@ const Teachers: React.FC<TeachersProps> = ({
           <h3 className="text-lg md:text-xl font-medium text-gray-900">
             {loading ? 'Loading...' : `${totalResults} Results`}
           </h3>
-          <a href="#" className="text-[#2EBCAE] hover:underline">See all</a>
+          <a href="#teachers" className="text-[#2EBCAE] hover:underline">See all</a>
         </div>
 
         {/* Teachers Grid */}

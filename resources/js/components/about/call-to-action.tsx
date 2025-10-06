@@ -1,5 +1,4 @@
 import React from 'react';
-import { Link } from '@inertiajs/react';
 
 const CallToAction: React.FC = () => {
   return (
@@ -14,12 +13,12 @@ const CallToAction: React.FC = () => {
                 Start Your Quran Journey Today!
               </span>
             </h2>
-            <Link
-              href="/find-teacher"
+            <a
+              href={route('register.student-guardian')}
               className="inline-flex items-center justify-center px-8 py-3 bg-[#2B6B65] text-white text-base font-medium rounded-full hover:bg-[#235750] transition-colors duration-300"
             >
               Find a Teacher
-            </Link>
+            </a>
           </div>
 
           {/* Right Image */}

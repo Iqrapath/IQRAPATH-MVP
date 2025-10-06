@@ -130,6 +130,7 @@ export default function VerificationShow({
           <VerificationActionButtons 
             verificationRequestId={verificationRequest.id}
             verificationStatus={verification_status}
+            verificationRequestStatus={verificationRequest.status}
             onApproved={() => window.location.reload()}
             onRejected={() => window.location.reload()}
           />

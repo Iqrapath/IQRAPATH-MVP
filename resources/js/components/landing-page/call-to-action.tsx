@@ -10,7 +10,7 @@ export default function CallToAction() {
           <div className="w-full md:w-1/2 mb-10 md:mb-0 pr-0 md:pr-8">
             <h2 className="text-4xl md:text-4xl font-bold text-gray-600 mb-6">
               Start your Quran<br />
-              Learning Journey <span className="text-[#2F8D8C]">Today</span>
+              Teaching Journey <span className="text-[#2F8D8C]">Today</span>
             </h2>
 
             <p className="text-gray-600 mb-8 max-w-xl">
@@ -19,7 +19,7 @@ export default function CallToAction() {
             </p>
 
             <Link
-              href="/register"
+              href={route('register.teacher')}
               className="inline-block bg-[#2F8D8C] text-white font-medium px-4 py-2 rounded-full hover:bg-[#267373] transition-colors"
             >
               Start Teaching Today

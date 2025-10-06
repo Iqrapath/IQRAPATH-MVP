@@ -1,5 +1,4 @@
 import React from 'react';
-import { Link } from '@inertiajs/react';
 
 const AboutUs: React.FC = () => {
   return (
@@ -38,12 +37,12 @@ const AboutUs: React.FC = () => {
             </ul>
 
             {/* Call-to-Action Button */}
-            <Link
-              href="/find-teacher"
+            <a
+              href="#enroll"
               className="inline-flex items-center justify-center px-6 py-3 bg-white text-[#2B6B65] font-medium rounded-full hover:bg-gray-100 transition-colors duration-300 shadow-sm"
             >
               Explore More
-            </Link>
+            </a>
           </div>
 
           {/* Right Section - Visual Elements */}

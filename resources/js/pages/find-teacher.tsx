@@ -20,6 +20,10 @@ interface FindTeacherProps {
   };
   subjects?: string[];
   languages?: string[];
+  subjectTemplates?: Array<{
+    id: number;
+    name: string;
+  }>;
   filters?: {
     search: string;
     subject: string;
@@ -30,7 +34,7 @@ interface FindTeacherProps {
   };
 }
 
-const FindTeacher: React.FC<FindTeacherProps> = ({ teachers, subjects, languages, filters }) => {
+const FindTeacher: React.FC<FindTeacherProps> = ({ teachers, subjects, languages, subjectTemplates, filters }) => {
   const { auth } = usePage<SharedData>().props;
 
   return (
@@ -42,7 +46,7 @@ const FindTeacher: React.FC<FindTeacherProps> = ({ teachers, subjects, languages
           <Hero />
           <Teachers teachers={teachers} subjects={subjects} languages={languages} filters={filters} />
           <HowItWorks />
-          <MatchTeacher />
+          <MatchTeacher subjects={subjectTemplates} />
           {/* <FAQ /> */}
           {/* <Download /> */}
           <CallToAction />

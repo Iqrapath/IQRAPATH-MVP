@@ -1,4 +1,4 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import { Eye, EyeOff, LoaderCircle } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
@@ -23,10 +23,17 @@ interface LoginProps {
 }
 
 export default function Login({ status, canResetPassword }: LoginProps) {
-    const { data, setData, post, processing, errors, reset } = useForm<Required<LoginForm>>({
+    const { url } = usePage();
+    
+    // Extract redirect parameter from URL
+    const urlParams = new URLSearchParams(url.split('?')[1] || '');
+    const redirectUrl = urlParams.get('redirect');
+
+    const { data, setData, post, processing, errors, reset } = useForm<Required<LoginForm> & { redirect?: string }>({
         login: '',
         password: '',
         remember: false,
+        redirect: redirectUrl || undefined,
     });
 
     const [showPassword, setShowPassword] = useState(false);

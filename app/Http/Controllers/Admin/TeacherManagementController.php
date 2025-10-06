@@ -16,6 +16,7 @@ use App\Models\VerificationAuditLog;
 use App\Models\Transaction;
 use App\Models\PayoutRequest;
 use App\Services\FinancialService;
+use App\Services\TeacherStatusService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -27,10 +28,14 @@ use Inertia\Response;
 class TeacherManagementController extends Controller
 {
     protected $financialService;
+    protected $teacherStatusService;
 
-    public function __construct(FinancialService $financialService)
-    {
+    public function __construct(
+        FinancialService $financialService,
+        TeacherStatusService $teacherStatusService
+    ) {
         $this->financialService = $financialService;
+        $this->teacherStatusService = $teacherStatusService;
     }
 
     /**
@@ -53,7 +58,13 @@ class TeacherManagementController extends Controller
                 $query->whereHas('teacherProfile', function ($q) {
                     $q->where('verified', false)
                       ->whereHas('verificationRequests', function($vq) {
-                          $vq->where('status', 'pending');
+                          // Only check the latest verification request per teacher
+                          $vq->where('status', 'pending')
+                             ->whereIn('id', function($subQuery) {
+                                 $subQuery->selectRaw('MAX(id)')
+                                          ->from('verification_requests')
+                                          ->groupBy('teacher_profile_id');
+                             });
                       });
                 });
             } elseif ($status === 'inactive') {
@@ -64,7 +75,13 @@ class TeacherManagementController extends Controller
                       ->orWhereHas('teacherProfile', function($profileQuery) {
                           $profileQuery->where('verified', false)
                             ->whereDoesntHave('verificationRequests', function($vq) {
-                                $vq->where('status', 'pending');
+                                // Only check the latest verification request per teacher
+                                $vq->where('status', 'pending')
+                                   ->whereIn('id', function($subQuery) {
+                                       $subQuery->selectRaw('MAX(id)')
+                                                ->from('verification_requests')
+                                                ->groupBy('teacher_profile_id');
+                                   });
                             });
                       });
                 });
@@ -104,6 +121,7 @@ class TeacherManagementController extends Controller
                 if ($teacher->teacherProfile) {
                     $this->autoCorrectTeacherVerificationState($teacher);
                 }
+                
                 // Get classes held count
                 $classesHeld = TeachingSession::where('teacher_id', $teacher->id)
                     ->where('status', 'completed')
@@ -113,49 +131,13 @@ class TeacherManagementController extends Controller
                 $subjects = $teacher->teacherProfile ? 
                     $teacher->teacherProfile->subjects->pluck('template.name')->join(', ') : '';
                     
-                // Get verification status
-                $status = 'Inactive';
-                if ($teacher->teacherProfile) {
-                    if ($teacher->teacherProfile->verified) {
-                        $status = 'Approved';
-                    } else {
-                        // Check the latest verification request status
-                        $latestRequest = $teacher->teacherProfile->verificationRequests()
-                            ->latest()
-                            ->first();
-                        if ($latestRequest) {
-                            if ($latestRequest->status === 'pending') {
-                                $status = 'Pending';
-                            } elseif ($latestRequest->status === 'rejected') {
-                                $status = 'Inactive';
-                            }
-                        }
-                    }
-                }
+                // Get teacher status using optimized service
+                $statusData = $this->teacherStatusService->getTeacherStatus($teacher);
                 
                 // Get average rating from teacher profile
                 $rating = null;
                 if ($teacher->teacherProfile && $teacher->teacherProfile->rating !== null) {
                     $rating = is_numeric($teacher->teacherProfile->rating) ? (float) $teacher->teacherProfile->rating : null;
-                }
-
-                // Compute approval capability similar to verification list
-                $canApprove = false;
-                $approvalBlockReason = null;
-                if ($teacher->teacherProfile) {
-                    $verificationRequest = $teacher->teacherProfile->verificationRequests()
-                        ->latest()
-                        ->first();
-                    if ($verificationRequest) {
-                        $canApprove = $this->canApproveTeacher($verificationRequest);
-                        if (!$canApprove) {
-                            $approvalBlockReason = $this->getApprovalBlockReason($verificationRequest);
-                        }
-                    } else {
-                        $approvalBlockReason = 'No verification request submitted.';
-                    }
-                } else {
-                    $approvalBlockReason = 'Teacher profile not found.';
                 }
                 
                 return [
@@ -166,9 +148,18 @@ class TeacherManagementController extends Controller
                     'subjects' => $subjects,
                     'rating' => $rating,
                     'classes_held' => $classesHeld,
-                    'status' => $status,
-                    'can_approve' => $canApprove,
-                    'approval_block_reason' => $approvalBlockReason,
+                    'status' => $statusData['status'],
+                    'can_approve' => $statusData['can_approve'],
+                    'approval_block_reason' => $statusData['approval_block_reason'],
+                    'verification_request_id' => $statusData['verification_request_id'],
+                    'last_updated' => $statusData['last_updated'],
+                    // Account management fields
+                    'account_status' => $teacher->account_status,
+                    'account_status_display' => $teacher->account_status_display,
+                    'account_status_color' => $teacher->account_status_color,
+                    'suspended_at' => $teacher->suspended_at,
+                    'suspension_reason' => $teacher->suspension_reason,
+                    'is_deleted' => $teacher->trashed(),
                 ];
             });
             
@@ -287,7 +278,7 @@ class TeacherManagementController extends Controller
         // Load teacher profile with related data
         $teacher->load([
             'teacherProfile',
-            'teacherProfile.subjects',
+            'teacherProfile.subjects.template',
             'teacherProfile.documents',
             'availabilities',
         ]);
@@ -379,6 +370,13 @@ class TeacherManagementController extends Controller
                 'created_at' => $teacher->created_at,
                 'status' => $teacher->status_type,
                 'last_active' => $teacher->last_active_at,
+                // Account management fields
+                'account_status' => $teacher->account_status,
+                'account_status_display' => $teacher->account_status_display,
+                'account_status_color' => $teacher->account_status_color,
+                'suspended_at' => $teacher->suspended_at,
+                'suspension_reason' => $teacher->suspension_reason,
+                'is_deleted' => $teacher->trashed(),
             ],
             'profile' => $teacher->teacherProfile ? [
                 'id' => $teacher->teacherProfile->id,
@@ -553,7 +551,7 @@ class TeacherManagementController extends Controller
         // Load teacher profile with related data
         $teacher->load([
             'teacherProfile',
-            'teacherProfile.subjects',
+            'teacherProfile.subjects.template',
             'teacherProfile.documents',
             'availabilities',
         ]);
@@ -753,6 +751,9 @@ class TeacherManagementController extends Controller
             'notes' => 'Teacher approved after complete verification workflow',
         ]);
 
+        // Clear status cache
+        $this->teacherStatusService->clearTeacherStatusCache($teacher);
+
         return back()->with('success', 'Teacher approved successfully after complete verification.');
     }
 
@@ -816,6 +817,9 @@ class TeacherManagementController extends Controller
 
         // Send notification to teacher about rejection
         $this->notifyTeacherRejected($teacher, $validated['rejection_reason']);
+
+        // Clear status cache
+        $this->teacherStatusService->clearTeacherStatusCache($teacher);
 
         return back()->with('success', 'Teacher rejected successfully.');
     }

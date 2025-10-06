@@ -88,7 +88,7 @@ export default function RegisterStudentGuardian({ success = false, user, content
                                 value={data.name}
                                 onChange={(e) => setData('name', e.target.value)}
                                 disabled={processing}
-                                placeholder="zakirsoft@gmail.com"
+                                placeholder="zakirsoft"
                                 className={errors.name ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
                             />
                             <InputError message={errors.name} />

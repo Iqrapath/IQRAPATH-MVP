@@ -131,6 +131,11 @@ Route::middleware(['auth'])
             ]);
         });
         
+        // Teacher status API routes
+        Route::get('/teachers/{teacher}/status', [App\Http\Controllers\Api\TeacherStatusController::class, 'show']);
+        Route::post('/teachers/{teacher}/status/refresh', [App\Http\Controllers\Api\TeacherStatusController::class, 'refresh']);
+        Route::post('/teachers/status/bulk', [App\Http\Controllers\Api\TeacherStatusController::class, 'bulk']);
+        
         
     });
 

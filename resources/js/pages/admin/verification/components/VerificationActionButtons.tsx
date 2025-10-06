@@ -22,6 +22,7 @@ interface VerificationStatus {
 interface Props {
   verificationRequestId: number | string;
   verificationStatus: VerificationStatus;
+  verificationRequestStatus?: string; // Add verification request status
   onApproved?: () => void;
   onRejected?: () => void;
 }
@@ -29,6 +30,7 @@ interface Props {
 export default function VerificationActionButtons({
   verificationRequestId,
   verificationStatus,
+  verificationRequestStatus,
   onApproved,
   onRejected,
 }: Props) {
@@ -139,10 +141,15 @@ export default function VerificationActionButtons({
 
         <button
           onClick={() => setShowRejectModal(true)}
-          disabled={isLoading}
-          className="text-gray-700 hover:text-gray-900 font-medium disabled:opacity-50"
+          disabled={isLoading || verificationRequestStatus === 'rejected' || verificationRequestStatus === 'verified'}
+          className={`font-medium disabled:opacity-50 ${
+            verificationRequestStatus === 'rejected' 
+              ? 'text-gray-400 cursor-not-allowed' 
+              : 'text-gray-700 hover:text-gray-900'
+          }`}
+          title={verificationRequestStatus === 'rejected' ? 'Already rejected' : verificationRequestStatus === 'verified' ? 'Already verified' : 'Reject verification request'}
         >
-          Reject
+          {verificationRequestStatus === 'rejected' ? 'Already Rejected' : 'Reject'}
         </button>
 
         <button

@@ -2,41 +2,11 @@ import React from 'react';
 import { Link } from '@inertiajs/react';
 import TeacherCard, { TeacherProps } from './teacher-card';
 
-export default function Teachers() {
-  const teachers: TeacherProps[] = [
-    {
-      name: 'Ustadh Ahmad Ali',
-      specialization: 'Tajweed & Hifz',
-      image: '/assets/images/landing/teacher1.png',
-      rating: 4.95,
-      reviews: 128,
-      yearsExp: 7
-    },
-    {
-      name: 'Ustadh Ahmad Ali',
-      specialization: 'Tajweed & Hifz',
-      image: '/assets/images/landing/teacher2.png',
-      rating: 4.90,
-      reviews: 120,
-      yearsExp: 5
-    },
-    {
-      name: 'Ustadh Ahmad Ali',
-      specialization: 'Tajweed & Hifz',
-      image: '/assets/images/landing/teacher3.png',
-      rating: 4.97,
-      reviews: 130,
-      yearsExp: 10
-    },
-    {
-      name: 'Ustadh Ahmad Ali',
-      specialization: 'Tajweed & Hifz',
-      image: '/assets/images/landing/teacher4.png',
-      rating: 4.93,
-      reviews: 125,
-      yearsExp: 7
-    }
-  ];
+interface TeachersProps {
+  teachers: TeacherProps[];
+}
+
+export default function Teachers({ teachers }: TeachersProps) {
 
   return (
     <section className="py-16 md:py-40 overflow-hidden bg-white relative">

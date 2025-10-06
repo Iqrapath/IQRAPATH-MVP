@@ -92,6 +92,60 @@ class SettingsService
     }
 
     /**
+     * Get teacher verification settings.
+     *
+     * @return array
+     */
+    public function getTeacherVerificationSettings(): array
+    {
+        return [
+            'require_documents' => $this->isFeatureEnabled('teacher_verification_require_documents', false),
+            'require_video' => $this->isFeatureEnabled('teacher_verification_require_video', true),
+            'auto_approve_after_video' => $this->isFeatureEnabled('teacher_verification_auto_approve', true),
+        ];
+    }
+
+    /**
+     * Update teacher verification settings.
+     *
+     * @param array $settings
+     * @return void
+     */
+    public function updateTeacherVerificationSettings(array $settings): void
+    {
+        $allowedKeys = ['teacher_verification_require_documents', 'teacher_verification_require_video', 'teacher_verification_auto_approve'];
+        
+        foreach ($settings as $key => $value) {
+            if (in_array($key, $allowedKeys)) {
+                FeatureFlag::updateOrCreate(
+                    ['key' => $key],
+                    ['value' => $value ? 'true' : 'false', 'description' => $this->getFeatureDescription($key)]
+                );
+            }
+        }
+        
+        // Clear feature flags cache
+        Cache::forget('feature_flags');
+    }
+
+    /**
+     * Get feature description for verification settings.
+     *
+     * @param string $key
+     * @return string
+     */
+    private function getFeatureDescription(string $key): string
+    {
+        $descriptions = [
+            'teacher_verification_require_documents' => 'Require document verification for teacher approval',
+            'teacher_verification_require_video' => 'Require video verification for teacher approval',
+            'teacher_verification_auto_approve' => 'Auto-approve teachers after video verification passes',
+        ];
+        
+        return $descriptions[$key] ?? 'Teacher verification setting';
+    }
+
+    /**
      * Get all security settings.
      *
      * @return \Illuminate\Support\Collection

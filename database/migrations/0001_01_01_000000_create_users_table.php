@@ -22,6 +22,9 @@ return new class extends Migration
             $table->string('city')->nullable();
             $table->enum('role', ['super-admin', 'admin', 'teacher', 'student', 'guardian', 'unassigned'])->nullable();
             $table->enum('account_status', ['active', 'inactive', 'suspended', 'pending'])->default('active');
+            $table->string('suspension_reason')->nullable();
+            $table->timestamp('suspended_at')->nullable();
+            $table->foreignId('suspended_by')->nullable()->constrained('users');
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->string('provider')->nullable();
@@ -31,6 +34,7 @@ return new class extends Migration
             $table->timestamp('last_active_at')->nullable();
             $table->timestamp('registration_date')->useCurrent();
             $table->rememberToken();
+            $table->softDeletes(); // Add soft delete support
             $table->timestamps();
         });
 

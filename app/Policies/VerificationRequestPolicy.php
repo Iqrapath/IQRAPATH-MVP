@@ -31,7 +31,8 @@ class VerificationRequestPolicy
      */
     public function approve(User $user, VerificationRequest $verificationRequest): bool
     {
-        return $user->role === 'super-admin' && $verificationRequest->status === 'pending';
+        return in_array($user->role, ['super-admin', 'admin'], true) 
+            && $verificationRequest->status === 'pending';
     }
 
     /**
@@ -39,7 +40,8 @@ class VerificationRequestPolicy
      */
     public function reject(User $user, VerificationRequest $verificationRequest): bool
     {
-        return $user->role === 'super-admin' && $verificationRequest->status === 'pending';
+        return in_array($user->role, ['super-admin', 'admin'], true) 
+            && $verificationRequest->status === 'pending';
     }
 
     /**
@@ -47,9 +49,9 @@ class VerificationRequestPolicy
      */
     public function requestVideoVerification(User $user, VerificationRequest $verificationRequest): bool
     {
-        // Allow super-admin and admin to schedule or generate links while the request is not finalized
+        // Allow super-admin and admin to schedule video verification for any non-finalized request
         return in_array($user->role, ['super-admin', 'admin'], true)
-            && in_array($verificationRequest->status, ['pending', 'live_video'], true);
+            && !in_array($verificationRequest->status, ['verified', 'rejected'], true);
     }
 
     /**
@@ -59,5 +61,32 @@ class VerificationRequestPolicy
     {
         return in_array($user->role, ['super-admin', 'admin'], true)
             && $verificationRequest->status === 'live_video';
+    }
+
+    /**
+     * Determine whether the user can verify a document.
+     */
+    public function verifyDocument(User $user, VerificationRequest $verificationRequest): bool
+    {
+        return in_array($user->role, ['super-admin', 'admin'], true)
+            && !in_array($verificationRequest->status, ['verified', 'rejected'], true);
+    }
+
+    /**
+     * Determine whether the user can reject a document.
+     */
+    public function rejectDocument(User $user, VerificationRequest $verificationRequest): bool
+    {
+        return in_array($user->role, ['super-admin', 'admin'], true)
+            && !in_array($verificationRequest->status, ['verified', 'rejected'], true);
+    }
+
+    /**
+     * Determine whether the user can reopen a rejected verification request.
+     */
+    public function reopen(User $user, VerificationRequest $verificationRequest): bool
+    {
+        return in_array($user->role, ['super-admin', 'admin'], true)
+            && $verificationRequest->status === 'rejected';
     }
 } 

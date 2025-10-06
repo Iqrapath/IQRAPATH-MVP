@@ -1,4 +1,16 @@
 import React from 'react';
+import { GooglePlayIcon } from '@/components/icons/google-play';
+import { AppleStoreIcon } from '../icons/apple-store';
+import { toast } from 'sonner';
+import { Link } from '@inertiajs/react';
+
+const handleGooglePlayClick = () => {
+  toast.info('Google Play Store app is coming soon!');
+};
+
+const handleAppleStoreClick = () => {
+  toast.info('Apple Store app is coming soon!');
+};
 
 export default function DownloadApp() {
   return (
@@ -20,48 +32,42 @@ export default function DownloadApp() {
 
         <div className="flex flex-wrap justify-center gap-6">
           {/* Google Play Button */}
-          <a
+          <Link
             href="#"
+            onClick={handleGooglePlayClick}
             className="inline-block transform transition-transform hover:scale-105"
-            target="_blank"
+            // target="_blank"
             rel="noopener noreferrer"
           >
             <div className="bg-black text-white rounded-lg px-4 py-2 flex items-center h-14">
               <div className="mr-3">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M4.5 2.5L15.5 12L4.5 21.5V2.5Z" fill="#4CAF50"/>
-                  <path d="M4.5 2.5L12.5 9L17 4.5L4.5 2.5Z" fill="#F44336"/>
-                  <path d="M4.5 21.5L12.5 15L17 19.5L4.5 21.5Z" fill="#FFC107"/>
-                  <path d="M12.5 9L17 4.5V19.5L12.5 15L15.5 12L12.5 9Z" fill="#1976D2"/>
-                </svg>
+                  <GooglePlayIcon className="h-5 w-5" />
               </div>
               <div className="text-left">
                 <div className="text-xs">GET IT ON</div>
                 <div className="text-lg font-medium -mt-1">Google Play</div>
               </div>
             </div>
-          </a>
+          </Link>
 
           {/* App Store Button */}
-          <a
+          <Link
             href="#"
+            onClick={handleAppleStoreClick}
             className="inline-block transform transition-transform hover:scale-105"
-            target="_blank"
+            // target="_blank"
             rel="noopener noreferrer"
           >
             <div className="bg-black text-white rounded-lg px-4 py-2 flex items-center h-14">
               <div className="mr-3">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M19.08,12.67c0-3.21,2.62-4.74,2.73-4.82a5.84,5.84,0,0,0-4.59-2.48c-1.95-.2-3.83,1.16-4.82,1.16s-2.54-1.14-4.16-1.11A6.12,6.12,0,0,0,3.17,8.68C1.08,12.13,2.66,17.22,4.67,20c1,1.39,2.16,3,3.7,2.91s2.05-.93,3.85-.93,2.3.93,3.86.9,2.6-1.43,3.56-2.83a11.7,11.7,0,0,0,1.62-3.3A5.37,5.37,0,0,1,19.08,12.67Z" />
-                  <path d="M16.05,6.24a5.65,5.65,0,0,0,1.29-4A5.76,5.76,0,0,0,14,4.36a5.37,5.37,0,0,0-1.32,3.9A4.75,4.75,0,0,0,16.05,6.24Z" />
-                </svg>
+                <AppleStoreIcon className="h-5 w-5" />
               </div>
               <div className="text-left">
                 <div className="text-xs">Download on the</div>
                 <div className="text-lg font-medium -mt-1">App Store</div>
               </div>
             </div>
-          </a>
+          </Link>
         </div>
       </div>
     </section>

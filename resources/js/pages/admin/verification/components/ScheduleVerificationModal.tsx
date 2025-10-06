@@ -19,10 +19,11 @@ interface Props {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   verificationRequestId: number | string;
+  verificationStatus?: string; // Add verification status prop
   onScheduled?: () => void;
 }
 
-export default function ScheduleVerificationModal({ isOpen, onOpenChange, verificationRequestId, onScheduled }: Props) {
+export default function ScheduleVerificationModal({ isOpen, onOpenChange, verificationRequestId, verificationStatus, onScheduled }: Props) {
   const [date, setDate] = useState<string>('');
   const [time, setTime] = useState<string>('');
   const [platform, setPlatform] = useState<'zoom' | 'google_meet' | 'other'>('google_meet');
@@ -96,24 +97,57 @@ export default function ScheduleVerificationModal({ isOpen, onOpenChange, verifi
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
+    
+    // Check if verification request is rejected or verified
+    if (verificationStatus === 'rejected') {
+      toast.error('Cannot schedule video verification for rejected requests. Please contact support if this is an error.');
+      onOpenChange(false);
+      return;
+    }
+    
+    if (verificationStatus === 'verified') {
+      toast.error('This teacher has already been verified. No further verification needed.');
+      onOpenChange(false);
+      return;
+    }
+    
     setIsSubmitting(true);
-    router.post(route('admin.verification.request-video', verificationRequestId), {
-      scheduled_call_at: scheduledAt,
-      video_platform: platform,
-      meeting_link: meetingLink || null,
-      notes: notes || null,
-    }, {
-      onSuccess: () => {
+    
+    try {
+      const response = await fetch(route('admin.verification.request-video', verificationRequestId), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || ''
+        },
+        body: JSON.stringify({
+          scheduled_call_at: scheduledAt,
+          video_platform: platform,
+          meeting_link: meetingLink || null,
+          notes: notes || null,
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
         setIsSubmitting(false);
         onOpenChange(false);
         onScheduled?.();
-        toast.success('Invite sent');
-      },
-      onError: () => {
+        toast.success('Verification call scheduled successfully');
+      } else {
         setIsSubmitting(false);
-        toast.error('Failed to schedule verification call');
+        if (response.status === 403) {
+          toast.error('You do not have permission to schedule verification calls for this request.');
+        } else {
+          toast.error(data.message || 'Failed to schedule verification call');
+        }
       }
-    });
+    } catch (error) {
+      setIsSubmitting(false);
+      toast.error('Failed to schedule verification call');
+    }
   };
 
   return (

@@ -1,10 +1,15 @@
 import { Link, usePage } from '@inertiajs/react';
 import { type SharedData } from '@/types';
 import { useState } from 'react';
+import { toast } from 'sonner';
 
 interface NavigationProps {
   auth?: SharedData['auth'];
 }
+
+const handleBlogClick = () => {
+  toast.info('Blog page is coming soon!');
+};
 
 export default function Navigation({ auth }: NavigationProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -62,8 +67,9 @@ export default function Navigation({ auth }: NavigationProps) {
               >
                 How It Works
               </Link>
-              <Link
-                href="/blog"
+              <a
+                href="#"
+                onClick={handleBlogClick}
                 className={
                   isActive('/blog')
                     ? 'text-[#2F8D8C] border-b-2 border-[#2F8D8C] px-2 lg:px-3 py-2 text-sm font-medium whitespace-nowrap'
@@ -71,7 +77,7 @@ export default function Navigation({ auth }: NavigationProps) {
                 }
               >
                 Blog
-              </Link>
+              </a>
               <Link
                 href="/about"
                 className={

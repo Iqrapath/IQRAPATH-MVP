@@ -9,6 +9,8 @@ use App\Models\User;
 use App\Models\VerificationRequest;
 use App\Services\UnifiedWalletService;
 use App\Services\NotificationService;
+use App\Services\SettingsService;
+use App\Services\TeacherStatusService;
 use App\Notifications\VerificationCallScheduledNotification;
 use App\Notifications\VerificationApprovedNotification;
 use App\Notifications\VerificationRejectedNotification;
@@ -28,6 +30,10 @@ use Inertia\Response;
 
 class TeacherVerificationController extends Controller
 {
+    public function __construct(
+        private SettingsService $settingsService,
+        private TeacherStatusService $teacherStatusService
+    ) {}
     /**
      * Display a listing of verification requests.
      */
@@ -39,8 +45,14 @@ class TeacherVerificationController extends Controller
         $search = $request->query('search');
         $date = $request->query('date');
         
-            $verificationRequests = VerificationRequest::query()
-            ->with(['teacherProfile.user', 'teacherProfile.documents']);
+            // Get only the latest verification request per teacher to avoid duplicates
+        $latestRequestIds = VerificationRequest::selectRaw('MAX(id) as id')
+            ->groupBy('teacher_profile_id')
+            ->pluck('id');
+            
+        $verificationRequests = VerificationRequest::query()
+            ->with(['teacherProfile.user', 'teacherProfile.documents', 'calls'])
+            ->whereIn('id', $latestRequestIds);
             
         if ($status && $status !== 'all') {
             $verificationRequests->where('status', $status);
@@ -64,24 +76,35 @@ class TeacherVerificationController extends Controller
         
         // Add approval status to each verification request
         $verificationRequests->getCollection()->transform(function ($request) {
-            // Calculate approval status without modifying data
-            $request->can_approve = $this->canApproveTeacher($request);
-            $request->approval_block_reason = $request->can_approve ? null : $this->getApprovalBlockReason($request);
+            // Get the teacher user for unified status calculation
+            $teacher = $request->teacherProfile->user;
+            
+            // Use unified status service for consistent status calculation
+            $statusData = $this->teacherStatusService->getTeacherStatus($teacher);
+            
+            // Map unified status to verification request display format
+            $displayStatus = match($statusData['status']) {
+                'Approved' => 'verified',
+                'Pending' => 'pending', 
+                'Inactive' => 'rejected',
+                default => 'pending'
+            };
+            
+            // Override the raw status with unified calculation
+            $request->status = $displayStatus;
+            $request->can_approve = $statusData['can_approve'];
+            $request->approval_block_reason = $statusData['approval_block_reason'];
             
             // Add calculated docs status based on actual document statuses
             $request->calculated_docs_status = $this->calculateDocsStatus($request);
             
-            // Add status suggestion without auto-modification
-            $suggestedStatus = $this->getCorrectStatus($request);
-            if ($suggestedStatus !== $request->status) {
-                $request->status_suggestion = $suggestedStatus;
-                $request->needs_status_review = true;
-            }
+            // No need for status suggestion since we're using unified service
+            // The unified service already handles all the logic correctly
             
             return $request;
         });
 
-        // Calculate correct stats based on actual status logic
+        // Calculate correct stats based on unified status logic
         $correctStats = [
             'pending' => 0,
             'verified' => 0,
@@ -90,8 +113,8 @@ class TeacherVerificationController extends Controller
         ];
 
         foreach ($verificationRequests->getCollection() as $request) {
-            $actualStatus = $request->status_suggestion ?? $request->status;
-            $correctStats[$actualStatus]++;
+            // Use the unified status that was set above
+            $correctStats[$request->status]++;
         }
 
         return Inertia::render('admin/verification/index', [
@@ -115,7 +138,7 @@ class TeacherVerificationController extends Controller
         $verificationRequest->load([
             'teacherProfile.user',
             'teacherProfile.documents',
-            'teacherProfile.subjects',
+            'teacherProfile.subjects.template',
             'calls',
             'auditLogs.changer',
         ]);
@@ -344,38 +367,43 @@ class TeacherVerificationController extends Controller
     }
 
     /**
-     * Approve a verification request.
+     * Approve a verification request based on current requirements.
      */
     public function approve(Request $request, VerificationRequest $verificationRequest): RedirectResponse
     {
         Gate::authorize('approve', $verificationRequest);
         
-        // Check if documents are submitted and verified
-        $documents = $verificationRequest->teacherProfile->documents;
-        $pendingDocuments = $documents->where('status', 'pending')->count();
-        $rejectedDocuments = $documents->where('status', 'rejected')->count();
+        $config = $this->settingsService->getTeacherVerificationSettings();
         
-        // Allow approval if no documents exist (empty profile case)
-        if ($documents->count() === 0) {
-            return back()->with('error', 'Teacher must submit at least one document before approval.');
+        // Check video verification if required
+        if ($config['require_video']) {
+            $completedVideoCall = $verificationRequest->calls()
+                ->where('status', 'completed')
+                ->where('verification_result', 'passed')
+                ->first();
+                
+            if (!$completedVideoCall) {
+                return back()->with('error', 'Video verification call must be completed and passed before approving the teacher.');
+            }
         }
         
-        if ($pendingDocuments > 0) {
-            return back()->with('error', "Cannot approve: {$pendingDocuments} document(s) still pending review.");
-        }
-        
-        if ($rejectedDocuments > 0) {
-            return back()->with('error', "Cannot approve: {$rejectedDocuments} document(s) have been rejected and need resubmission.");
-        }
-        
-        // Check if video call is completed and passed
-        $completedVideoCall = $verificationRequest->calls()
-            ->where('status', 'completed')
-            ->where('verification_result', 'passed')
-            ->first();
+        // Check document verification if required
+        if ($config['require_documents']) {
+            $documents = $verificationRequest->teacherProfile->documents;
+            $pendingDocuments = $documents->where('status', 'pending')->count();
+            $rejectedDocuments = $documents->where('status', 'rejected')->count();
             
-        if (!$completedVideoCall) {
-            return back()->with('error', 'Video verification call must be completed and passed before approving the teacher.');
+            if ($documents->count() === 0) {
+                return back()->with('error', 'Teacher must submit at least one document before approval.');
+            }
+            
+            if ($pendingDocuments > 0) {
+                return back()->with('error', "Cannot approve: {$pendingDocuments} document(s) still pending review.");
+            }
+            
+            if ($rejectedDocuments > 0) {
+                return back()->with('error', "Cannot approve: {$rejectedDocuments} document(s) have been rejected and need resubmission.");
+            }
         }
         
         DB::transaction(function () use ($verificationRequest, $request) {
@@ -397,7 +425,7 @@ class TeacherVerificationController extends Controller
                 'status' => 'verified',
                 'changed_by' => $request->user()->id,
                 'changed_at' => now(),
-                'notes' => 'Teacher verification approved after document and video verification',
+                'notes' => 'Teacher verification approved after ' . $this->getVerificationMethodDescription(),
             ]);
         });
 
@@ -414,6 +442,9 @@ class TeacherVerificationController extends Controller
             ]);
         }
         
+        // Clear status cache for real-time updates
+        $this->teacherStatusService->clearTeacherStatusCache($teacher, 'approved');
+        
         // Send admin notification
         try {
             $admin = $request->user();
@@ -427,7 +458,30 @@ class TeacherVerificationController extends Controller
         }
         
         return redirect()->route('admin.verification.index')
-            ->with('success', 'Teacher verification approved successfully after complete verification workflow.');
+            ->with('success', 'Teacher verification approved successfully after ' . $this->getVerificationMethodDescription() . '.');
+    }
+
+    /**
+     * Get a description of the current verification requirements.
+     */
+    private function getVerificationMethodDescription(): string
+    {
+        $config = $this->settingsService->getTeacherVerificationSettings();
+        $methods = [];
+        
+        if ($config['require_video']) {
+            $methods[] = 'video verification';
+        }
+        
+        if ($config['require_documents']) {
+            $methods[] = 'document verification';
+        }
+        
+        if (empty($methods)) {
+            return 'manual review';
+        }
+        
+        return implode(' and ', $methods);
     }
 
     /**
@@ -475,6 +529,9 @@ class TeacherVerificationController extends Controller
             ]);
         }
         
+        // Clear status cache for real-time updates
+        $this->teacherStatusService->clearTeacherStatusCache($teacher, 'rejected');
+        
         // Send admin notification
         try {
             $admin = $request->user();
@@ -495,69 +552,99 @@ class TeacherVerificationController extends Controller
     }
 
     /**
-     * Check if teacher can be approved.
+     * Check if teacher can be approved based on current verification requirements.
      */
     private function canApproveTeacher($verificationRequest): bool
     {
-        // Check if documents are submitted and verified
-        $pendingDocuments = $verificationRequest->teacherProfile->documents()
-            ->where('status', 'pending')
-            ->count();
-            
-        if ($pendingDocuments > 0) {
-            return false;
+        $config = $this->settingsService->getTeacherVerificationSettings();
+        
+        // Check video verification if required
+        if ($config['require_video']) {
+            $completedVideoCall = $verificationRequest->calls()
+                ->where('status', 'completed')
+                ->where('verification_result', 'passed')
+                ->first();
+                
+            if (!$completedVideoCall) {
+                return false;
+            }
         }
         
-        // Check if video call is completed and passed
-        $completedVideoCall = $verificationRequest->calls()
-            ->where('status', 'completed')
-            ->where('verification_result', 'passed')
-            ->first();
+        // Check document verification if required
+        if ($config['require_documents']) {
+            $documents = $verificationRequest->teacherProfile->documents;
+            $pendingDocuments = $documents->where('status', 'pending')->count();
+            $rejectedDocuments = $documents->where('status', 'rejected')->count();
             
-        if (!$completedVideoCall) {
-            return false;
+            if ($documents->count() === 0) {
+                return false; // Must have at least one document
+            }
+            
+            if ($pendingDocuments > 0) {
+                return false; // All documents must be verified
+            }
+            
+            if ($rejectedDocuments > 0) {
+                return false; // No rejected documents allowed
+            }
         }
         
         return true;
     }
 
     /**
-     * Get reason why teacher cannot be approved.
+     * Get reason why teacher cannot be approved based on current requirements.
      */
     private function getApprovalBlockReason($verificationRequest): string
     {
+        $config = $this->settingsService->getTeacherVerificationSettings();
+        
         // Check if verification request is rejected
         if ($verificationRequest->status === 'rejected') {
             return 'Teacher application has been rejected.';
         }
         
-        // Check document verification
-        $pendingDocuments = $verificationRequest->teacherProfile->documents()
-            ->where('status', 'pending')
-            ->count();
-            
-        if ($pendingDocuments > 0) {
-            return 'All documents must be verified first.';
+        // Check video verification if required
+        if ($config['require_video']) {
+            $completedVideoCall = $verificationRequest->calls()
+                ->where('status', 'completed')
+                ->where('verification_result', 'passed')
+                ->first();
+                
+            if (!$completedVideoCall) {
+                return 'Video verification call must be completed and passed.';
+            }
         }
         
-        // Check video verification
-        $completedVideoCall = $verificationRequest->calls()
-            ->where('status', 'completed')
-            ->where('verification_result', 'passed')
-            ->first();
+        // Check document verification if required
+        if ($config['require_documents']) {
+            $documents = $verificationRequest->teacherProfile->documents;
+            $pendingDocuments = $documents->where('status', 'pending')->count();
+            $rejectedDocuments = $documents->where('status', 'rejected')->count();
             
-        if (!$completedVideoCall) {
-            return 'Video verification call must be completed and passed.';
+            if ($documents->count() === 0) {
+                return 'Teacher must submit at least one document before approval.';
+            }
+            
+            if ($pendingDocuments > 0) {
+                return "Cannot approve: {$pendingDocuments} document(s) still pending review.";
+            }
+            
+            if ($rejectedDocuments > 0) {
+                return "Cannot approve: {$rejectedDocuments} document(s) have been rejected and need resubmission.";
+            }
         }
         
         return 'Unknown approval block reason.';
     }
 
     /**
-     * Get the correct status based on verification data.
+     * Get the correct status based on verification data and current requirements.
      */
     private function getCorrectStatus($verificationRequest): string
     {
+        $config = $this->settingsService->getTeacherVerificationSettings();
+        
         // If rejected, stay rejected
         if ($verificationRequest->status === 'rejected') {
             return 'rejected';
@@ -568,41 +655,45 @@ class TeacherVerificationController extends Controller
             return 'live_video';
         }
         
-        // Check if documents are submitted and verified
-        $totalDocuments = $verificationRequest->teacherProfile->documents()->count();
-        $verifiedDocuments = $verificationRequest->teacherProfile->documents()
-            ->where('status', 'verified')
-            ->count();
-        $rejectedDocuments = $verificationRequest->teacherProfile->documents()
-            ->where('status', 'rejected')
-            ->count();
+        // Check video verification if required
+        if ($config['require_video']) {
+            $completedVideoCall = $verificationRequest->calls()
+                ->where('status', 'completed')
+                ->where('verification_result', 'passed')
+                ->first();
+                
+            if (!$completedVideoCall) {
+                return 'pending';
+            }
+        }
+        
+        // Check document verification if required
+        if ($config['require_documents']) {
+            $totalDocuments = $verificationRequest->teacherProfile->documents()->count();
+            $verifiedDocuments = $verificationRequest->teacherProfile->documents()
+                ->where('status', 'verified')
+                ->count();
+            $rejectedDocuments = $verificationRequest->teacherProfile->documents()
+                ->where('status', 'rejected')
+                ->count();
+                
+            // If no documents submitted, status is pending
+            if ($totalDocuments === 0) {
+                return 'pending';
+            }
             
-        // If no documents submitted, status is pending
-        if ($totalDocuments === 0) {
-            return 'pending';
-        }
-        
-        // If any documents are rejected, status is rejected
-        if ($rejectedDocuments > 0) {
-            return 'rejected';
-        }
-        
-        // If not all documents are verified, status is pending
-        if ($verifiedDocuments < $totalDocuments) {
-            return 'pending';
-        }
-        
-        // Check if video call is completed and passed
-        $completedVideoCall = $verificationRequest->calls()
-            ->where('status', 'completed')
-            ->where('verification_result', 'passed')
-            ->first();
+            // If any documents are rejected, status is rejected
+            if ($rejectedDocuments > 0) {
+                return 'rejected';
+            }
             
-        if (!$completedVideoCall) {
-            return 'pending';
+            // If not all documents are verified, status is pending
+            if ($verifiedDocuments < $totalDocuments) {
+                return 'pending';
+            }
         }
         
-        // If everything is verified, status can be verified
+        // If all required verifications are complete, status can be verified
         return 'verified';
     }
 
@@ -693,6 +784,15 @@ class TeacherVerificationController extends Controller
             \Log::error('Failed to send verification call scheduled notifications', [
                 'verification_request_id' => $verificationRequest->id,
                 'error' => $e->getMessage()
+            ]);
+        }
+        
+        // Check if this is an AJAX/Inertia request from the modal
+        if ($request->wantsJson() || $request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Live video verification scheduled successfully.',
+                'verification_request_id' => $verificationRequest->id
             ]);
         }
         
@@ -868,13 +968,12 @@ class TeacherVerificationController extends Controller
                 'status' => 'pending', // Reset status back to pending after live video
             ]);
 
-            // If both docs and video are verified, auto-verify teacher and request
-            if ($videoPassed) {
-                $pendingDocuments = $verificationRequest->teacherProfile->documents()
-                    ->where('status', 'pending')
-                    ->count();
-
-                if ($pendingDocuments === 0) {
+            // Auto-approve if video verification passed and auto-approval is enabled
+            if ($videoPassed && $this->settingsService->getTeacherVerificationSettings()['auto_approve_after_video']) {
+                // Check if all other requirements are met
+                $canApprove = $this->canApproveTeacher($verificationRequest);
+                
+                if ($canApprove) {
                     $verificationRequest->update([
                         'status' => 'verified',
                         'reviewed_by' => $request->user()->id,

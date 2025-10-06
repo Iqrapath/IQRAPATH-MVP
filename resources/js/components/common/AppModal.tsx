@@ -25,8 +25,8 @@ interface AppModalProps {
   trigger?: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
-  open?: boolean;
-  onOpenChange?: (open: boolean) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
 }

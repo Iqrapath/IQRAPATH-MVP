@@ -47,6 +47,15 @@ Route::middleware(['auth', 'verified', 'role:super-admin, admin'])->prefix('admi
     Route::put('/user-management/{user}', [UserManagementController::class, 'update'])->name('user-management.update');
     Route::delete('/user-management/{user}', [UserManagementController::class, 'destroy'])->name('user-management.destroy');
     
+    // Account management routes
+    Route::post('/user-management/{user}/suspend', [UserManagementController::class, 'suspend'])->name('user-management.suspend');
+    Route::post('/user-management/{user}/unsuspend', [UserManagementController::class, 'unsuspend'])->name('user-management.unsuspend');
+    Route::post('/user-management/{user}/delete', [UserManagementController::class, 'delete'])->name('user-management.delete');
+    Route::post('/user-management/{user}/restore', [UserManagementController::class, 'restore'])->name('user-management.restore');
+    Route::post('/user-management/{user}/force-delete', [UserManagementController::class, 'forceDelete'])->name('user-management.force-delete');
+    Route::get('/user-management/{user}/audit-logs', [UserManagementController::class, 'auditLogs'])->name('user-management.audit-logs');
+    Route::post('/user-management/bulk-action', [UserManagementController::class, 'bulkAction'])->name('user-management.bulk-action');
+    
     // Student/Parent management routes
     Route::get('/students', [App\Http\Controllers\Admin\StudentParentManagementController::class, 'index'])->name('students.index');
     Route::get('/students/{user}', [App\Http\Controllers\Admin\StudentParentManagementController::class, 'show'])->name('students.show');

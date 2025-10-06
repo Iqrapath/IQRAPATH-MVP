@@ -2,7 +2,7 @@ import React from 'react';
 
 const CallToAction: React.FC = () => {
   return (
-    <section>
+    <section id="call-to-action">
       <div className="bg-[#FEF9E5]">
         {/* Content Container */}
         <div className="grid lg:grid-cols-2 items-center gap-8">
@@ -15,7 +15,7 @@ const CallToAction: React.FC = () => {
             <p className="text-gray-600 mb-8 max-w-md text-lg">
               Earn money by sharing your expertise with students. Sign up today and start teaching online with IqraQuest!
             </p>
-            <a href="#" className="inline-flex items-center justify-center px-8 py-3 bg-[#2B6B65] text-white text-base font-medium rounded-full hover:bg-[#235750] transition-colors duration-300">
+            <a href={route('register.teacher')} className="inline-flex items-center justify-center px-8 py-3 bg-[#2B6B65] text-white text-base font-medium rounded-full hover:bg-[#235750] transition-colors duration-300">
               Start Teaching Today
             </a>
           </div>

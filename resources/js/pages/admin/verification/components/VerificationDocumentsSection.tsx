@@ -255,6 +255,18 @@ export default function VerificationDocumentsSection({ documentsFlat, documentsG
 
     const rejectDocument = async (documentId?: number | string) => {
         if (!documentId) return;
+        
+        // Find the document to check its current status
+        const document = localDocumentsFlat.find(doc => doc.id === documentId);
+        if (document?.status === 'rejected') {
+            toast.error('This document has already been rejected.');
+            return;
+        }
+        if (document?.status === 'verified') {
+            toast.error('This document has already been verified and cannot be rejected.');
+            return;
+        }
+        
         const reason = prompt('Enter rejection reason:');
         if (!reason) return;
         
@@ -389,8 +401,13 @@ export default function VerificationDocumentsSection({ documentsFlat, documentsG
                                                             <DropdownMenuItem onClick={() => verifyDocument(doc.id)} disabled={doc.status === 'verified'}>
                                                                 <ShieldCheck className="mr-2 h-4 w-4" /> Verify
                                                             </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => rejectDocument(doc.id)}>
-                                                                <OctagonX className="mr-2 h-4 w-4" /> Reject
+                                                            <DropdownMenuItem 
+                                                                onClick={() => rejectDocument(doc.id)} 
+                                                                disabled={doc.status === 'rejected' || doc.status === 'verified'}
+                                                                className={doc.status === 'rejected' ? 'text-gray-400 cursor-not-allowed' : ''}
+                                                            >
+                                                                <OctagonX className="mr-2 h-4 w-4" /> 
+                                                                {doc.status === 'rejected' ? 'Already Rejected' : 'Reject'}
                                                             </DropdownMenuItem>
                                                         </DropdownMenuContent>
                                                     </DropdownMenu>

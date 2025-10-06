@@ -56,7 +56,7 @@ export default function BecomeTeacher() {
             </div>
 
             <Link
-              href="/teacher/register"
+              href={route('register.teacher')}
               className="inline-block bg-white text-[#2F8D8C] font-medium px-5 py-3 rounded-full hover:bg-gray-100 transition-colors"
             >
               Become a Teacher

@@ -159,13 +159,15 @@ class OnboardingController extends Controller
                 'country_code' => $teacherProfile->country_code,
                 'calling_code' => $teacherProfile->calling_code,
                 'city' => $teacherProfile->city,
-                'subjects' => $teacherProfile->subjects ?? [],
+                'subjects' => $teacherProfile->subjects ? $teacherProfile->subjects->map(function($subject) {
+                    return $subject->name;
+                })->toArray() : [],
                 'experience_years' => $teacherProfile->experience_years,
                 'qualification' => $teacherProfile->qualification,
                 'bio' => $teacherProfile->bio,
                 'timezone' => $teacherProfile->timezone,
                 'teaching_mode' => $teacherProfile->teaching_mode,
-                'availability' => $teacherProfile->availability ?? [],
+                'availability' => is_string($teacherProfile->availability) ? json_decode($teacherProfile->availability, true) ?? [] : ($teacherProfile->availability ?? []),
                 'preferred_currency' => $teacherProfile->preferred_currency,
                 'hourly_rate_usd' => $teacherProfile->hourly_rate_usd,
                 'hourly_rate_ngn' => $teacherProfile->hourly_rate_ngn,

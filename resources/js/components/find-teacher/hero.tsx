@@ -18,10 +18,10 @@ const Hero: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-4 mt-4">
-              <a href="#" className="px-7 py-3 bg-[#2B6B65] text-white text-base font-medium rounded-full hover:bg-[#235750] transition-colors">
+              <a href="#teachers" className="px-7 py-3 bg-[#2B6B65] text-white text-base font-medium rounded-full hover:bg-[#235750] transition-colors">
                 Browse Teachers
               </a>
-              <a href="#" className="px-7 py-3 border border-[#2B6B65] text-[#2B6B65] text-base font-medium rounded-full hover:bg-[#2B6B65] hover:text-white transition-colors">
+              <a href="#match-teacher" className="px-7 py-3 border border-[#2B6B65] text-[#2B6B65] text-base font-medium rounded-full hover:bg-[#2B6B65] hover:text-white transition-colors">
                 Let Us Match You
               </a>
             </div>

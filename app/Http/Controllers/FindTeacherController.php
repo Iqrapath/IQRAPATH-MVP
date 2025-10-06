@@ -118,10 +118,16 @@ class FindTeacherController extends Controller
             ->sort()
             ->values();
 
+        // Get subject templates for the match teacher form
+        $subjectTemplates = SubjectTemplates::where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
         return Inertia::render('find-teacher', [
             'teachers' => $teachers,
             'subjects' => $subjects,
             'languages' => $languages,
+            'subjectTemplates' => $subjectTemplates,
             'filters' => [
                 'search' => $request->search ?? '',
                 'subject' => $request->subject ?? '',
@@ -290,5 +296,89 @@ class FindTeacherController extends Controller
         ];
 
         return $days[$dayNumber] ?? 'Unknown';
+    }
+
+    /**
+     * Process teacher matching request and return matched teachers
+     */
+    public function matchTeachers(Request $request): JsonResponse
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255',
+            'student_age' => 'required|integer|min:5|max:100',
+            'preferred_subject' => 'required|string',
+            'best_time' => 'required|string',
+        ]);
+
+        // Build query for matching teachers
+        $query = User::where('role', 'teacher')
+            ->whereHas('teacherProfile', function ($q) {
+                $q->where('verified', true);
+            })
+            ->with(['teacherProfile', 'teacherProfile.subjects.template', 'availabilities']);
+
+        // Apply subject filter
+        if ($request->preferred_subject && $request->preferred_subject !== 'Select Subject') {
+            $query->whereHas('teacherProfile.subjects.template', function ($q) use ($request) {
+                $q->where('name', $request->preferred_subject);
+            });
+        }
+
+        // Apply time preference filter
+        if ($request->best_time && $request->best_time !== 'Select preferred time') {
+            $timePreference = $request->best_time;
+            $query->whereHas('availabilities', function ($q) use ($timePreference) {
+                switch ($timePreference) {
+                    case 'morning':
+                        $q->where('start_time', '>=', '06:00:00')
+                          ->where('start_time', '<', '12:00:00');
+                        break;
+                    case 'afternoon':
+                        $q->where('start_time', '>=', '12:00:00')
+                          ->where('start_time', '<', '17:00:00');
+                        break;
+                    case 'evening':
+                        $q->where('start_time', '>=', '17:00:00')
+                          ->where('start_time', '<', '22:00:00');
+                        break;
+                }
+            });
+        }
+
+        // Get matched teachers (limit to top 3 for best matches)
+        $teachers = $query->get()
+            ->sortByDesc(function ($teacher) {
+                return $teacher->teacherProfile->rating ?? 0;
+            })
+            ->sortByDesc(function ($teacher) {
+                return $teacher->teacherProfile->reviews_count ?? 0;
+            })
+            ->take(3);
+
+        // Format matched teachers
+        $matchedTeachers = $teachers->map(function ($teacher) {
+            return [
+                'id' => $teacher->id,
+                'name' => $teacher->name,
+                'image' => $teacher->avatar ? '/storage/' . $teacher->avatar : null,
+                'subjects' => $teacher->teacherProfile->subjects->pluck('template.name')->join(', '),
+                'rating' => $teacher->teacherProfile->rating ?? 0,
+                'reviews_count' => $teacher->teacherProfile->reviews_count ?? 0,
+                'experience_years' => $teacher->teacherProfile->experience_years ?? 'Not specified',
+                'price_naira' => $teacher->teacherProfile->hourly_rate_ngn ?? 0,
+                'bio' => $teacher->teacherProfile->bio ?? '',
+                'availability' => $this->formatAvailability($teacher),
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'matched_teachers' => $matchedTeachers->toArray(),
+            'total_matches' => $matchedTeachers->count(),
+            'message' => $matchedTeachers->count() > 0 
+                ? 'We found ' . $matchedTeachers->count() . ' teacher(s) that match your preferences!'
+                : 'No teachers found matching your preferences. Please try different criteria.'
+        ]);
     }
 }

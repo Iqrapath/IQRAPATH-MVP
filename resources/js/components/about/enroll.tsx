@@ -2,7 +2,9 @@ import React from 'react';
 
 const Enroll: React.FC = () => {
   return (
-    <section className="py-20 bg-white relative">
+    <section 
+    id="enroll"
+    className="py-20 bg-white relative">
       {/* Background Elements */}
       <div className="absolute inset-0 pointer-events-none">
         {/* Upper Right - Arabic Calligraphy */}

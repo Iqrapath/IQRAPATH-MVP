@@ -86,7 +86,7 @@ export default function BookingCalendar({ availabilities, selectedDates, onDateS
 
     // Find next month with availability
     const findNextMonthWithAvailability = () => {
-        let checkDate = new Date(currentDate);
+        const checkDate = new Date(currentDate);
         for (let i = 0; i < 12; i++) {
             checkDate.setMonth(checkDate.getMonth() + 1);
             const year = checkDate.getFullYear();

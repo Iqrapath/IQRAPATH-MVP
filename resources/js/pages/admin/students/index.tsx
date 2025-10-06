@@ -113,7 +113,7 @@ export default function StudentsIndex({
     filterType: "status" | "subject" | "rating" | "role",
     value: string
   ) => {
-    let params = { search, status, subject, rating, role };
+    const params = { search, status, subject, rating, role };
     params[filterType] = value;
 
     if (filterType === "status") setStatus(value);

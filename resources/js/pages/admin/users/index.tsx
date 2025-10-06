@@ -97,7 +97,7 @@ export default function UsersIndex({
     filterType: "status" | "role",
     value: string
   ) => {
-    let params = { search, status, role };
+    const params = { search, status, role };
     params[filterType] = value;
 
     if (filterType === "status") setStatus(value);

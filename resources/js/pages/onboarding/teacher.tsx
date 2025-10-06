@@ -1252,6 +1252,11 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
             toast.success('🎉 Teacher onboarding completed successfully! Welcome to IqraQuest!', {
                 duration: 5000,
             });
+            
+            // Refresh the page to ensure correct screen is shown
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000); // Small delay to show the success toast
         } else {
             toast.error('❌ Failed to complete onboarding. Please try again.');
         }

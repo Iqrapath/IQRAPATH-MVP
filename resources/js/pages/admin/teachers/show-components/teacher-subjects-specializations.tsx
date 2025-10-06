@@ -71,7 +71,7 @@ export default function TeacherSubjectsSpecializations({ profile, availabilities
   });
   const [newSubject, setNewSubject] = useState('');
   const [newLanguage, setNewLanguage] = useState('');
-  const subjectsList = Array.isArray(profile?.subjects) ? profile.subjects.map(subject => subject.name).join(', ') : 'No subjects assigned';
+  const subjectsList = Array.isArray(profile?.subjects) ? profile.subjects.map(subject => subject.name || subject.template?.name || 'Unknown Subject').join(', ') : 'No subjects assigned';
   const experience = (() => {
     if (!profile?.experience_years) return 'No experience specified';
     
@@ -296,7 +296,7 @@ export default function TeacherSubjectsSpecializations({ profile, availabilities
 
     // Initialize form data with current values
     setFormData({
-      subjects: Array.isArray(profile?.subjects) ? profile.subjects.map(s => s.name) : [],
+      subjects: Array.isArray(profile?.subjects) ? profile.subjects.map(s => s.name || s.template?.name || 'Unknown Subject') : [],
       languages: Array.isArray(profile?.languages) ? profile.languages : [],
       teaching_mode: profile?.teaching_mode || '',
       teaching_type: profile?.teaching_type || '',

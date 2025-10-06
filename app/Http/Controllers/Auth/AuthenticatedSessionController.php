@@ -30,6 +30,8 @@ class AuthenticatedSessionController extends Controller
      */
     public function store(LoginRequest $request): RedirectResponse
     {
+        \Log::info('Login attempt', ['request_data' => $request->all()]);
+        
         $request->authenticate();
 
         $request->session()->regenerate();
@@ -39,18 +41,31 @@ class AuthenticatedSessionController extends Controller
         // Dispatch the UserLoggedIn event
         event(new UserLoggedIn($user));
 
+        // Check if there's a redirect parameter
+        $redirectUrl = $request->get('redirect');
+        \Log::info('Login redirect check', ['redirect_url' => $redirectUrl, 'user_role' => $user->role]);
+        
+        if ($redirectUrl) {
+            \Log::info('Redirecting to', ['url' => $redirectUrl]);
+            return redirect($redirectUrl);
+        }
+
         // Redirect based on role
         if ($user->isUnassigned()) {
+            \Log::info('Redirecting unassigned user to unassigned page');
             return redirect()->route('unassigned');
         }
 
-        return match ($user->role) {
+        $roleRedirect = match ($user->role) {
             'super-admin' => redirect()->route('admin.dashboard'),
             'teacher' => redirect()->route('teacher.dashboard'),
             'student' => redirect()->route('student.dashboard'),
             'guardian' => redirect()->route('guardian.dashboard'),
             default => redirect()->route('dashboard'),
         };
+        
+        \Log::info('Redirecting based on role', ['role' => $user->role]);
+        return $roleRedirect;
     }
 
     /**

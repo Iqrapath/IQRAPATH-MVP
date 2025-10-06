@@ -1,11 +1,23 @@
 import React, { useState } from 'react';
 
+interface FAQItem {
+  id: number;
+  title: string;
+  content: string;
+  status: string;
+  order_index: number;
+}
+
 interface FAQItemProps {
-  id: string;
+  id: number;
   question: string;
   answer: string;
   isOpen: boolean;
-  toggleOpen: (id: string) => void;
+  toggleOpen: (id: number) => void;
+}
+
+interface FAQProps {
+  faqs: FAQItem[];
 }
 
 const FAQItem: React.FC<FAQItemProps> = ({ id, question, answer, isOpen, toggleOpen }) => {
@@ -16,7 +28,7 @@ const FAQItem: React.FC<FAQItemProps> = ({ id, question, answer, isOpen, toggleO
         onClick={() => toggleOpen(id)}
       >
         <div className="flex items-center">
-          <span className="text-[#2F8D8C] font-medium mr-4">{id}</span>
+          <span className="text-[#2F8D8C] font-medium mr-4">{String(id).padStart(2, '0')}</span>
           <h3 className="text-[#2F8D8C] font-medium">{question}</h3>
         </div>
         <div className={`w-6 h-6 rounded-full flex items-center justify-center ${isOpen ? 'bg-[#2F8D8C] text-white' : 'border border-[#2F8D8C] text-[#2F8D8C]'}`}>
@@ -40,38 +52,15 @@ const FAQItem: React.FC<FAQItemProps> = ({ id, question, answer, isOpen, toggleO
   );
 };
 
-export default function FAQ() {
-  const [openItem, setOpenItem] = useState<string>('01');
+export default function FAQ({ faqs }: FAQProps) {
+  const [openItem, setOpenItem] = useState<number | null>(faqs.length > 0 ? faqs[0].id : null);
 
-  const toggleOpen = (id: string) => {
-    setOpenItem(openItem === id ? '' : id);
+  const toggleOpen = (id: number) => {
+    setOpenItem(openItem === id ? null : id);
   };
 
-  const faqItems = [
-    {
-      id: '01',
-      question: 'How do I book a teacher?',
-      answer: 'Nibh quisque suscipit fermentum netus nulla cras porttitor euismod nulla. Orci, dictumst nec aliquet id ullamcorper venenatis. Fermentum sulla craspor tittore ismod nulla.'
-    },
-    {
-      id: '02',
-      question: 'Are the teachers certified?',
-      answer: 'Yes, all our teachers are certified and have undergone rigorous training and background checks. We ensure that every instructor meets our high standards of teaching quality and Islamic knowledge.'
-    },
-    {
-      id: '03',
-      question: 'Can I choose the class timing?',
-      answer: 'Absolutely! We offer flexible scheduling options. You can select class times that work best for you and your family. Our teachers are available across different time zones to accommodate students worldwide.'
-    },
-    {
-      id: '04',
-      question: 'Do you offer free trial classes?',
-      answer: 'Yes, we offer a free trial class for new students. This allows you to experience our teaching methodology and determine if our services meet your learning needs before making any commitment.'
-    }
-  ];
-
   return (
-    <section className="py-16 md:py-24 bg-[#F8F9FA]">
+    <section className="py-16 md:py-24 bg-[#F8F9FA] overflow-hidden">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row items-start justify-between mb-12">
           <div className="mb-6 md:mb-0">
@@ -88,12 +77,12 @@ export default function FAQ() {
         </div>
 
         <div className="space-y-4">
-          {faqItems.map((item) => (
+          {faqs.map((item) => (
             <FAQItem
               key={item.id}
               id={item.id}
-              question={item.question}
-              answer={item.answer}
+              question={item.title}
+              answer={item.content}
               isOpen={openItem === item.id}
               toggleOpen={toggleOpen}
             />

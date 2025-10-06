@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -19,7 +20,7 @@ use App\Models\PaymentMethod;
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasApiTokens;
+    use HasFactory, Notifiable, HasApiTokens, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -36,6 +37,9 @@ class User extends Authenticatable implements MustVerifyEmail
         'city',
         'role',
         'account_status',
+        'suspension_reason',
+        'suspended_at',
+        'suspended_by',
         'status_type',
         'status_message',
         'last_active_at',
@@ -66,6 +70,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified_at' => 'datetime',
             'last_active_at' => 'datetime',
             'registration_date' => 'datetime',
+            'suspended_at' => 'datetime',
             'password' => 'hashed',
         ];
     }
@@ -229,6 +234,50 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Check if the user's account is pending.
+     */
+    public function isAccountPending(): bool
+    {
+        return $this->account_status === 'pending';
+    }
+
+    /**
+     * Check if the user's account is deleted (soft deleted).
+     */
+    public function isAccountDeleted(): bool
+    {
+        return $this->trashed();
+    }
+
+    /**
+     * Get the account status display name.
+     */
+    public function getAccountStatusDisplayAttribute(): string
+    {
+        return match($this->account_status) {
+            'active' => 'Active',
+            'inactive' => 'Inactive',
+            'suspended' => 'Suspended',
+            'pending' => 'Pending',
+            default => 'Unknown'
+        };
+    }
+
+    /**
+     * Get the account status color for UI.
+     */
+    public function getAccountStatusColorAttribute(): string
+    {
+        return match($this->account_status) {
+            'active' => 'green',
+            'inactive' => 'gray',
+            'suspended' => 'red',
+            'pending' => 'yellow',
+            default => 'gray'
+        };
+    }
+
+    /**
      * Get the admin profile associated with the user.
      */
     public function adminProfile(): HasOne
@@ -250,6 +299,30 @@ class User extends Authenticatable implements MustVerifyEmail
     public function subjects(): HasManyThrough
     {
         return $this->hasManyThrough(Subject::class, TeacherProfile::class, 'user_id', 'teacher_profile_id');
+    }
+
+    /**
+     * Get the user who suspended this user.
+     */
+    public function suspendedBy(): HasOne
+    {
+        return $this->hasOne(User::class, 'id', 'suspended_by');
+    }
+
+    /**
+     * Get the audit logs for this user.
+     */
+    public function auditLogs(): HasMany
+    {
+        return $this->hasMany(UserAccountAuditLog::class);
+    }
+
+    /**
+     * Get audit logs performed by this user.
+     */
+    public function performedAuditLogs(): HasMany
+    {
+        return $this->hasMany(UserAccountAuditLog::class, 'performed_by');
     }
 
     /**

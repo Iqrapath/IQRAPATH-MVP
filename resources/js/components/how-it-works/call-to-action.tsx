@@ -15,7 +15,7 @@ const CallToAction: React.FC = () => {
               </span>
             </h2>
             <Link
-              href="/find-teacher"
+              href={route('register.student-guardian')} 
               className="inline-flex items-center justify-center px-8 py-3 bg-[#2B6B65] text-white text-base font-medium rounded-full hover:bg-[#235750] transition-colors duration-300"
             >
               Find a Teacher

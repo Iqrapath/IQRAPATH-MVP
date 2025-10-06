@@ -3,8 +3,10 @@
 use App\Http\Controllers\ContentPageController;
 use App\Http\Controllers\Admin\FaqController;
 use App\Http\Controllers\FindTeacherController;
+use App\Http\Controllers\WelcomeController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Broadcast;
 use Inertia\Inertia;
 
 
@@ -19,9 +21,10 @@ use Inertia\Inertia;
 |
 */
 
-Route::get('/', function () {
-    return Inertia::render('welcome');
-})->name('home');
+Route::get('/', [WelcomeController::class, 'index'])->name('home');
+
+// Broadcasting authentication
+Broadcast::routes(['middleware' => ['web', 'auth']]);
 
 // Test routes for modal testing
 Route::get('/test/modal', function () {
@@ -34,6 +37,7 @@ Route::get('/test/payment-info', function () {
 
 Route::get('/find-teacher', [FindTeacherController::class, 'index'])->name('find-teacher');
 Route::get('/api/teachers', [FindTeacherController::class, 'getTeachers'])->name('api.teachers');
+Route::post('/api/match-teachers', [FindTeacherController::class, 'matchTeachers'])->name('api.match-teachers');
 
 Route::get('/how-it-works', function () {
     return Inertia::render('how-it-works');
@@ -55,25 +59,13 @@ Route::get('/about', function () {
     return Inertia::render('about');
 })->name('about');
 
-// Test route for verification modal
-Route::get('/test-verification-modal', function () {
-    return Inertia::render('test-verification-modal');
-})->name('test-verification-modal');
-
-// Test route for teacher sidebar API
-Route::get('/test-teacher-sidebar', function () {
-    return Inertia::render('test-teacher-sidebar');
-})->name('test-teacher-sidebar');
-
-
-
 // Public content pages
 Route::get('/page/{slug}', [ContentPageController::class, 'show'])->name('pages.show');
 
 // Public FAQs
-Route::get('/faqs', function () {
-    return Inertia::render('Faqs');
-})->name('faqs');
+// Route::get('/faqs', function () {
+//     return Inertia::render('Faqs');
+// })->name('faqs');
 
 // Unassigned user routes
 Route::middleware(['auth'])->group(function () {

@@ -1,4 +1,4 @@
-import { Head, Link, router, usePage } from "@inertiajs/react";
+import { Head, Link, router } from "@inertiajs/react";
 import { Button } from "@/components/ui/button";
 import {
     Table,
@@ -23,16 +23,18 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreVertical, Eye, Search, CheckCircle, Calendar, Copy, XCircle } from "lucide-react";
+import { MoreVertical, Eye, Search, Calendar, Copy, XCircle, Link as LinkIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { useState, FormEvent } from "react";
+import { useState } from "react";
 import { Pagination } from "@/components/ui/pagination";
 import { debounce } from "lodash";
+import { toast } from "sonner";
 import AdminLayout from "@/layouts/admin/admin-layout";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { SendIcon } from "@/components/icons/send-icon";
 import { VerifiedIcon } from "@/components/icons/verified-icon";
-import { toast } from "sonner";
+import ScheduleVerificationModal from "./components/ScheduleVerificationModal";
+import VerificationCallDetailsModal from "./components/VerificationCallDetailsModal";
 
 interface VerificationRequest {
     id: string;
@@ -59,6 +61,14 @@ interface VerificationRequest {
             status: string;
         }>;
     };
+    calls?: Array<{
+        id: number | string;
+        scheduled_at: string;
+        platform: string;
+        meeting_link?: string;
+        notes?: string;
+        status: string;
+    }>;
 }
 
 interface VerificationIndexProps {
@@ -85,11 +95,18 @@ interface VerificationIndexProps {
 export default function VerificationIndex({
     verificationRequests,
     filters,
-    stats,
 }: VerificationIndexProps) {
     const [search, setSearch] = useState(filters.search || '');
     const [statusFilter, setStatusFilter] = useState(filters.status || 'all');
     const [dateFilter, setDateFilter] = useState(filters.date || '');
+    
+    // Schedule verification modal state
+    const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
+    const [selectedVerificationRequest, setSelectedVerificationRequest] = useState<VerificationRequest | null>(null);
+    
+    // Call details modal state
+    const [callDetailsModalOpen, setCallDetailsModalOpen] = useState(false);
+    const [selectedCallDetails, setSelectedCallDetails] = useState<VerificationRequest | null>(null);
 
     const handleSearch = debounce((value: string) => {
         setSearch(value);
@@ -119,14 +136,22 @@ export default function VerificationIndex({
         });
     };
 
-    const handleSearchSubmit = (e: FormEvent) => {
-        e.preventDefault();
-        router.get(
-            route("admin.verification.index"),
-            { search, status: statusFilter, date: dateFilter },
-            { preserveState: true }
-        );
+    const openScheduleModal = (request: VerificationRequest) => {
+        setSelectedVerificationRequest(request);
+        setScheduleModalOpen(true);
     };
+
+    const closeScheduleModal = () => {
+        setScheduleModalOpen(false);
+        setSelectedVerificationRequest(null);
+    };
+
+    const openCallDetailsModal = (request: VerificationRequest) => {
+        setSelectedCallDetails(request);
+        setCallDetailsModalOpen(true);
+    };
+
+
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -152,6 +177,25 @@ export default function VerificationIndex({
                 return (
                     <Badge variant="outline" className="text-blue-600 border-blue-600 bg-blue-50">
                         Live Video
+                    </Badge>
+                );
+            // Handle unified status format from TeacherStatusService
+            case "Approved":
+                return (
+                    <Badge variant="outline" className="text-green-600 border-green-600 bg-green-50">
+                        Verified
+                    </Badge>
+                );
+            case "Pending":
+                return (
+                    <Badge variant="outline" className="text-yellow-600 border-yellow-600 bg-yellow-50">
+                        Pending
+                    </Badge>
+                );
+            case "Inactive":
+                return (
+                    <Badge variant="outline" className="text-red-600 border-red-600 bg-red-50">
+                        Rejected
                     </Badge>
                 );
             default:
@@ -416,29 +460,79 @@ export default function VerificationIndex({
                                                             <Eye className="mr-2 h-4 w-4 text-gray-600" />
                                                         </Link>
                                                     </DropdownMenuItem>
+                                                    {request.video_status === 'not_scheduled' ? (
+                                                        <DropdownMenuItem
+                                                            className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 cursor-pointer w-full"
+                                                            onClick={() => {
+                                                                openScheduleModal(request);
+                                                            }}
+                                                        >
+                                                            <span>Schedule Call</span>
+                                                            <SendIcon className="mr-2 h-4 w-4 text-[#338078]" />
+                                                        </DropdownMenuItem>
+                                                    ) : (
+                                                        <DropdownMenuItem
+                                                            className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 cursor-pointer w-full"
+                                                            onClick={() => {
+                                                                openCallDetailsModal(request);
+                                                            }}
+                                                        >
+                                                            <span>View Schedule Details</span>
+                                                            <Calendar className="mr-2 h-4 w-4 text-[#338078]" />
+                                                        </DropdownMenuItem>
+                                                    )}
                                                     <DropdownMenuItem
                                                         className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 cursor-pointer w-full"
-                                                        onClick={() => {
-                                                            // This would open a modal to schedule a call
-                                                            alert('Schedule Call functionality would be implemented here');
+                                                        onClick={async () => {
+                                                            try {
+                                                                const verificationUrl = route('admin.verification.show', request.id);
+                                                                await navigator.clipboard.writeText(verificationUrl);
+                                                                toast.success('Verification URL copied to clipboard');
+                                                            } catch {
+                                                                toast.error('Failed to copy URL');
+                                                            }
                                                         }}
                                                     >
-                                                        <span>Schedule Call</span>
-                                                        <SendIcon className="mr-2 h-4 w-4 text-[#338078]" />
+                                                        <span>Copy Verification URL</span>
+                                                        <LinkIcon className="mr-2 h-4 w-4 text-gray-600" />
                                                     </DropdownMenuItem>
+                                                    {request.calls && request.calls.length > 0 && request.calls[0].meeting_link && (
+                                                        <DropdownMenuItem
+                                                            className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 cursor-pointer w-full"
+                                                            onClick={async () => {
+                                                                try {
+                                                                    const meetingLink = request.calls?.[0]?.meeting_link;
+                                                                    if (meetingLink) {
+                                                                        await navigator.clipboard.writeText(meetingLink);
+                                                                        toast.success('Meeting link copied to clipboard');
+                                                                    } else {
+                                                                        toast.error('No meeting link available');
+                                                                    }
+                                                                } catch {
+                                                                    toast.error('Failed to copy meeting link');
+                                                                }
+                                                            }}
+                                                        >
+                                                            <span>Copy Meeting Link</span>
+                                                            <Copy className="mr-2 h-4 w-4 text-gray-600" />
+                                                        </DropdownMenuItem>
+                                                    )}
                                                     <DropdownMenuItem
-                                                        className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 cursor-pointer w-full"
+                                                        className={`flex items-center justify-between px-4 w-full ${
+                                                            request.status === 'rejected' || request.status === 'verified' 
+                                                                ? 'text-gray-400 cursor-not-allowed' 
+                                                                : 'hover:bg-gray-50'
+                                                        }`}
                                                         onClick={() => {
-                                                            navigator.clipboard.writeText(window.location.href);
-                                                            alert('URL copied to clipboard');
-                                                        }}
-                                                    >
-                                                        <span>Copy Url</span>
-                                                        <Copy className="mr-2 h-4 w-4 text-gray-600" />
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem
-                                                        className="flex items-center justify-between px-4 w-full"
-                                                        onClick={() => {
+                                                            if (request.status === 'rejected') {
+                                                                toast.error('This verification request has already been rejected.');
+                                                                return;
+                                                            }
+                                                            if (request.status === 'verified') {
+                                                                toast.error('This verification request has already been verified.');
+                                                                return;
+                                                            }
+                                                            
                                                             const reason = prompt('Please provide a rejection reason:');
                                                             if (reason && reason.trim()) {
                                                                 router.patch(route('admin.verification.reject', request.id), {
@@ -455,9 +549,14 @@ export default function VerificationIndex({
                                                                 });
                                                             }
                                                         }}
+                                                        disabled={request.status === 'rejected' || request.status === 'verified'}
                                                     >
-                                                        <span>Reject</span>
-                                                        <XCircle className="mr-2 h-4 w-4 text-red-600" />
+                                                        <span>{request.status === 'rejected' ? 'Already Rejected' : 'Reject'}</span>
+                                                        <XCircle className={`mr-2 h-4 w-4 ${
+                                                            request.status === 'rejected' || request.status === 'verified' 
+                                                                ? 'text-gray-400' 
+                                                                : 'text-red-600'
+                                                        }`} />
                                                     </DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
@@ -484,6 +583,33 @@ export default function VerificationIndex({
                     />
                 )}
             </div>
+
+            {/* Schedule Verification Modal */}
+            {selectedVerificationRequest && (
+                <ScheduleVerificationModal
+                    isOpen={scheduleModalOpen}
+                    onOpenChange={setScheduleModalOpen}
+                    verificationRequestId={selectedVerificationRequest.id}
+                    verificationStatus={selectedVerificationRequest.status}
+                    onScheduled={() => {
+                        closeScheduleModal();
+                        // Refresh the page to update the dropdown options
+                        router.reload({ only: ['verificationRequests'] });
+                    }}
+                />
+            )}
+
+            {/* Call Details Modal */}
+            {selectedCallDetails && (
+                <VerificationCallDetailsModal
+                    isOpen={callDetailsModalOpen}
+                    onOpenChange={setCallDetailsModalOpen}
+                    call={selectedCallDetails.calls && selectedCallDetails.calls.length > 0 ? selectedCallDetails.calls[0] : null}
+                    verificationRequestId={selectedCallDetails.id}
+                    videoStatus={selectedCallDetails.video_status}
+                    requestStatus={selectedCallDetails.status}
+                />
+            )}
         </AdminLayout>
     );
 }

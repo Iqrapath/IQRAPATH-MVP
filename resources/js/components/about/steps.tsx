@@ -130,7 +130,8 @@ const Steps: React.FC = () => {
 
           {/* Call To Action Button */}
           <div className="mt-32 text-center relative z-10">
-            <Link href="/find-teacher" className="inline-block bg-[#2B6B65] text-white py-3 px-8 rounded-full font-medium hover:bg-[#235750] transition-colors shadow-md">
+            <Link href={route('register.student-guardian')} 
+            className="inline-block bg-[#2B6B65] text-white py-3 px-8 rounded-full font-medium hover:bg-[#235750] transition-colors shadow-md">
               Find a Teacher Now
             </Link>
           </div>

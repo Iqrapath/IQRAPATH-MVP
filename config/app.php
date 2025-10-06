@@ -69,6 +69,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Teacher Verification Configuration
+    |--------------------------------------------------------------------------
+    |
+    | These settings control the teacher verification requirements.
+    | You can toggle between video-only and full verification modes.
+    |
+    */
+
+    'teacher_verification' => [
+        'require_documents' => env('TEACHER_VERIFICATION_REQUIRE_DOCUMENTS', false),
+        'require_video' => env('TEACHER_VERIFICATION_REQUIRE_VIDEO', true),
+        'auto_approve_after_video' => env('TEACHER_VERIFICATION_AUTO_APPROVE', true),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------
     |

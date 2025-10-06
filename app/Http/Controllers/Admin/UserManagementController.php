@@ -4,12 +4,17 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\AccountManagementService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 
 class UserManagementController extends Controller
 {
+    public function __construct(
+        private AccountManagementService $accountManagementService
+    ) {}
     public function index(Request $request)
     {
         $query = User::query();
@@ -26,9 +31,17 @@ class UserManagementController extends Controller
         // Filter by status
         if ($request->has('status') && $request->status && $request->status !== 'all') {
             if ($request->status === 'active') {
-                $query->where('email_verified_at', '!=', null);
+                $query->where('email_verified_at', '!=', null)
+                      ->where('account_status', 'active');
             } elseif ($request->status === 'inactive') {
-                $query->where('email_verified_at', null);
+                $query->where('email_verified_at', null)
+                      ->orWhere('account_status', 'inactive');
+            } elseif ($request->status === 'suspended') {
+                $query->where('account_status', 'suspended');
+            } elseif ($request->status === 'pending') {
+                $query->where('account_status', 'pending');
+            } elseif ($request->status === 'deleted') {
+                $query->onlyTrashed();
             }
         }
 
@@ -42,7 +55,7 @@ class UserManagementController extends Controller
         }
 
         // Get paginated users
-        $users = $query->select('id', 'name', 'email', 'avatar', 'role', 'email_verified_at')
+        $users = $query->select('id', 'name', 'email', 'avatar', 'role', 'account_status', 'email_verified_at', 'suspended_at', 'suspension_reason')
             ->orderBy('created_at', 'desc')
             ->paginate(15)
             ->through(function ($user) {
@@ -52,7 +65,13 @@ class UserManagementController extends Controller
                     'email' => $user->email,
                     'avatar' => $user->avatar,
                     'role' => $user->role,
-                    'status' => $user->email_verified_at ? 'active' : 'inactive',
+                    'account_status' => $user->account_status,
+                    'account_status_display' => $user->account_status_display,
+                    'account_status_color' => $user->account_status_color,
+                    'email_verified_at' => $user->email_verified_at,
+                    'suspended_at' => $user->suspended_at,
+                    'suspension_reason' => $user->suspension_reason,
+                    'is_deleted' => $user->trashed(),
                 ];
             });
 
@@ -73,6 +92,7 @@ class UserManagementController extends Controller
                 'role' => $request->role ?? 'all',
             ],
             'roles' => $roles,
+            'stats' => $this->accountManagementService->getAccountManagementStats(),
         ]);
     }
 
@@ -255,5 +275,253 @@ class UserManagementController extends Controller
     {
         // TODO: Implement user deletion
         return redirect()->route('admin.user-management.index');
+    }
+
+    /**
+     * Suspend a user account.
+     */
+    public function suspend(Request $request, User $user)
+    {
+        Gate::authorize('suspend', $user);
+
+        $validated = $request->validate([
+            'reason' => 'required|string|max:1000',
+        ]);
+
+        $success = $this->accountManagementService->suspendUser(
+            $user,
+            $request->user(),
+            $validated['reason'],
+            ['ip_address' => $request->ip(), 'user_agent' => $request->userAgent()]
+        );
+
+        if ($success) {
+            return response()->json([
+                'success' => true,
+                'message' => 'User account has been suspended successfully.'
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to suspend user account. Please try again.'
+        ], 500);
+    }
+
+    /**
+     * Unsuspend a user account.
+     */
+    public function unsuspend(Request $request, User $user)
+    {
+        Gate::authorize('unsuspend', $user);
+
+        $validated = $request->validate([
+            'reason' => 'nullable|string|max:1000',
+        ]);
+
+        $success = $this->accountManagementService->unsuspendUser(
+            $user,
+            $request->user(),
+            $validated['reason'] ?? 'Account unsuspended by administrator',
+            ['ip_address' => $request->ip(), 'user_agent' => $request->userAgent()]
+        );
+
+        if ($success) {
+            return response()->json([
+                'success' => true,
+                'message' => 'User account has been unsuspended successfully.'
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to unsuspend user account. Please try again.'
+        ], 500);
+    }
+
+    /**
+     * Soft delete a user account.
+     */
+    public function delete(Request $request, User $user)
+    {
+        Gate::authorize('delete', $user);
+
+        $validated = $request->validate([
+            'reason' => 'required|string|max:1000',
+        ]);
+
+        $success = $this->accountManagementService->deleteUser(
+            $user,
+            $request->user(),
+            $validated['reason'],
+            ['ip_address' => $request->ip(), 'user_agent' => $request->userAgent()]
+        );
+
+        if ($success) {
+            return response()->json([
+                'success' => true,
+                'message' => 'User account has been deleted successfully.'
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to delete user account. Please try again.'
+        ], 500);
+    }
+
+    /**
+     * Restore a soft-deleted user account.
+     */
+    public function restore(Request $request, User $user)
+    {
+        Gate::authorize('restore', $user);
+
+        $validated = $request->validate([
+            'reason' => 'nullable|string|max:1000',
+        ]);
+
+        $success = $this->accountManagementService->restoreUser(
+            $user,
+            $request->user(),
+            $validated['reason'] ?? 'Account restored by administrator',
+            ['ip_address' => $request->ip(), 'user_agent' => $request->userAgent()]
+        );
+
+        if ($success) {
+            return response()->json([
+                'success' => true,
+                'message' => 'User account has been restored successfully.'
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to restore user account. Please try again.'
+        ], 500);
+    }
+
+    /**
+     * Permanently delete a user account.
+     */
+    public function forceDelete(Request $request, User $user)
+    {
+        Gate::authorize('forceDelete', $user);
+
+        $validated = $request->validate([
+            'reason' => 'required|string|max:1000',
+        ]);
+
+        $success = $this->accountManagementService->forceDeleteUser(
+            $user,
+            $request->user(),
+            $validated['reason'],
+            ['ip_address' => $request->ip(), 'user_agent' => $request->userAgent()]
+        );
+
+        if ($success) {
+            return response()->json([
+                'success' => true,
+                'message' => 'User account has been permanently deleted.'
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to permanently delete user account. Please try again.'
+        ], 500);
+    }
+
+    /**
+     * Get user audit logs.
+     */
+    public function auditLogs(User $user)
+    {
+        Gate::authorize('view', $user);
+
+        $auditLogs = $this->accountManagementService->getUserAuditLogs($user);
+
+        return response()->json([
+            'success' => true,
+            'audit_logs' => $auditLogs
+        ]);
+    }
+
+    /**
+     * Bulk account management operations.
+     */
+    public function bulkAction(Request $request)
+    {
+        Gate::authorize('bulkManage', User::class);
+
+        $validated = $request->validate([
+            'action' => 'required|string|in:suspend,unsuspend,delete,restore',
+            'user_ids' => 'required|array|min:1',
+            'user_ids.*' => 'exists:users,id',
+            'reason' => 'nullable|string|max:1000',
+        ]);
+
+        $action = $validated['action'];
+        $userIds = $validated['user_ids'];
+        $reason = $validated['reason'] ?? "Bulk {$action} operation";
+        $performedBy = $request->user();
+
+        $successCount = 0;
+        $failedCount = 0;
+        $errors = [];
+
+        foreach ($userIds as $userId) {
+            try {
+                $user = User::withTrashed()->findOrFail($userId);
+                
+                // Check individual permissions
+                if (!$performedBy->can($action, $user)) {
+                    $errors[] = "Permission denied for user: {$user->name}";
+                    $failedCount++;
+                    continue;
+                }
+
+                $success = false;
+                switch ($action) {
+                    case 'suspend':
+                        $success = $this->accountManagementService->suspendUser($user, $performedBy, $reason);
+                        break;
+                    case 'unsuspend':
+                        $success = $this->accountManagementService->unsuspendUser($user, $performedBy, $reason);
+                        break;
+                    case 'delete':
+                        $success = $this->accountManagementService->deleteUser($user, $performedBy, $reason);
+                        break;
+                    case 'restore':
+                        $success = $this->accountManagementService->restoreUser($user, $performedBy, $reason);
+                        break;
+                }
+
+                if ($success) {
+                    $successCount++;
+                } else {
+                    $failedCount++;
+                    $errors[] = "Failed to {$action} user: {$user->name}";
+                }
+            } catch (\Exception $e) {
+                $failedCount++;
+                $errors[] = "Error processing user ID {$userId}: " . $e->getMessage();
+            }
+        }
+
+        if ($failedCount === 0) {
+            return response()->json([
+                'success' => true,
+                'message' => "Bulk operation completed successfully. {$successCount} users processed."
+            ]);
+        } else {
+            return response()->json([
+                'success' => false,
+                'message' => "Bulk operation completed with errors. {$successCount} successful, {$failedCount} failed.",
+                'success_count' => $successCount,
+                'failed_count' => $failedCount,
+                'errors' => $errors
+            ]);
+        }
     }
 }
