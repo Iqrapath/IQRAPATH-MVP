@@ -11,6 +11,7 @@ use App\Models\TeacherProfile;
 use App\Models\TeachingSession;
 use App\Models\SessionProgress;
 use App\Models\User;
+use App\Services\GuardianBookingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -18,6 +19,9 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
+    public function __construct(
+        private GuardianBookingService $guardianBookingService
+    ) {}
     /**
      * Display the guardian dashboard.
      */
@@ -628,35 +632,15 @@ class DashboardController extends Controller
      */
     private function calculateGuardianStats(array $studentIds): array
     {
-        if (empty($studentIds)) {
-            return [
-                'total_classes' => 0,
-                'completed_classes' => 0,
-                'upcoming_classes' => 0,
-            ];
-        }
+        $guardian = auth()->user();
         
-        // Get user IDs for the student profiles
-        $userIds = StudentProfile::whereIn('id', $studentIds)->pluck('user_id')->toArray();
-        
-        // Total classes (all bookings for guardian's children)
-        $totalClasses = Booking::whereIn('student_id', $userIds)->count();
-        
-        // Completed classes
-        $completedClasses = Booking::whereIn('student_id', $userIds)
-            ->where('status', 'completed')
-            ->count();
-        
-        // Upcoming classes (approved and scheduled for future dates)
-        $upcomingClasses = Booking::whereIn('student_id', $userIds)
-            ->whereIn('status', ['approved', 'upcoming'])
-            ->where('booking_date', '>=', now()->format('Y-m-d'))
-            ->count();
+        // Use the GuardianBookingService to get dashboard stats
+        $stats = $this->guardianBookingService->getDashboardStats($guardian);
         
         return [
-            'total_classes' => $totalClasses,
-            'completed_classes' => $completedClasses,
-            'upcoming_classes' => $upcomingClasses,
+            'total_classes' => $stats['total_bookings'],
+            'completed_classes' => $stats['completed_bookings'],
+            'upcoming_classes' => $stats['upcoming_bookings'],
         ];
     }
     
@@ -687,57 +671,12 @@ class DashboardController extends Controller
      */
     private function getUpcomingClasses(array $studentIds): array
     {
-        if (empty($studentIds)) {
-            return [];
-        }
+        $guardian = auth()->user();
         
-        // Get user IDs for the student profiles
-        $userIds = StudentProfile::whereIn('id', $studentIds)->pluck('user_id')->toArray();
+        // Use the GuardianBookingService to get upcoming classes
+        $upcomingClasses = $this->guardianBookingService->getUpcomingClassesForDashboard($guardian, 5);
         
-        // Get upcoming bookings with relationships
-        $bookings = Booking::whereIn('student_id', $userIds)
-            ->whereIn('status', ['approved', 'upcoming'])
-            ->where('booking_date', '>=', now()->format('Y-m-d'))
-            ->with([
-                'teacher.teacherProfile',
-                'subject.template',
-                'student'
-            ])
-            ->orderBy('booking_date')
-            ->orderBy('start_time')
-            ->limit(5) // Limit to 5 most recent
-            ->get();
-        
-        return $bookings->map(function ($booking) {
-            // Map booking status to component status
-            $status = $booking->status === 'approved' ? 'Confirmed' : 'Pending';
-            
-            // Format date and time
-            $date = $booking->booking_date->format('l, F j, Y');
-            $startTime = $booking->start_time->format('g:i A');
-            $endTime = $booking->end_time->format('g:i A');
-            $time = "{$startTime} - {$endTime}";
-            
-            // Get subject name and teacher name
-            $subjectName = $booking->subject->template->name ?? 'Unknown Subject';
-            $teacherName = $booking->teacher->name ?? 'Unknown Teacher';
-            
-            // Generate title (e.g., "Tajweed (Intermediate)")
-            $title = $subjectName;
-            
-            // Get teacher avatar or use default
-            $teacherAvatar = $booking->teacher->avatar ?? '/assets/images/teacher/default-teacher.png';
-            
-            return [
-                'id' => $booking->id,
-                'title' => $title,
-                'teacher' => $teacherName,
-                'date' => $date,
-                'time' => $time,
-                'status' => $status,
-                'imageUrl' => $teacherAvatar,
-            ];
-        })->toArray();
+        return $upcomingClasses;
     }
     
     /**

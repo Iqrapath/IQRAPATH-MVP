@@ -1,4 +1,4 @@
-import { Head, usePage } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import { type GuardianProfile, type User, type SharedData } from '@/types';
 import GuardianOnboardingModal from '@/components/onboarding/guardian-onboarding-modal';
@@ -77,7 +77,7 @@ interface GuardianDashboardProps {
         date: string;
         time: string;
         status: 'Confirmed' | 'Pending';
-        imageUrl: string;
+        imageUrl?: string; // Optional since we now handle missing images
     }>;
     learningProgressData: Array<{
         child_name: string;
@@ -121,7 +121,9 @@ export default function GuardianDashboard({ guardianProfile, children, students,
                     {/* Stats card overlapping the hero */}
                     <div className="relative -mt-14 md:-mt-30 max-w-[700px] items-center justify-center mx-auto">
                         <GuardianStatsCard
-                            headerAction={<button className="text-[#2c7870] hover:text-[#236158] font-medium">Browse Teachers</button>}
+                            headerAction={<button className="text-[#2c7870] hover:text-[#236158] font-medium">
+                            <Link href="/guardian/browse-teachers">Browse Teachers</Link>
+                            </button>}
                             stats={[
                                 { title: 'Total Class', value: stats.total_classes, icon: <TrainingClassIcon className="w-8 h-8" />, gradient: 'from-[#eef1fb]' },
                                 { title: 'Class Completed', value: stats.completed_classes, icon: <StudentIcon className="w-8 h-8" />, gradient: 'from-[#e6fffb]' },

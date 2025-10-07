@@ -1,5 +1,6 @@
 import React from 'react';
 import { Calendar } from 'lucide-react';
+import { router } from '@inertiajs/react';
 
 interface ClassItem {
     id: number;
@@ -8,7 +9,7 @@ interface ClassItem {
     date: string; // formatted date string
     time: string; // formatted time range
     status: 'Confirmed' | 'Pending';
-    imageUrl: string;
+    imageUrl?: string; // Optional since we now handle missing images
 }
 
 interface UpcomingClassesProps {
@@ -16,6 +17,24 @@ interface UpcomingClassesProps {
 }
 
 export default function UpcomingClasses({ classes }: UpcomingClassesProps) {
+    // Helper function to get teacher initials
+    const getTeacherInitials = (teacherName: string): string => {
+        const nameParts = teacherName.split(' ');
+        let initials = '';
+        nameParts.forEach(part => {
+            if (part.length > 0) {
+                initials += part.charAt(0).toUpperCase();
+            }
+        });
+        return initials || 'UT'; // Default to 'UT' for Unknown Teacher
+    };
+
+    // Handle start session click
+    const handleStartSession = (classId: number) => {
+        // Navigate to the session details or start the session using Inertia
+        router.visit(`/guardian/my-bookings/${classId}`);
+    };
+
     return (
         <div className="rounded-[28px] bg-white shadow-sm border border-gray-100 p-6 md:p-8 max-w-6xl mx-auto">
             {/* Header */}
@@ -29,7 +48,13 @@ export default function UpcomingClasses({ classes }: UpcomingClassesProps) {
                     {classes.map((cls) => (
                         <div key={cls.id} className="py-5 flex items-center">
                             {/* thumbnail */}
-                            <img src={cls.imageUrl} alt="class" className="w-20 h-20 rounded-2xl object-cover mr-4" />
+                            {cls.imageUrl ? (
+                                <img src={cls.imageUrl} alt="class" className="w-20 h-20 rounded-2xl object-cover mr-4" />
+                            ) : (
+                                <div className="w-20 h-20 rounded-2xl bg-[#2c7870] text-white flex items-center justify-center mr-4 text-lg font-semibold">
+                                    {getTeacherInitials(cls.teacher)}
+                                </div>
+                            )}
 
                             <div className="flex-1">
                                 <div className="text-lg font-semibold text-gray-900 mb-1">{cls.title}</div>
@@ -42,7 +67,21 @@ export default function UpcomingClasses({ classes }: UpcomingClassesProps) {
                                 </div>
                             </div>
 
-                            <button className="bg-[#2c7870] hover:bg-[#236158] text-white rounded-full py-2 px-5">Start Session</button>
+                            {cls.status === 'Confirmed' ? (
+                                <button 
+                                    onClick={() => handleStartSession(cls.id)}
+                                    className="bg-[#2c7870] hover:bg-[#236158] text-white rounded-full py-2 px-5 transition-colors duration-200 cursor-pointer"
+                                >
+                                    Start Session
+                                </button>
+                            ) : (
+                                <button 
+                                    disabled
+                                    className="bg-gray-300 text-gray-500 rounded-full py-2 px-5 cursor-not-allowed"
+                                >
+                                    Pending Approval
+                                </button>
+                            )}
                         </div>
                     ))}
                 </div>

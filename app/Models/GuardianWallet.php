@@ -80,6 +80,14 @@ class GuardianWallet extends Model
     }
 
     /**
+     * Get the wallet transactions for this guardian wallet.
+     */
+    public function transactions()
+    {
+        return $this->hasMany(GuardianWalletTransaction::class, 'wallet_id');
+    }
+
+    /**
      * Get the unified transactions for this wallet.
      */
     public function unifiedTransactions(): MorphMany

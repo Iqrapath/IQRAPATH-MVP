@@ -21,6 +21,7 @@ return new class extends Migration
             $table->string('country')->nullable();
             $table->string('city')->nullable();
             $table->enum('role', ['super-admin', 'admin', 'teacher', 'student', 'guardian', 'unassigned'])->nullable();
+            $table->json('additional_roles')->nullable()->comment('Additional roles user can have (e.g., guardian who is also a student)');
             $table->enum('account_status', ['active', 'inactive', 'suspended', 'pending'])->default('active');
             $table->string('suspension_reason')->nullable();
             $table->timestamp('suspended_at')->nullable();

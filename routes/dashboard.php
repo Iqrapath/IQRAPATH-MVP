@@ -142,6 +142,31 @@ Route::middleware(['auth', 'verified', 'role:guardian'])->prefix('guardian')->na
     Route::get('/children/{child}/progress', [GuardianDashboardController::class, 'childProgress'])->name('children.progress');
     Route::get('/children/{child}/progress/refresh', [GuardianDashboardController::class, 'refreshProgress'])->name('children.progress.refresh');
     
+    // Guardian booking routes
+        Route::get('/my-bookings', [App\Http\Controllers\Guardian\BookingController::class, 'index'])->name('my-bookings');
+    Route::get('/my-bookings/{booking}', [App\Http\Controllers\Guardian\BookingController::class, 'show'])->name('my-bookings.show');
+    Route::post('/my-bookings/{booking}/cancel', [App\Http\Controllers\Guardian\BookingController::class, 'cancel'])->name('my-bookings.cancel');
+    
+    // Guardian booking sub-pages
+    Route::get('/book-class', [App\Http\Controllers\Guardian\BookingController::class, 'create'])->name('book-class');
+    Route::get('/booking/session-details', [App\Http\Controllers\Guardian\BookingController::class, 'sessionDetailsGet'])->name('booking.session-details.get');
+        Route::post('/booking/session-details', [App\Http\Controllers\Guardian\BookingController::class, 'sessionDetails'])->name('booking.session-details');
+    Route::get('/booking/pricing-payment', [App\Http\Controllers\Guardian\BookingController::class, 'pricingPaymentGet'])->name('booking.pricing-payment.get');
+        Route::post('/booking/pricing-payment', [App\Http\Controllers\Guardian\BookingController::class, 'pricingPayment'])->name('booking.pricing-payment');
+        Route::post('/booking/payment', [App\Http\Controllers\Guardian\BookingController::class, 'processPayment'])->name('booking.payment');
+    
+    // Guardian reschedule routes
+    Route::match(['get', 'post'], '/reschedule/class', [App\Http\Controllers\Guardian\BookingController::class, 'rescheduleClass'])->name('reschedule.class');
+    Route::get('/reschedule/session-details', [App\Http\Controllers\Guardian\BookingController::class, 'rescheduleSessionDetailsGet'])->name('reschedule.session-details.get');
+    Route::post('/reschedule/session-details', [App\Http\Controllers\Guardian\BookingController::class, 'rescheduleSessionDetails'])->name('reschedule.session-details');
+    Route::get('/reschedule/pricing-payment', [App\Http\Controllers\Guardian\BookingController::class, 'reschedulePricingPaymentGet'])->name('reschedule.pricing-payment.get');
+    Route::post('/reschedule/pricing-payment', [App\Http\Controllers\Guardian\BookingController::class, 'reschedulePricingPayment'])->name('reschedule.pricing-payment');
+    
+    // Guardian teacher browsing routes
+    Route::get('/browse-teachers', [App\Http\Controllers\Guardian\TeacherController::class, 'index'])->name('browse-teachers');
+    Route::get('/teachers/{teacher}', [App\Http\Controllers\Guardian\TeacherController::class, 'show'])->name('teachers.show');
+    Route::get('/teachers/{teacher}/profile-data', [App\Http\Controllers\Guardian\TeacherController::class, 'profileData'])->name('teachers.profile-data');
+    
     // Guardian payment routes
     Route::get('/payment/publishable-key', [App\Http\Controllers\Guardian\PaymentController::class, 'getPublishableKey'])->name('payment.publishable-key');
     Route::post('/payment/fund-wallet', [App\Http\Controllers\Guardian\PaymentController::class, 'fundWallet'])->name('payment.fund-wallet');

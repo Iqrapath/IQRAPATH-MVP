@@ -100,22 +100,21 @@ export default function GuardianLeftSidebar({ className, isMobile = false, onClo
         // },
         {
             title: 'Browse Teachers',
-            href: '#',
+            href: '/guardian/browse-teachers',
             icon: TeacherIcon,
-            isComingSoon: true,
             onClick: (e) => {
                 e.preventDefault();
-                handleMissingPage('Browse Teachers');
+                router.visit('/guardian/browse-teachers');
             },
         },
         {
-            title: 'Schedule',
-            href: '/guardian/schedule',
+            title: 'My Bookings',
+            href: '/guardian/my-bookings',
             icon: Calendar,
             isComingSoon: true,
             onClick: (e) => {
                 e.preventDefault();
-                handleMissingPage('Schedule');
+                router.visit('/guardian/my-bookings');
             },
         },
         {

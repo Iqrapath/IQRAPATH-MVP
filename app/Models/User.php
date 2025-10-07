@@ -36,6 +36,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'country',
         'city',
         'role',
+        'additional_roles',
         'account_status',
         'suspension_reason',
         'suspended_at',
@@ -72,6 +73,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'registration_date' => 'datetime',
             'suspended_at' => 'datetime',
             'password' => 'hashed',
+            'additional_roles' => 'array',
         ];
     }
 
@@ -207,6 +209,85 @@ class User extends Authenticatable implements MustVerifyEmail
     public function hasRole(string $role): bool
     {
         return $this->role === $role;
+    }
+
+    /**
+     * Check if the user has a specific additional role.
+     *
+     * @param string $role
+     * @return bool
+     */
+    public function hasAdditionalRole(string $role): bool
+    {
+        return in_array($role, $this->additional_roles ?? []);
+    }
+
+    /**
+     * Check if the user has a role (primary or additional).
+     *
+     * @param string $role
+     * @return bool
+     */
+    public function hasAnyRole(string $role): bool
+    {
+        return $this->role === $role || $this->hasAdditionalRole($role);
+    }
+
+    /**
+     * Add an additional role to the user.
+     *
+     * @param string $role
+     * @return bool
+     */
+    public function addAdditionalRole(string $role): bool
+    {
+        $additionalRoles = $this->additional_roles ?? [];
+        
+        if (!in_array($role, $additionalRoles)) {
+            $additionalRoles[] = $role;
+            $this->additional_roles = $additionalRoles;
+            return $this->save();
+        }
+        
+        return true;
+    }
+
+    /**
+     * Remove an additional role from the user.
+     *
+     * @param string $role
+     * @return bool
+     */
+    public function removeAdditionalRole(string $role): bool
+    {
+        $additionalRoles = $this->additional_roles ?? [];
+        $additionalRoles = array_filter($additionalRoles, fn($r) => $r !== $role);
+        $this->additional_roles = array_values($additionalRoles);
+        return $this->save();
+    }
+
+    /**
+     * Check if the user is a guardian who can also be a student.
+     *
+     * @return bool
+     */
+    public function isGuardianStudent(): bool
+    {
+        return $this->isGuardian() && $this->hasAdditionalRole('student');
+    }
+
+    /**
+     * Get all roles (primary + additional) for the user.
+     *
+     * @return array
+     */
+    public function getAllRoles(): array
+    {
+        $roles = [$this->role];
+        if ($this->additional_roles) {
+            $roles = array_merge($roles, $this->additional_roles);
+        }
+        return array_filter($roles);
     }
 
     /**
