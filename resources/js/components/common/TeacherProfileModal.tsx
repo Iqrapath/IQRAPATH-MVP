@@ -150,8 +150,7 @@ export default function TeacherProfileModal({ teacher, trigger }: TeacherProfile
                 open={modalOpen}
                 onOpenChange={setModalOpen}
             >
-                <div
-                    className="bg-white rounded-3xl p-8 space-y-6 max-h-[80vh] overflow-y-auto scroll-smooth hide-scrollbar"
+                <div className="bg-white rounded-3xl p-8 space-y-6 scroll-smooth hide-scrollbar"
                     style={{
                         scrollbarWidth: 'none', /* Firefox */
                         msOverflowStyle: 'none', /* IE and Edge */

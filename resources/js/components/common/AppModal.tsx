@@ -51,10 +51,23 @@ export default function AppModal({
       ? 'sm:max-w-3xl'
       : 'sm:max-w-2xl';
 
+  // CSS to hide scrollbar
+  const hideScrollbarStyle = `
+    .scrollbar-hide::-webkit-scrollbar {
+      display: none;
+    }
+    .scrollbar-hide {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  `;
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
-      <DialogContent className={cn(sizeClass, 'max-h-[80vh] overflow-auto flex flex-col ', className)}>
+    <>
+      <style dangerouslySetInnerHTML={{ __html: hideScrollbarStyle }} />
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
+        <DialogContent className={cn(sizeClass, 'max-h-[90vh] flex flex-col', className)}>
         {(title || description) && (
           <DialogHeader className="flex-shrink-0">
             {title ? <DialogTitle>{title}</DialogTitle> : null}
@@ -63,10 +76,11 @@ export default function AppModal({
             ) : null}
           </DialogHeader>
         )}
-        <div className="flex-1 overflow-hidden">{children}</div>
+        <div className="flex-1 overflow-y-auto min-h-0 scrollbar-hide">{children}</div>
         {footer ? <DialogFooter className="flex-shrink-0">{footer}</DialogFooter> : null}
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

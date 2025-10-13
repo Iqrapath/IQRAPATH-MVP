@@ -920,10 +920,30 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
     const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
+            // Validate file type
+            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+            if (!allowedTypes.includes(file.type)) {
+                toast.error('❌ Please select a valid image file (JPEG, PNG, or WebP)');
+                e.target.value = ''; // Clear the input
+                return;
+            }
+            
+            // Validate file size (max 5MB)
+            const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+            if (file.size > maxSize) {
+                toast.error('❌ Image file size must be less than 5MB');
+                e.target.value = ''; // Clear the input
+                return;
+            }
+            
             setData('profile_photo', file);
             const reader = new FileReader();
             reader.onloadend = () => {
                 setProfilePhotoPreview(reader.result as string);
+                toast.success('✅ Profile photo uploaded successfully!');
+            };
+            reader.onerror = () => {
+                toast.error('❌ Failed to read the image file. Please try again.');
             };
             reader.readAsDataURL(file);
         }
@@ -1167,7 +1187,28 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
 
             // Check if response is ok
             if (!response.ok) {
-                const errorText = await response.text();
+                try {
+                    const errorResult = await response.json();
+                    
+                    // Handle validation errors
+                    if (errorResult.errors) {
+                        const errorMessages = Object.entries(errorResult.errors)
+                            .map(([field, messages]) => {
+                                const fieldName = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                                return `${fieldName}: ${Array.isArray(messages) ? messages.join(', ') : messages}`;
+                            });
+                        
+                        errorMessages.forEach(message => {
+                            toast.error(`❌ ${message}`);
+                        });
+                    } else if (errorResult.message) {
+                        toast.error(`❌ ${errorResult.message}`);
+                    } else {
+                        toast.error(`❌ Failed to save step ${currentStep}. Please try again.`);
+                    }
+                } catch (parseError) {
+                    toast.error(`❌ Failed to save step ${currentStep}. Please try again.`);
+                }
                 return false;
             }
 
@@ -1193,11 +1234,35 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
                 toast.success(stepMessages[currentStep] || '✅ Step completed successfully!');
                 return true;
             } else {
-                toast.error(`❌ Failed to save step ${currentStep}: ${result.message}`);
+                // Handle server-side validation errors or other errors
+                if (result.errors) {
+                    const errorMessages = Object.entries(result.errors)
+                        .map(([field, messages]) => {
+                            const fieldName = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                            return `${fieldName}: ${Array.isArray(messages) ? messages.join(', ') : messages}`;
+                        });
+                    
+                    errorMessages.forEach(message => {
+                        toast.error(`❌ ${message}`);
+                    });
+                } else if (result.message) {
+                    toast.error(`❌ ${result.message}`);
+                } else {
+                    toast.error(`❌ Failed to save step ${currentStep}. Please try again.`);
+                }
                 return false;
             }
         } catch (error) {
-            toast.error(`❌ Network error while saving step ${currentStep}. Please try again.`);
+            console.error('Teacher onboarding error:', error);
+            
+            // Show more specific error messages based on error type
+            if (error instanceof TypeError && error.message.includes('fetch')) {
+                toast.error(`❌ Network connection error. Please check your internet connection and try again.`);
+            } else if (error instanceof Error) {
+                toast.error(`❌ Error saving step ${currentStep}: ${error.message}`);
+            } else {
+                toast.error(`❌ Network error while saving step ${currentStep}. Please try again.`);
+            }
             return false;
         }
     };
