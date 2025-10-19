@@ -31,6 +31,11 @@ interface TeacherOnboardingProps {
     }>;
     onboardingCompleted?: boolean;
     teacherData?: any;
+    fileUploadLimits?: {
+        max_size: string;
+        allowed_types: string[];
+        max_size_bytes: number;
+    };
     verificationRequest?: {
         id: number;
         status: string;
@@ -350,7 +355,7 @@ const sortedCountries = [
     ...WORLD_COUNTRIES.filter(c => !POPULAR_COUNTRIES.includes(c.code))
 ];
 
-export default function TeacherOnboarding({ user, subjects, availableCurrencies = [], onboardingCompleted = false, teacherData = {}, verificationRequest }: TeacherOnboardingProps) {
+export default function TeacherOnboarding({ user, subjects, availableCurrencies = [], onboardingCompleted = false, teacherData = {}, fileUploadLimits, verificationRequest }: TeacherOnboardingProps) {
     // Fallback currency data if not provided
     const currencies = availableCurrencies.length > 0 ? availableCurrencies : [
         { value: 'NGN', label: 'Nigerian Naira (NGN)', symbol: '₦', is_default: true },
@@ -391,6 +396,11 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
         const completed = sessionStorage.getItem('teacher_onboarding_completed');
         return completed === 'true';
     });
+    
+    // Loading states
+    const [isSavingStep, setIsSavingStep] = useState(false);
+    const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+    const [isNavigating, setIsNavigating] = useState(false);
     
     // Check if user is already verified (for returning verified teachers)
     const [isVerified, setIsVerified] = useState(() => {
@@ -920,19 +930,26 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
     const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
+            setIsUploadingPhoto(true);
+            
+            // Use system file upload limits
+            const maxSizeBytes = fileUploadLimits?.max_size_bytes || 5 * 1024 * 1024; // Default 5MB fallback
+            const allowedTypes = fileUploadLimits?.allowed_types || ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+            const maxSizeHuman = fileUploadLimits?.max_size || '5MB';
+            
             // Validate file type
-            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
             if (!allowedTypes.includes(file.type)) {
-                toast.error('❌ Please select a valid image file (JPEG, PNG, or WebP)');
+                toast.error(`❌ Please select a valid image file (${allowedTypes.map(type => type.split('/')[1].toUpperCase()).join(', ')})`);
                 e.target.value = ''; // Clear the input
+                setIsUploadingPhoto(false);
                 return;
             }
             
-            // Validate file size (max 5MB)
-            const maxSize = 5 * 1024 * 1024; // 5MB in bytes
-            if (file.size > maxSize) {
-                toast.error('❌ Image file size must be less than 5MB');
+            // Validate file size using system limits
+            if (file.size > maxSizeBytes) {
+                toast.error(`❌ Image file size must be less than ${maxSizeHuman}`);
                 e.target.value = ''; // Clear the input
+                setIsUploadingPhoto(false);
                 return;
             }
             
@@ -941,9 +958,11 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
             reader.onloadend = () => {
                 setProfilePhotoPreview(reader.result as string);
                 toast.success('✅ Profile photo uploaded successfully!');
+                setIsUploadingPhoto(false);
             };
             reader.onerror = () => {
                 toast.error('❌ Failed to read the image file. Please try again.');
+                setIsUploadingPhoto(false);
             };
             reader.readAsDataURL(file);
         }
@@ -1114,6 +1133,7 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
     };
 
     const saveCurrentStep = async () => {
+        setIsSavingStep(true);
         try {
 
             // Validate phone number before saving step 1
@@ -1264,29 +1284,38 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
                 toast.error(`❌ Network error while saving step ${currentStep}. Please try again.`);
             }
             return false;
+        } finally {
+            setIsSavingStep(false);
         }
     };
 
     const nextStep = async () => {
+        if (isNavigating) return; // Prevent multiple clicks
         
-        // Re-enable step saving
-        const saved = await saveCurrentStep();
+        setIsNavigating(true);
         
-        if (saved && currentStep < 4) {
-            const nextStepNumber = currentStep + 1;
-            setCurrentStep(nextStepNumber);
-            // Save step to sessionStorage
-            sessionStorage.setItem('teacher_onboarding_step', nextStepNumber.toString());
+        try {
+            // Re-enable step saving
+            const saved = await saveCurrentStep();
             
-            // Show step progress toast
-            const stepNames: Record<number, string> = {
-                2: 'Teaching Details',
-                3: 'Availability & Schedule', 
-                4: 'Payment & Earnings'
-            };
-            toast.info(`📋 Step ${nextStepNumber}: ${stepNames[nextStepNumber]}`);
-        } else if (!saved) {
-            toast.error('❌ Please complete all required fields before proceeding.');
+            if (saved && currentStep < 4) {
+                const nextStepNumber = currentStep + 1;
+                setCurrentStep(nextStepNumber);
+                // Save step to sessionStorage
+                sessionStorage.setItem('teacher_onboarding_step', nextStepNumber.toString());
+                
+                // Show step progress toast
+                const stepNames: Record<number, string> = {
+                    2: 'Teaching Details',
+                    3: 'Availability & Schedule', 
+                    4: 'Payment & Earnings'
+                };
+                toast.info(`📋 Step ${nextStepNumber}: ${stepNames[nextStepNumber]}`);
+            } else if (!saved) {
+                toast.error('❌ Please complete all required fields before proceeding.');
+            }
+        } finally {
+            setIsNavigating(false);
         }
     };
 
@@ -1301,6 +1330,8 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
 
     const submit: FormEventHandler = async (e) => {
         e.preventDefault();
+        
+        if (processing) return; // Prevent double submission
         
         // Re-enable step saving for final step
         const saved = await saveCurrentStep();
@@ -1335,7 +1366,10 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
                         <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-white font-medium text-sm sm:text-base ${step < currentStep ? 'bg-teal-600' :
                         step === currentStep ? 'bg-teal-600' : 'bg-gray-300'
                     }`}>
-                            {step < currentStep ? <Check size={16} className="sm:w-5 sm:h-5" /> : step}
+                            {step < currentStep ? <Check size={16} className="sm:w-5 sm:h-5" /> : 
+                             step === currentStep && isSavingStep ? (
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                             ) : step}
                     </div>
                     {step < 4 && (
                             <div className={`w-12 sm:w-20 h-1 mx-1 sm:mx-2 ${step < currentStep ? 'bg-teal-600' : 'bg-gray-300'
@@ -1344,6 +1378,11 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
                 </div>
             ))}
             </div>
+            {isSavingStep && (
+                <div className="mt-2 text-center">
+                    <p className="text-xs text-gray-500">Saving progress...</p>
+                </div>
+            )}
         </div>
     );
 
@@ -2158,12 +2197,17 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
                 <p className="text-xs sm:text-sm text-gray-600 mb-4">Choose a photo that will help learners get to know you</p>
                 <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-4">
                     <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
-                        {profilePhotoPreview ? (
+                        {isUploadingPhoto ? (
+                            <div className="text-center text-gray-400">
+                                <div className="w-6 h-6 border-2 border-gray-400 border-t-transparent rounded-full animate-spin mx-auto mb-1"></div>
+                                <div className="text-xs">Uploading...</div>
+                            </div>
+                        ) : profilePhotoPreview ? (
                             <img src={profilePhotoPreview} alt="Profile" className="w-full h-full object-cover" />
                         ) : (
                             <div className="text-center text-gray-400">
                                 <Upload size={20} className="sm:w-6 sm:h-6" />
-                                <div className="text-xs mt-1">JPG or PNG<br />Max 5MB</div>
+                                <div className="text-xs mt-1">JPG or PNG<br />Max {fileUploadLimits?.max_size || '5MB'}</div>
                             </div>
                         )}
                     </div>
@@ -2173,10 +2217,21 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
                             id="profile_photo"
                             accept="image/*"
                             onChange={handlePhotoUpload}
+                            disabled={isUploadingPhoto}
                             className="hidden"
                         />
-                        <Label htmlFor="profile_photo" className="cursor-pointer inline-flex items-center px-3 sm:px-4 py-2 border border-gray-300 rounded-md shadow-sm text-xs sm:text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                            Upload
+                        <Label 
+                            htmlFor="profile_photo" 
+                            className={`cursor-pointer inline-flex items-center px-3 sm:px-4 py-2 border border-gray-300 rounded-md shadow-sm text-xs sm:text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 ${isUploadingPhoto ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            {isUploadingPhoto ? (
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                                    Uploading...
+                                </div>
+                            ) : (
+                                'Upload'
+                            )}
                         </Label>
                     </div>
                 </div>
@@ -2339,7 +2394,17 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
                 <div className="max-w-2xl mx-auto px-4 w-full">
                     {renderStepIndicator()}
                     
-                    <Card className="bg-white shadow-sm">
+                    <Card className="bg-white shadow-sm relative">
+                        {(isSavingStep || processing) && (
+                            <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center">
+                                <div className="text-center">
+                                    <div className="w-8 h-8 border-4 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                                    <p className="text-sm text-gray-600">
+                                        {isSavingStep ? 'Saving your progress...' : 'Completing registration...'}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
                         <CardContent className="p-4 sm:p-6 lg:p-8">
                             <form onSubmit={submit}>
                                 {currentStep === 1 && renderStep1()}
@@ -2364,17 +2429,32 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
                                             <Button
                                                 type="button"
                                                 onClick={nextStep}
-                                                className="bg-teal-600 hover:bg-teal-700 text-white w-full sm:w-auto px-6 sm:px-8 py-2 sm:py-3 rounded-full text-sm sm:text-base"
+                                                disabled={isSavingStep || isNavigating}
+                                                className="bg-teal-600 hover:bg-teal-700 text-white w-full sm:w-auto px-6 sm:px-8 py-2 sm:py-3 rounded-full text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
                                             >
-                                                Save and Continue
+                                                {isSavingStep ? (
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                        Saving...
+                                                    </div>
+                                                ) : (
+                                                    'Save and Continue'
+                                                )}
                                             </Button>
                                         ) : (
                                             <Button
                                                 type="submit"
                                                 disabled={processing}
-                                                className="bg-teal-600 hover:bg-teal-700 text-white w-full sm:w-auto px-6 sm:px-8 py-2 sm:py-3 rounded-full text-sm sm:text-base"
+                                                className="bg-teal-600 hover:bg-teal-700 text-white w-full sm:w-auto px-6 sm:px-8 py-2 sm:py-3 rounded-full text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
                                             >
-                                                {processing ? 'Completing...' : 'Complete Registration'}
+                                                {processing ? (
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                        Completing Registration...
+                                                    </div>
+                                                ) : (
+                                                    'Complete Registration'
+                                                )}
                                             </Button>
                                         )}
                                     </div>

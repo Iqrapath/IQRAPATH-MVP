@@ -16,6 +16,7 @@ use App\Models\Subject;
 use App\Models\User;
 use App\Models\VerificationRequest;
 use App\Services\UnifiedWalletService;
+use App\Services\FileUploadValidationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -174,12 +175,16 @@ class OnboardingController extends Controller
             ];
         }
 
+        // Get file upload limits
+        $fileUploadLimits = FileUploadValidationService::getUploadGuidelines('profile_photo');
+
         return Inertia::render('onboarding/teacher', [
             'user' => $user,
             'subjects' => $subjects,
             'availableCurrencies' => $availableCurrencies,
             'onboardingCompleted' => $onboardingCompleted,
             'teacherData' => $teacherData,
+            'fileUploadLimits' => $fileUploadLimits,
             'verificationRequest' => $verificationRequest ? [
                 'id' => $verificationRequest->id,
                 'status' => $verificationRequest->status,
@@ -567,6 +572,8 @@ class OnboardingController extends Controller
      */
     private function saveStep1(Request $request, User $user): \Illuminate\Http\JsonResponse
     {
+        $maxFileSize = FileUploadValidationService::getMaxFileSize('profile_photo');
+        
         $request->validate([
             'name' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:20',
@@ -574,7 +581,7 @@ class OnboardingController extends Controller
             'country_code' => 'nullable|string|max:3',
             'calling_code' => 'nullable|string|max:10',
             'city' => 'nullable|string|max:100',
-            'profile_photo' => 'nullable|image|max:5120',
+            'profile_photo' => "nullable|image|max:{$maxFileSize}",
         ]);
 
         try {

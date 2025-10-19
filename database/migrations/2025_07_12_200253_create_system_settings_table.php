@@ -47,6 +47,11 @@ return new class extends Migration
             ['time_zone', 'Africa/Lagos'],
             ['date_format', 'DD/MM/YYYY'],
             ['default_landing_page', 'home'],
+            // File upload size limits (in KB)
+            ['file_upload_max_size_profile_photo', '5120'], // 5MB
+            ['file_upload_max_size_document', '5120'], // 5MB
+            ['file_upload_max_size_video', '7168'], // 7MB
+            ['file_upload_max_size_attachment', '10240'], // 10MB
         ];
 
         $now = now();

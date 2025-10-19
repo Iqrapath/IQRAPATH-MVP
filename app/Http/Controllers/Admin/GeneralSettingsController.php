@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\SystemSetting;
+use App\Services\FileUploadValidationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
@@ -17,10 +18,14 @@ class GeneralSettingsController extends Controller
      */
     public function index()
     {
-        $settings = SystemSetting::all()->keyBy('key');
+        $settings = SystemSetting::all()->keyBy('setting_key');
+        
+        // Get file upload limits
+        $fileUploadLimits = FileUploadValidationService::getAllFileLimits();
         
         return Inertia::render('Admin/Settings/General', [
             'settings' => $settings,
+            'fileUploadLimits' => $fileUploadLimits,
         ]);
     }
 
@@ -45,12 +50,17 @@ class GeneralSettingsController extends Controller
             'date_format' => 'sometimes|string|max:50',
             'time_format' => 'sometimes|string|max:50',
             'maintenance_mode' => 'sometimes|boolean',
+            // File upload size settings
+            'file_upload_max_size_profile_photo' => 'sometimes|integer|min:100|max:51200', // 100KB to 50MB
+            'file_upload_max_size_document' => 'sometimes|integer|min:100|max:51200',
+            'file_upload_max_size_video' => 'sometimes|integer|min:100|max:102400', // 100KB to 100MB
+            'file_upload_max_size_attachment' => 'sometimes|integer|min:100|max:102400',
         ]);
 
         foreach ($validated as $key => $value) {
             SystemSetting::updateOrCreate(
-                ['key' => $key],
-                ['value' => $value]
+                ['setting_key' => $key],
+                ['setting_value' => $value]
             );
         }
 
@@ -74,8 +84,8 @@ class GeneralSettingsController extends Controller
         ]);
 
         SystemSetting::updateOrCreate(
-            ['key' => $key],
-            ['value' => $validated['value']]
+            ['setting_key' => $key],
+            ['setting_value' => $validated['value']]
         );
 
         // Clear the settings cache
@@ -91,6 +101,7 @@ class GeneralSettingsController extends Controller
      */
     protected function clearSettingsCache()
     {
-        Cache::forget('system_settings');
+        Cache::forget('all_system_settings');
+        SystemSetting::clearCache();
     }
 }
