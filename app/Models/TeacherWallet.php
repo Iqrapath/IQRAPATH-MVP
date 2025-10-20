@@ -31,6 +31,7 @@ class TeacherWallet extends Model
         'auto_withdrawal_enabled',
         'auto_withdrawal_threshold',
         'withdrawal_settings',
+        'paypal_email',
         'last_sync_at',
     ];
 

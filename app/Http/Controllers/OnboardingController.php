@@ -842,19 +842,26 @@ class OnboardingController extends Controller
                 ];
 
                 // Create or update teacher wallet
+                $walletData = [
+                    'balance' => 0,
+                    'total_earned' => 0,
+                    'total_withdrawn' => 0,
+                    'pending_payouts' => 0,
+                    'payment_methods' => $paymentMethods,
+                    'default_payment_method' => $paymentMethods[0]['id'] ?? null,
+                    'auto_withdrawal_enabled' => false,
+                    'auto_withdrawal_threshold' => null,
+                    'withdrawal_settings' => $withdrawalSettings,
+                ];
+
+                // Add PayPal email if withdrawal method is PayPal
+                if ($request->withdrawal_method === 'paypal' && $request->paypal_email) {
+                    $walletData['paypal_email'] = $request->paypal_email;
+                }
+
                 $wallet = TeacherWallet::updateOrCreate(
                     ['user_id' => $user->id],
-                    [
-                        'balance' => 0,
-                        'total_earned' => 0,
-                        'total_withdrawn' => 0,
-                        'pending_payouts' => 0,
-                        'payment_methods' => $paymentMethods,
-                        'default_payment_method' => $paymentMethods[0]['id'] ?? null,
-                        'auto_withdrawal_enabled' => false,
-                        'auto_withdrawal_threshold' => null,
-                        'withdrawal_settings' => $withdrawalSettings,
-                    ]
+                    $walletData
                 );
 
                 \Log::info('Teacher wallet created/updated during onboarding', [

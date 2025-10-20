@@ -187,4 +187,5 @@ class OAuthController extends Controller
             default => redirect()->route('onboarding.role-selection'),
         };
     }
+
 }

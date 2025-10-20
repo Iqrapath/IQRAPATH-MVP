@@ -61,6 +61,7 @@ Route::middleware('guest')->group(function () {
         ->name('auth.facebook');
     Route::get('auth/facebook/callback', [OAuthController::class, 'handleFacebookCallback'])
         ->name('auth.facebook.callback');
+    
 });
 
 Route::middleware('auth')->group(function () {

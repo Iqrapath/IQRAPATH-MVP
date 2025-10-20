@@ -22,6 +22,7 @@ return new class extends Migration
             $table->boolean('auto_withdrawal_enabled')->default(false);
             $table->decimal('auto_withdrawal_threshold', 10, 2)->nullable();
             $table->json('withdrawal_settings')->nullable();
+            $table->string('paypal_email')->nullable();
             $table->timestamp('last_sync_at')->nullable();
             $table->timestamps();
             

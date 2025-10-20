@@ -250,8 +250,16 @@ class WithdrawalService
      */
     public function getProcessingTime(string $method): string
     {
-        $methodInfo = $this->getWithdrawalMethodInfo($method);
-        return $methodInfo['processing_time'] ?? '1-3 business days';
+        return FinancialSetting::get("{$method}_processing_time", '1-3 business days');
+    }
+
+    /**
+     * Get withdrawal method info
+     */
+    private function getWithdrawalMethodInfo(string $method): array
+    {
+        $methods = $this->getAvailableWithdrawalMethods();
+        return $methods[$method] ?? [];
     }
 
     /**
