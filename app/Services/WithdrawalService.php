@@ -9,6 +9,7 @@ use App\Models\FinancialSetting;
 use App\Models\Transaction;
 use App\Models\PayoutRequest;
 use App\Services\CurrencyService;
+use App\Services\PayStackTransferService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -361,6 +362,116 @@ class WithdrawalService
     {
         // Process PayPal webhook events
         // Update payout request status based on webhook data
+    }
+
+    /**
+     * Initialize PayStack bank transfer
+     */
+    public function initializePayStackTransfer(PayoutRequest $payoutRequest): array
+    {
+        try {
+            $payStackService = app(PayStackTransferService::class);
+            return $payStackService->initializeBankTransfer($payoutRequest);
+        } catch (\Exception $e) {
+            Log::error('PayStack transfer initialization failed', [
+                'payout_request_id' => $payoutRequest->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'message' => 'Failed to initialize PayStack transfer'
+            ];
+        }
+    }
+
+    /**
+     * Process PayStack transfer webhook
+     */
+    public function processPayStackWebhook(array $payload): array
+    {
+        try {
+            $payStackService = app(PayStackTransferService::class);
+            return $payStackService->handleTransferWebhook($payload);
+        } catch (\Exception $e) {
+            Log::error('PayStack webhook processing failed', [
+                'payload' => $payload,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'message' => 'Failed to process PayStack webhook'
+            ];
+        }
+    }
+
+    /**
+     * Verify PayStack transfer status
+     */
+    public function verifyPayStackTransfer(string $transferCode): array
+    {
+        try {
+            $payStackService = app(PayStackTransferService::class);
+            return $payStackService->verifyTransferStatus($transferCode);
+        } catch (\Exception $e) {
+            Log::error('PayStack transfer verification failed', [
+                'transfer_code' => $transferCode,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'message' => 'Failed to verify PayStack transfer'
+            ];
+        }
+    }
+
+    /**
+     * Get supported banks for PayStack transfers
+     */
+    public function getSupportedBanks(): array
+    {
+        try {
+            $payStackService = app(PayStackTransferService::class);
+            return $payStackService->getSupportedBanks();
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch supported banks', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'message' => 'Failed to fetch supported banks'
+            ];
+        }
+    }
+
+    /**
+     * Verify bank account number
+     */
+    public function verifyBankAccount(string $accountNumber, string $bankCode): array
+    {
+        try {
+            $payStackService = app(PayStackTransferService::class);
+            return $payStackService->verifyAccountNumber($accountNumber, $bankCode);
+        } catch (\Exception $e) {
+            Log::error('Bank account verification failed', [
+                'account_number' => $accountNumber,
+                'bank_code' => $bankCode,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'message' => 'Failed to verify bank account'
+            ];
+        }
     }
 
 }

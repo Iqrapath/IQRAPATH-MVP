@@ -75,6 +75,8 @@ class WithdrawalController extends Controller
             switch ($request->method) {
                 case 'paypal':
                     return $this->processPayPalWithdrawal($user, $request->all(), $feeCalculation);
+                case 'bank_transfer':
+                    return $this->processPayStackWithdrawal($user, $request->all(), $feeCalculation);
                 default:
                     return $this->processManualWithdrawal($user, $request->all(), $feeCalculation);
             }
@@ -157,6 +159,72 @@ class WithdrawalController extends Controller
         }
     }
 
+    /**
+     * Process PayStack bank transfer withdrawal
+     */
+    private function processPayStackWithdrawal(User $user, array $data, array $feeCalculation): JsonResponse
+    {
+        try {
+            // Create payout request
+            $payoutRequest = PayoutRequest::create([
+                'user_id' => $user->id,
+                'amount' => $data['amount'],
+                'currency' => $data['currency'],
+                'method' => $data['method'],
+                'status' => 'pending',
+                'fee_amount' => $feeCalculation['fee_amount'],
+                'fee_currency' => $data['currency'],
+                'net_amount' => $feeCalculation['net_amount'],
+                'payment_details' => json_encode([
+                    'bank_name' => $data['bank_name'] ?? null,
+                    'account_number' => $data['account_number'] ?? null,
+                    'account_name' => $data['account_name'] ?? null,
+                ]),
+                'requested_at' => now(),
+            ]);
+
+            // Initialize PayStack transfer
+            $transferResult = $this->withdrawalService->initializePayStackTransfer($payoutRequest);
+
+            if ($transferResult['success']) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Bank transfer initiated successfully. It will be processed within 1-3 business days.',
+                    'data' => [
+                        'payout_request_id' => $payoutRequest->id,
+                        'transfer_code' => $transferResult['transfer_code'],
+                        'reference' => $transferResult['reference'],
+                        'status' => 'processing',
+                        'processing_time' => $this->withdrawalService->getProcessingTime($data['method'])
+                    ]
+                ]);
+            } else {
+                // If PayStack transfer fails, fall back to manual processing
+                $payoutRequest->update(['status' => 'pending']);
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Withdrawal request submitted successfully. It will be processed manually within 1-3 business days.',
+                    'data' => [
+                        'payout_request_id' => $payoutRequest->id,
+                        'status' => 'pending',
+                        'processing_time' => $this->withdrawalService->getProcessingTime($data['method'])
+                    ]
+                ]);
+            }
+
+        } catch (\Exception $e) {
+            Log::error('PayStack withdrawal error', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to process bank transfer withdrawal'
+            ], 500);
+        }
+    }
 
     /**
      * Process manual withdrawal (Bank Transfer, Mobile Money)

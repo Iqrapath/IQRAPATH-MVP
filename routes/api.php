@@ -156,4 +156,22 @@ Route::get('/exchange-rate/{from}/{to}', function (string $from, string $to) {
         'rate' => $rate,
         'timestamp' => now()->toISOString()
     ]);
+});
+
+// PayStack API routes
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/banks', function () {
+        $withdrawalService = app(\App\Services\WithdrawalService::class);
+        return $withdrawalService->getSupportedBanks();
+    });
+    
+    Route::post('/verify-bank-account', function (Request $request) {
+        $request->validate([
+            'account_number' => 'required|string',
+            'bank_code' => 'required|string'
+        ]);
+        
+        $withdrawalService = app(\App\Services\WithdrawalService::class);
+        return $withdrawalService->verifyBankAccount($request->account_number, $request->bank_code);
+    });
 }); 
