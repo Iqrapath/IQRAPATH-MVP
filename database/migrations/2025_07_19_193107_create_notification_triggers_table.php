@@ -20,14 +20,16 @@ return new class extends Migration
             $table->text('body')->nullable();
             $table->string('audience_type')->default('all'); // all, role, individual
             $table->json('audience_filter')->nullable();
-            $table->json('channels')->default(json_encode(['in-app']));
+            
+            $table->json('channels')->nullable();
+
             $table->string('timing_type')->default('immediate'); // immediate, before, after
             $table->integer('timing_value')->nullable();
             $table->string('timing_unit')->nullable(); // minutes, hours, days
             $table->string('level')->default('info'); // info, success, warning, error
             $table->boolean('is_enabled')->default(true);
             $table->timestamps();
-            
+
             // Indexes for faster queries
             $table->index('event');
             $table->index('is_enabled');

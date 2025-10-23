@@ -19,13 +19,18 @@ return new class extends Migration
             $table->date('start_date');
             $table->date('end_date');
             $table->decimal('amount_paid', 10, 2);
-            $table->string('currency', 10); // 'naira' or 'dollar'
+            $table->enum('currency', ['USD', 'NGN']);
             $table->enum('status', ['active', 'expired', 'cancelled', 'pending'])->default('pending');
             $table->date('next_billing_date')->nullable();
             $table->boolean('auto_renew')->default(false);
             $table->string('payment_method')->nullable();
             $table->string('payment_reference')->nullable();
             $table->timestamps();
+            
+            // Add indexes for performance
+            $table->index(['user_id', 'status']);
+            $table->index(['status', 'end_date']);
+            $table->index('subscription_uuid');
         });
     }
 

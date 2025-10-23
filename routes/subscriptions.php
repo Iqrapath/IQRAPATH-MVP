@@ -39,4 +39,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/subscriptions/{subscription}/toggle-auto-renew', [SubscriptionController::class, 'toggleAutoRenew'])
         ->name('subscriptions.toggle-auto-renew');
     Route::post('/subscriptions/{subscription}/renew', [SubscriptionController::class, 'renew'])->name('subscriptions.renew');
+});
+
+// Currency API routes (for admin forms)
+Route::middleware(['auth', 'verified', 'role:super-admin'])->prefix('api')->group(function () {
+    Route::post('/currency/convert', [App\Http\Controllers\Api\CurrencyController::class, 'convert'])->name('api.currency.convert');
+    Route::get('/currency/exchange-rate', [App\Http\Controllers\Api\CurrencyController::class, 'exchangeRate'])->name('api.currency.exchange-rate');
 }); 

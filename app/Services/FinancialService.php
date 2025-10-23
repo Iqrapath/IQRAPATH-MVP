@@ -405,4 +405,52 @@ class FinancialService
 
         return $transaction;
     }
+
+    /**
+     * Process subscription payment from student wallet.
+     */
+    public function processSubscriptionPayment(User $user, \App\Models\Subscription $subscription, string $currency): void
+    {
+        if ($user->role !== 'student') {
+            throw new Exception('Only students can make subscription payments');
+        }
+
+        $wallet = $user->studentWallet;
+        if (!$wallet) {
+            throw new Exception('Student wallet not found');
+        }
+
+        $amount = $subscription->amount_paid;
+        
+        // Convert amount to NGN if needed (wallet balance is stored in NGN)
+        $currencyService = app(\App\Services\CurrencyService::class);
+        $amountNGN = $currency === 'NGN' ? $amount : 
+            $currencyService->convertAmount($amount, $currency, 'NGN');
+
+        // Check wallet balance (stored in NGN)
+        if ($wallet->balance < $amountNGN) {
+            throw new Exception('Insufficient wallet balance');
+        }
+
+        DB::transaction(function () use ($wallet, $amount, $amountNGN, $currency, $subscription) {
+            // Debit wallet (in NGN)
+            $wallet->decrement('balance', $amountNGN);
+            $wallet->increment('total_spent', $amountNGN);
+
+            // Create wallet transaction record
+            \App\Models\WalletTransaction::create([
+                'wallet_id' => $wallet->id,
+                'transaction_type' => 'debit',
+                'amount' => $amountNGN,
+                'currency' => 'NGN', // Wallet transactions are stored in NGN
+                'original_amount' => $amount,
+                'original_currency' => $currency,
+                'description' => "Subscription payment for {$subscription->plan->name}",
+                'reference_type' => 'subscription',
+                'reference_id' => $subscription->id,
+                'status' => 'completed',
+                'balance_after' => $wallet->balance - $amountNGN,
+            ]);
+        });
+    }
 } 

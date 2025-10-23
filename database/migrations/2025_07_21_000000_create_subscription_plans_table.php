@@ -17,13 +17,17 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->decimal('price_naira', 10, 2);
             $table->decimal('price_dollar', 10, 2);
-            $table->enum('billing_cycle', ['monthly', 'quarterly', 'biannually', 'annually']);
+            $table->enum('billing_cycle', ['monthly', 'annual']);
             $table->integer('duration_months');
             $table->json('features')->nullable();
             $table->json('tags')->nullable();
             $table->string('image_path')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();
+            
+            // Add indexes for performance
+            $table->index(['is_active', 'billing_cycle']);
+            $table->index('is_active');
         });
     }
 

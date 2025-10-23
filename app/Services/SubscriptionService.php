@@ -12,6 +12,36 @@ use Illuminate\Support\Str;
 class SubscriptionService
 {
     /**
+     * Validate subscription eligibility.
+     */
+    public function validateSubscriptionEligibility(User $user, SubscriptionPlan $plan): array
+    {
+        $errors = [];
+        
+        // Check if user role is student
+        if ($user->role !== 'student') {
+            $errors[] = 'Only students can subscribe to plans.';
+        }
+        
+        // Check if plan is active
+        if (!$plan->is_active) {
+            $errors[] = 'This subscription plan is no longer available.';
+        }
+        
+        // Check for active subscription
+        $activeSubscription = $user->subscriptions()
+            ->where('status', 'active')
+            ->where('end_date', '>=', now())
+            ->first();
+            
+        if ($activeSubscription) {
+            $errors[] = 'You already have an active subscription. Please wait for it to expire or cancel it first.';
+        }
+        
+        return $errors;
+    }
+
+    /**
      * Create a new subscription.
      *
      * @param User $user
@@ -21,10 +51,20 @@ class SubscriptionService
      */
     public function createSubscription(User $user, SubscriptionPlan $plan, array $data): Subscription
     {
+        // Validate eligibility first
+        $validationErrors = $this->validateSubscriptionEligibility($user, $plan);
+        if (!empty($validationErrors)) {
+            throw new \Exception(implode(' ', $validationErrors));
+        }
+        
         $startDate = Carbon::now();
         $endDate = $startDate->copy()->addMonths($plan->duration_months);
         
-        $currency = $data['currency'] ?? 'naira';
+        $currency = strtoupper($data['currency'] ?? 'NGN');
+        if (!in_array($currency, ['USD', 'NGN'])) {
+            throw new \Exception('Invalid currency. Only USD and NGN are supported.');
+        }
+        
         $amount = $plan->getPriceForCurrency($currency);
         
         // Create the subscription

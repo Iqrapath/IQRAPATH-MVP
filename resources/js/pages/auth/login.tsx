@@ -62,7 +62,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                 <form className="flex flex-col gap-6" onSubmit={submit}>
                     <div className="grid gap-5">
                         <div className="grid gap-2">
-                            <Label htmlFor="login">Email Address or Phone Number</Label>
+                            <Label htmlFor="login">Email Address</Label>
                             <Input
                                 id="login"
                                 type="text"

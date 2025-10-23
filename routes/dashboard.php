@@ -111,6 +111,12 @@ Route::middleware(['auth', 'verified', 'role:student'])->prefix('student')->name
     Route::get('/payment/publishable-key', [App\Http\Controllers\Student\PaymentController::class, 'getPublishableKey'])->name('payment.publishable-key');
     Route::get('/payment/paystack-public-key', [App\Http\Controllers\Student\PaymentController::class, 'getPaystackPublicKey'])->name('payment.paystack-public-key');
     Route::post('/payment/verify-paystack', [App\Http\Controllers\Student\PaymentController::class, 'verifyPaystackPayment'])->name('payment.verify-paystack');
+    
+    // Plan enrollment routes
+    Route::get('/memorization-plans', [App\Http\Controllers\Student\PlanController::class, 'landing'])->name('memorization-plans');
+    Route::get('/plans', [App\Http\Controllers\Student\PlanController::class, 'index'])->name('plans.index');
+    Route::get('/plans/{plan}', [App\Http\Controllers\Student\PlanController::class, 'show'])->name('plans.show');
+    Route::post('/plans/enroll', [App\Http\Controllers\Student\PlanController::class, 'enroll'])->name('plans.enroll');
 });
 
 // Teacher routes

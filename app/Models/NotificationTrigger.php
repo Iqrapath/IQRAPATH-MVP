@@ -42,10 +42,20 @@ class NotificationTrigger extends Model
     ];
 
     /**
-     * Scope a query to only include enabled triggers.
+     * The default values for attributes.
      *
-     * @param  \Illuminate\Database\Eloquent\Builder  $query
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'audience_type' => 'all',
+        'channels' => '["in-app"]', // ✅ Safe JSON string — Laravel auto-casts to array
+        'timing_type' => 'immediate',
+        'level' => 'info',
+        'is_enabled' => true,
+    ];
+
+    /**
+     * Scope a query to only include enabled triggers.
      */
     public function scopeEnabled($query)
     {
@@ -54,10 +64,6 @@ class NotificationTrigger extends Model
 
     /**
      * Scope a query to only include triggers for a specific event.
-     *
-     * @param  \Illuminate\Database\Eloquent\Builder  $query
-     * @param  string  $event
-     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeForEvent($query, $event)
     {
@@ -66,9 +72,6 @@ class NotificationTrigger extends Model
 
     /**
      * Check if the trigger applies to a specific user based on audience settings.
-     *
-     * @param  \App\Models\User  $user
-     * @return bool
      */
     public function appliesToUser(User $user): bool
     {

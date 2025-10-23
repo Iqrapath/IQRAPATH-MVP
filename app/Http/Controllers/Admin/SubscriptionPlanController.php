@@ -83,8 +83,21 @@ class SubscriptionPlanController extends Controller
             'description' => 'nullable|string',
             'price_naira' => 'required|numeric|min:0',
             'price_dollar' => 'required|numeric|min:0',
-            'billing_cycle' => ['required', Rule::in(['monthly', 'quarterly', 'biannually', 'annually'])],
-            'duration_months' => 'required|integer|min:1',
+            'billing_cycle' => ['required', Rule::in(['monthly', 'annual'])],
+            'duration_months' => [
+                'required',
+                'integer',
+                'min:1',
+                function ($attribute, $value, $fail) use ($request) {
+                    $billingCycle = $request->input('billing_cycle');
+                    if ($billingCycle === 'monthly' && $value != 1) {
+                        $fail('Monthly plans must have duration of 1 month.');
+                    }
+                    if ($billingCycle === 'annual' && $value != 12) {
+                        $fail('Annual plans must have duration of 12 months.');
+                    }
+                },
+            ],
             'features' => 'nullable|string', // Changed from array to string
             'tags' => 'nullable|string', // Changed from array to string
             'is_active' => 'required|boolean',
@@ -149,8 +162,21 @@ class SubscriptionPlanController extends Controller
             'description' => 'nullable|string',
             'price_naira' => 'required|numeric|min:0',
             'price_dollar' => 'required|numeric|min:0',
-            'billing_cycle' => ['required', Rule::in(['monthly', 'quarterly', 'biannually', 'annually'])],
-            'duration_months' => 'required|integer|min:1',
+            'billing_cycle' => ['required', Rule::in(['monthly', 'annual'])],
+            'duration_months' => [
+                'required',
+                'integer',
+                'min:1',
+                function ($attribute, $value, $fail) use ($request) {
+                    $billingCycle = $request->input('billing_cycle');
+                    if ($billingCycle === 'monthly' && $value != 1) {
+                        $fail('Monthly plans must have duration of 1 month.');
+                    }
+                    if ($billingCycle === 'annual' && $value != 12) {
+                        $fail('Annual plans must have duration of 12 months.');
+                    }
+                },
+            ],
             'features' => 'nullable|string', // Changed from array to string
             'tags' => 'nullable|string', // Changed from array to string
             'is_active' => 'required|boolean',

@@ -57,7 +57,7 @@ class SubscriptionPlan extends Model
      */
     public function getPriceForCurrency(string $currency): float
     {
-        return strtolower($currency) === 'dollar' ? $this->price_dollar : $this->price_naira;
+        return strtoupper($currency) === 'USD' ? $this->price_dollar : $this->price_naira;
     }
 
     /**
@@ -66,13 +66,68 @@ class SubscriptionPlan extends Model
      * @param string $currency
      * @return string
      */
-    public function getFormattedPrice(string $currency = 'naira'): string
+    public function getFormattedPrice(string $currency = 'NGN'): string
     {
-        if (strtolower($currency) === 'dollar') {
+        if (strtoupper($currency) === 'USD') {
             return '$' . number_format($this->price_dollar, 2);
         }
         
         return '₦' . number_format($this->price_naira, 2);
+    }
+
+    /**
+     * Scope to get only monthly plans.
+     */
+    public function scopeMonthly($query)
+    {
+        return $query->where('billing_cycle', 'monthly');
+    }
+
+    /**
+     * Scope to get only annual plans.
+     */
+    public function scopeAnnual($query)
+    {
+        return $query->where('billing_cycle', 'annual');
+    }
+
+    /**
+     * Get plans by billing cycle.
+     */
+    public static function getByBillingCycle(?string $cycle = null)
+    {
+        $query = self::where('is_active', true);
+        
+        if ($cycle && in_array($cycle, ['monthly', 'annual'])) {
+            $query->where('billing_cycle', $cycle);
+        }
+        
+        return $query->orderBy('price_naira', 'asc')->get();
+    }
+
+    /**
+     * Calculate savings for annual vs monthly.
+     */
+    public function getAnnualSavingsAttribute(): ?float
+    {
+        if ($this->billing_cycle !== 'annual') {
+            return null;
+        }
+        
+        // Find equivalent monthly plan
+        $monthlyPlan = self::where('is_active', true)
+            ->where('billing_cycle', 'monthly')
+            ->where('name', 'like', '%' . explode(' ', $this->name)[0] . '%')
+            ->first();
+            
+        if (!$monthlyPlan) {
+            return null;
+        }
+        
+        $monthlyYearlyCost = $monthlyPlan->price_naira * 12;
+        $savings = $monthlyYearlyCost - $this->price_naira;
+        
+        return $savings > 0 ? round(($savings / $monthlyYearlyCost) * 100, 0) : null;
     }
 
     /**

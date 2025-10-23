@@ -29,3 +29,6 @@ yarn-error.log
 .cursorrules
 .cursorignore
 *.cursor
+
+# Kiro IDE
+.kiro/

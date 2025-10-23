@@ -310,6 +310,42 @@ export interface GuardianWallet {
     updated_at: string;
 }
 
+export interface SubscriptionPlan {
+    id: number;
+    name: string;
+    description: string;
+    price_naira: number;
+    price_dollar: number;
+    billing_cycle: 'monthly' | 'annual';
+    duration_months: number;
+    features: string[];
+    tags: string[];
+    image_path?: string | null;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Subscription {
+    id: number;
+    subscription_uuid: string;
+    user_id: number;
+    subscription_plan_id: number;
+    start_date: string;
+    end_date: string;
+    amount_paid: number;
+    currency: 'USD' | 'NGN';
+    status: 'pending' | 'active' | 'expired' | 'cancelled';
+    next_billing_date?: string | null;
+    auto_renew: boolean;
+    payment_method?: string | null;
+    payment_reference?: string | null;
+    created_at: string;
+    updated_at: string;
+    plan?: SubscriptionPlan;
+    days_remaining?: number;
+}
+
 export type PageProps<T extends Record<string, unknown> = Record<string, unknown>> = T & {
   auth: {
     user: User;
