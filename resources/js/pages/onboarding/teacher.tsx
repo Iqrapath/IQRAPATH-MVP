@@ -441,6 +441,30 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
     const [cityOpen, setCityOpen] = useState(false);
     const [phoneValidationError, setPhoneValidationError] = useState<string | null>(null);
     const [exchangeRate, setExchangeRate] = useState<number>(1500); // Default USD to NGN rate
+    const [rateValidation, setRateValidation] = useState<{
+        type: 'success' | 'warning' | 'error' | null;
+        message: string;
+    }>({ type: null, message: '' });
+    
+    // Cache configuration
+    const CITY_CACHE_KEY = 'iqraquest_cities_cache';
+    const CACHE_EXPIRY_HOURS = 24; // Cache cities for 24 hours
+    
+    // Hourly Rate Limits
+    const RATE_LIMITS = {
+        ngn: {
+            recommended_max: 5000,      // Soft cap - show warning above this
+            flexible_max: 10000,        // Allow up to this with strong warning
+            absolute_max: 50000,        // Hard cap - cannot exceed
+            minimum: 1000,              // Minimum viable rate
+        },
+        usd: {
+            recommended_max: 3.42,      // ~₦5,000
+            flexible_max: 6.84,         // ~₦10,000
+            absolute_max: 34.20,        // ~₦50,000
+            minimum: 0.68,              // ~₦1,000
+        }
+    };
 
     // Security: Sanitize data before storing
     const sanitizeData = (data: TeacherFormData): TeacherFormData => {
@@ -663,27 +687,173 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
         return () => clearTimeout(timeoutId);
     }, []);
 
+    // Helper functions for city cache
+    const getCachedCities = (countryName: string): string[] | null => {
+        try {
+            const cached = localStorage.getItem(CITY_CACHE_KEY);
+            if (!cached) return null;
+            
+            const cacheData = JSON.parse(cached);
+            const countryCache = cacheData[countryName];
+            
+            if (!countryCache) return null;
+            
+            // Check if cache has expired
+            const now = new Date().getTime();
+            const cacheAge = now - countryCache.timestamp;
+            const expiryTime = CACHE_EXPIRY_HOURS * 60 * 60 * 1000;
+            
+            if (cacheAge > expiryTime) {
+                // Cache expired, remove it
+                delete cacheData[countryName];
+                localStorage.setItem(CITY_CACHE_KEY, JSON.stringify(cacheData));
+                return null;
+            }
+            
+            return countryCache.cities;
+        } catch (error) {
+            // console.error('Error reading city cache:', error);
+            return null;
+        }
+    };
+    
+    const setCachedCities = (countryName: string, cities: string[]) => {
+        try {
+            const cached = localStorage.getItem(CITY_CACHE_KEY);
+            const cacheData = cached ? JSON.parse(cached) : {};
+            
+            cacheData[countryName] = {
+                cities,
+                timestamp: new Date().getTime()
+            };
+            
+            localStorage.setItem(CITY_CACHE_KEY, JSON.stringify(cacheData));
+        } catch (error) {
+            // console.error('Error saving city cache:', error);
+        }
+    };
+
     const fetchCities = async (countryName: string) => {
         setLoadingCities(true);
+        
         try {
-            // Using a free API for cities - you might want to replace with a more reliable one
+            // Check cache first
+            const cachedCities = getCachedCities(countryName);
+            if (cachedCities) {
+                // console.log(`Using cached cities for ${countryName}`);
+                setCities(cachedCities);
+                setLoadingCities(false);
+                return;
+            }
+            
+            // Try to fetch cities from API with timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+            
             const response = await fetch(`https://countriesnow.space/api/v0.1/countries/cities`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ country: countryName })
+                body: JSON.stringify({ country: countryName }),
+                signal: controller.signal
             });
+            
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) {
+                throw new Error('API request failed');
+            }
+            
             const result = await response.json();
-            if (result.error === false && result.data) {
-                setCities(result.data.sort());
+            
+            if (result.error === false && result.data && Array.isArray(result.data) && result.data.length > 0) {
+                const sortedCities = result.data.sort();
+                setCities(sortedCities);
+                
+                // Cache the results
+                setCachedCities(countryName, sortedCities);
+                // console.log(`Cached ${sortedCities.length} cities for ${countryName}`);
             } else {
+                // API returned no cities, use fallback
                 setCities([]);
+                // console.warn(`No cities found for ${countryName}, allowing manual entry`);
             }
         } catch (error) {
+            // API failed, set empty cities array to allow manual entry
+            // console.error('Failed to fetch cities:', error);
             setCities([]);
+            
+            // Show a toast notification to inform the user
+            toast.info('City list unavailable. You can type your city manually.');
+        } finally {
+            setLoadingCities(false);
         }
-        setLoadingCities(false);
+    };
+
+    // Validate hourly rate in real-time
+    const validateHourlyRate = (rateNGN: string): boolean => {
+        if (!rateNGN || rateNGN === '') {
+            setRateValidation({ type: null, message: '' });
+            return true;
+        }
+        
+        const rate = Number(rateNGN);
+        
+        if (isNaN(rate) || rate <= 0) {
+            setRateValidation({ 
+                type: 'error', 
+                message: 'Please enter a valid rate' 
+            });
+            return false;
+        }
+        
+        // Check minimum
+        if (rate < RATE_LIMITS.ngn.minimum) {
+            setRateValidation({ 
+                type: 'error', 
+                message: `⚠️ Rate too low. Minimum: ₦${RATE_LIMITS.ngn.minimum.toLocaleString()}` 
+            });
+            return false;
+        }
+        
+        // HARD CAP - Cannot exceed absolute maximum
+        if (rate > RATE_LIMITS.ngn.absolute_max) {
+            setRateValidation({ 
+                type: 'error', 
+                message: `❌ Rate exceeds maximum limit of ₦${RATE_LIMITS.ngn.absolute_max.toLocaleString()}. Please adjust.` 
+            });
+            return false;
+        }
+        
+        // Within recommended range - All good!
+        if (rate <= RATE_LIMITS.ngn.recommended_max) {
+            setRateValidation({ 
+                type: 'success', 
+                message: `✅ Great! Your rate (₦${rate.toLocaleString()}) is within the recommended range.` 
+            });
+            return true;
+        }
+        
+        // Above recommended but below flexible max - Warning
+        if (rate <= RATE_LIMITS.ngn.flexible_max) {
+            setRateValidation({ 
+                type: 'warning', 
+                message: `⚠️ Your rate (₦${rate.toLocaleString()}) is above the recommended ₦${RATE_LIMITS.ngn.recommended_max.toLocaleString()}. Higher rates may reduce bookings.` 
+            });
+            return true;
+        }
+        
+        // Above flexible max but below absolute max - Strong warning
+        if (rate <= RATE_LIMITS.ngn.absolute_max) {
+            setRateValidation({ 
+                type: 'warning', 
+                message: `⚠️ Your rate (₦${rate.toLocaleString()}) is significantly higher than recommended (₦${RATE_LIMITS.ngn.recommended_max.toLocaleString()}). This may impact your bookings.` 
+            });
+            return true;
+        }
+        
+        return true;
     };
 
     const validatePhoneNumber = (phone: string, countryCode: string): boolean => {
@@ -1145,6 +1315,55 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
                 }
             }
             
+            // Validate hourly rate before saving step 4
+            if (currentStep === 4) {
+                // Check if at least one rate is provided
+                if (!data.hourly_rate_ngn && !data.hourly_rate_usd) {
+                    toast.error('Please enter at least one hourly rate (NGN or USD)');
+                    return false;
+                }
+                
+                // Validate NGN rate if provided
+                if (data.hourly_rate_ngn) {
+                    const isValid = validateHourlyRate(data.hourly_rate_ngn);
+                    if (!isValid) {
+                        toast.error('Please correct your hourly rate before proceeding');
+                        return false;
+                    }
+                    
+                    const rate = Number(data.hourly_rate_ngn);
+                    
+                    // Block if rate exceeds absolute maximum
+                    if (rate > RATE_LIMITS.ngn.absolute_max) {
+                        toast.error(`Maximum hourly rate is ₦${RATE_LIMITS.ngn.absolute_max.toLocaleString()}`);
+                        return false;
+                    }
+                    
+                    // Block if rate is below minimum
+                    if (rate < RATE_LIMITS.ngn.minimum) {
+                        toast.error(`Minimum hourly rate is ₦${RATE_LIMITS.ngn.minimum.toLocaleString()}`);
+                        return false;
+                    }
+                }
+                
+                // Validate USD rate if provided
+                if (data.hourly_rate_usd) {
+                    const rate = Number(data.hourly_rate_usd);
+                    
+                    // Block if rate exceeds absolute maximum
+                    if (rate > RATE_LIMITS.usd.absolute_max) {
+                        toast.error(`Maximum hourly rate is $${RATE_LIMITS.usd.absolute_max}`);
+                        return false;
+                    }
+                    
+                    // Block if rate is below minimum
+                    if (rate < RATE_LIMITS.usd.minimum) {
+                        toast.error(`Minimum hourly rate is $${RATE_LIMITS.usd.minimum}`);
+                        return false;
+                    }
+                }
+            }
+            
             const formData = new FormData();
             formData.append('step', currentStep.toString());
             
@@ -1273,7 +1492,7 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
                 return false;
             }
         } catch (error) {
-            console.error('Teacher onboarding error:', error);
+            // console.error('Teacher onboarding error:', error);
             
             // Show more specific error messages based on error type
             if (error instanceof TypeError && error.message.includes('fetch')) {
@@ -1816,21 +2035,47 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
                             value={data.hourly_rate_ngn}
                             onChange={(e) => {
                                 const ngnValue = e.target.value;
+                                
+                                // Enforce hard cap - don't allow typing above absolute max
+                                if (ngnValue && Number(ngnValue) > RATE_LIMITS.ngn.absolute_max) {
+                                    toast.error(`Maximum rate is ₦${RATE_LIMITS.ngn.absolute_max.toLocaleString()}`);
+                                    return;
+                                }
+                                
                                 setData('hourly_rate_ngn', ngnValue);
+                                
+                                // Validate in real-time
+                                validateHourlyRate(ngnValue);
+                                
                                 // Auto-convert to USD
                                 if (ngnValue && !isNaN(Number(ngnValue))) {
                                     const usdValue = (Number(ngnValue) / exchangeRate).toFixed(2);
                                     setData('hourly_rate_usd', usdValue);
                                 }
                             }}
-                            placeholder={data.teaching_mode ? `e.g., ${getRateSuggestions().ngn.suggested.toLocaleString()}` : "e.g., 30000"}
-                            min="0"
-                            max="1000000"
-                            className="mt-1"
+                            onBlur={() => validateHourlyRate(data.hourly_rate_ngn)}
+                            placeholder={`Recommended: ₦${RATE_LIMITS.ngn.recommended_max.toLocaleString()} or less`}
+                            min={RATE_LIMITS.ngn.minimum}
+                            max={RATE_LIMITS.ngn.absolute_max}
+                            step="100"
+                            className={`mt-1 ${
+                                rateValidation.type === 'error' ? 'border-red-500 focus:ring-red-500' :
+                                rateValidation.type === 'warning' ? 'border-orange-500 focus:ring-orange-500' :
+                                rateValidation.type === 'success' ? 'border-green-500 focus:ring-green-500' : ''
+                            }`}
                         />
                         <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                            NGN per hour (max: ₦1,000,000) • Auto-converts to USD: ${data.hourly_rate_usd || '0.00'}
+                            Recommended: ₦{RATE_LIMITS.ngn.minimum.toLocaleString()} - ₦{RATE_LIMITS.ngn.recommended_max.toLocaleString()} • Auto-converts to USD: ${data.hourly_rate_usd || '0.00'}
                         </p>
+                        {rateValidation.message && (
+                            <p className={`text-xs sm:text-sm mt-1 font-medium ${
+                                rateValidation.type === 'error' ? 'text-red-600' :
+                                rateValidation.type === 'warning' ? 'text-orange-600' :
+                                'text-green-600'
+                            }`}>
+                                {rateValidation.message}
+                            </p>
+                        )}
                         {errors.hourly_rate_ngn && <p className="text-red-500 text-sm mt-1">{errors.hourly_rate_ngn}</p>}
                     </div>
                     
@@ -1842,20 +2087,31 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
                             value={data.hourly_rate_usd}
                             onChange={(e) => {
                                 const usdValue = e.target.value;
+                                
+                                // Enforce hard cap - don't allow typing above absolute max
+                                if (usdValue && Number(usdValue) > RATE_LIMITS.usd.absolute_max) {
+                                    toast.error(`Maximum rate is $${RATE_LIMITS.usd.absolute_max}`);
+                                    return;
+                                }
+                                
                                 setData('hourly_rate_usd', usdValue);
-                                // Auto-convert to NGN
+                                
+                                // Auto-convert to NGN and validate
                                 if (usdValue && !isNaN(Number(usdValue))) {
                                     const ngnValue = Math.round(Number(usdValue) * exchangeRate);
                                     setData('hourly_rate_ngn', ngnValue.toString());
+                                    validateHourlyRate(ngnValue.toString());
                                 }
                             }}
-                            placeholder={data.teaching_mode ? `e.g., ${getRateSuggestions().usd.suggested}` : "e.g., 25"}
-                            min="0"
-                            max="1000"
+                            onBlur={() => data.hourly_rate_ngn && validateHourlyRate(data.hourly_rate_ngn)}
+                            placeholder={`Recommended: $${RATE_LIMITS.usd.recommended_max} or less`}
+                            min={RATE_LIMITS.usd.minimum}
+                            max={RATE_LIMITS.usd.absolute_max}
+                            step="0.01"
                             className="mt-1"
                         />
                         <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                            USD per hour (max: $1,000) • Auto-converts to NGN: ₦{data.hourly_rate_ngn || '0'}
+                            Recommended: ${RATE_LIMITS.usd.minimum} - ${RATE_LIMITS.usd.recommended_max} • Auto-converts to NGN: ₦{data.hourly_rate_ngn || '0'}
                         </p>
                         {errors.hourly_rate_usd && <p className="text-red-500 text-sm mt-1">{errors.hourly_rate_usd}</p>}
                     </div>
@@ -2029,31 +2285,72 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
                 <div>
                     <Label htmlFor="phone" className="text-sm sm:text-base">Phone Number</Label>
                     <div className="flex mt-1">
-                        <div className="flex items-center px-3 py-2 border border-r-0 border-gray-300 bg-gray-50 rounded-l-md text-xs sm:text-sm text-gray-600 min-w-[80px] sm:min-w-[100px]">
+                        {/* Country Code Selector for Phone */}
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    className="flex items-center px-3 py-2 border border-r-0 border-gray-300 rounded-l-md rounded-r-none text-xs sm:text-sm text-gray-600 min-w-[80px] sm:min-w-[100px] hover:bg-gray-50"
+                                >
                                     {selectedCountry ? (
                                         <span className="flex items-center space-x-1">
-                                    <ReactCountryFlag
-                                        countryCode={selectedCountry.code}
-                                        svg
-                                        style={{
-                                            width: '20px',
-                                            height: '15px',
-                                            marginRight: '4px'
-                                        }}
-                                    />
-                                    <span>{selectedCountry.callingCode}</span>
+                                            <ReactCountryFlag
+                                                countryCode={selectedCountry.code}
+                                                svg
+                                                style={{
+                                                    width: '20px',
+                                                    height: '15px',
+                                                    marginRight: '4px'
+                                                }}
+                                            />
+                                            <span>{selectedCountry.callingCode}</span>
                                         </span>
                                     ) : (
-                                <span>Code</span>
-                            )}
-                        </div>
+                                        <span>Code</span>
+                                    )}
+                                    <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[320px] sm:w-[400px] p-0">
+                                <Command>
+                                    <CommandInput placeholder="Search country..." />
+                                    <CommandEmpty>No country found.</CommandEmpty>
+                                    <CommandGroup>
+                                        <CommandList>
+                                            {sortedCountries.map((country) => (
+                                                <CommandItem
+                                                    key={country.code}
+                                                    value={country.name}
+                                                    onSelect={(currentValue) => {
+                                                        handleCountryChange(currentValue);
+                                                    }}
+                                                >
+                                                    <span className="flex items-center space-x-2">
+                                                        <ReactCountryFlag
+                                                            countryCode={country.code}
+                                                            svg
+                                                            style={{
+                                                                width: '20px',
+                                                                height: '15px',
+                                                                marginRight: '4px'
+                                                            }}
+                                                        />
+                                                        <span>{country.name} ({country.callingCode})</span>
+                                                    </span>
+                                                </CommandItem>
+                                            ))}
+                                        </CommandList>
+                                    </CommandGroup>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
+                        
                         <Input
                             id="phone"
                             value={data.phone}
                             onChange={(e) => handlePhoneChange(e.target.value)}
-                            placeholder={selectedCountry ? "Enter phone number" : "Select country first"}
+                            placeholder={selectedCountry ? "Enter phone number" : "Select country code first"}
                             className="rounded-l-none"
-                            disabled={!selectedCountry}
                         />
                     </div>
                     {phoneValidationError && (
@@ -2132,35 +2429,35 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
                 </div>
 
                 <div>
-                    <Label htmlFor="city-select" className="text-sm sm:text-base">City</Label>
-                    <Popover open={cityOpen} onOpenChange={setCityOpen}>
-                        <PopoverTrigger asChild>
-                            <Button
-                                id="city-select"
-                                variant="outline"
-                                role="combobox"
-                                aria-expanded={cityOpen}
-                                className="w-full justify-between mt-1 text-sm sm:text-base"
-                                disabled={!data.country || loadingCities}
-                            >
-                                <span className="truncate">
-                                {data.city || (
-                                    !data.country ? "Select country first..." :
-                                    loadingCities ? "Loading cities..." :
-                                    "Select your city..."
-                                )}
-                                </span>
-                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[320px] sm:w-[400px] p-0">
-                            <Command>
-                                <CommandInput placeholder="Search city..." />
-                                <CommandEmpty>No city found.</CommandEmpty>
-                                <CommandGroup>
-                                    <CommandList>
-                                        {cities.length > 0 ? (
-                                            cities.map((city) => (
+                    <Label htmlFor="city-input" className="text-sm sm:text-base">City</Label>
+                    {cities.length > 0 ? (
+                        // Show dropdown if cities are available
+                        <Popover open={cityOpen} onOpenChange={setCityOpen}>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    id="city-select"
+                                    variant="outline"
+                                    role="combobox"
+                                    aria-expanded={cityOpen}
+                                    className="w-full justify-between mt-1 text-sm sm:text-base"
+                                    disabled={loadingCities}
+                                >
+                                    <span className="truncate">
+                                    {data.city || (
+                                        loadingCities ? "Loading cities..." :
+                                        "Select your city..."
+                                    )}
+                                    </span>
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[320px] sm:w-[400px] p-0">
+                                <Command>
+                                    <CommandInput placeholder="Search city..." />
+                                    <CommandEmpty>No city found.</CommandEmpty>
+                                    <CommandGroup>
+                                        <CommandList>
+                                            {cities.map((city) => (
                                                 <CommandItem
                                                     key={city}
                                                     value={city}
@@ -2171,23 +2468,35 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
                                                 >
                                                     {city}
                                                 </CommandItem>
-                                            ))
-                                        ) : data.country && !loadingCities ? (
-                                            <CommandItem
-                                                value="other"
-                                                onSelect={(currentValue) => {
-                                                    setData('city', currentValue);
-                                                    setCityOpen(false);
-                                                }}
-                                            >
-                                                Other / City not listed
-                                            </CommandItem>
-                                        ) : null}
-                                    </CommandList>
-                                </CommandGroup>
-                            </Command>
-                        </PopoverContent>
-                    </Popover>
+                                            ))}
+                                        </CommandList>
+                                    </CommandGroup>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
+                    ) : (
+                        // Show text input as fallback if API fails or no country selected
+                        <div>
+                            <Input
+                                id="city-input"
+                                value={data.city}
+                                onChange={(e) => setData('city', e.target.value)}
+                                placeholder={
+                                    !data.country ? "Select country first..." :
+                                    loadingCities ? "Loading cities..." :
+                                    "Enter your city name..."
+                                }
+                                className="mt-1"
+                                disabled={!data.country || loadingCities}
+                            />
+                            {!data.country && (
+                                <p className="text-xs text-gray-500 mt-1">Select a country to enable city selection</p>
+                            )}
+                            {data.country && !loadingCities && cities.length === 0 && (
+                                <p className="text-xs text-gray-500 mt-1">Type your city name manually</p>
+                            )}
+                        </div>
+                    )}
                     {errors.city && <p className="text-red-500 text-sm mt-1">{errors.city}</p>}
                 </div>
             </div>

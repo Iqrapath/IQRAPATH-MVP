@@ -780,6 +780,60 @@ class OnboardingController extends Controller
                 'message' => 'Please provide at least one hourly rate (USD or NGN).'
             ], 422);
         }
+        
+        // Hourly rate limits (matching frontend)
+        $RATE_LIMITS = [
+            'ngn' => [
+                'minimum' => 1000,
+                'recommended_max' => 5000,
+                'flexible_max' => 10000,
+                'absolute_max' => 50000,
+            ],
+            'usd' => [
+                'minimum' => 0.68,
+                'recommended_max' => 3.42,
+                'flexible_max' => 6.84,
+                'absolute_max' => 34.20,
+            ]
+        ];
+        
+        // Validate NGN rate if provided
+        if (!empty($request->hourly_rate_ngn)) {
+            $rateNGN = (float) $request->hourly_rate_ngn;
+            
+            if ($rateNGN < $RATE_LIMITS['ngn']['minimum']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'NGN hourly rate is too low. Minimum: ₦' . number_format($RATE_LIMITS['ngn']['minimum'])
+                ], 422);
+            }
+            
+            if ($rateNGN > $RATE_LIMITS['ngn']['absolute_max']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'NGN hourly rate exceeds maximum limit of ₦' . number_format($RATE_LIMITS['ngn']['absolute_max'])
+                ], 422);
+            }
+        }
+        
+        // Validate USD rate if provided
+        if (!empty($request->hourly_rate_usd)) {
+            $rateUSD = (float) $request->hourly_rate_usd;
+            
+            if ($rateUSD < $RATE_LIMITS['usd']['minimum']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'USD hourly rate is too low. Minimum: $' . number_format($RATE_LIMITS['usd']['minimum'], 2)
+                ], 422);
+            }
+            
+            if ($rateUSD > $RATE_LIMITS['usd']['absolute_max']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'USD hourly rate exceeds maximum limit of $' . number_format($RATE_LIMITS['usd']['absolute_max'], 2)
+                ], 422);
+            }
+        }
 
         try {
             DB::transaction(function () use ($request, $user) {
