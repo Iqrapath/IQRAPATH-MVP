@@ -700,7 +700,7 @@ class TeacherVerificationController extends Controller
     /**
      * Request a live video verification.
      */
-    public function requestVideoVerification(Request $request, VerificationRequest $verificationRequest): RedirectResponse
+    public function requestVideoVerification(Request $request, VerificationRequest $verificationRequest): RedirectResponse|\Illuminate\Http\JsonResponse
     {
         Gate::authorize('requestVideoVerification', $verificationRequest);
         
