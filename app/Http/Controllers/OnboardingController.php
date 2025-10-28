@@ -242,19 +242,96 @@ class OnboardingController extends Controller
         $teacherProfile = $user->teacherProfile()->first();
         if ($teacherProfile) {
             // Create verification request for admin review
-            $teacherProfile->verificationRequests()->create([
+            $verificationRequest = $teacherProfile->verificationRequests()->create([
                 'status' => 'pending',
                 'docs_status' => 'pending',
                 'video_status' => 'not_scheduled',
                 'submitted_at' => now(),
             ]);
             
-            // TODO: Send notification to admin about new teacher registration
-            // TODO: Schedule verification video call
+            // Send notification to teacher about submission
+            try {
+                $notification = \App\Models\Notification::create([
+                    'id' => \Illuminate\Support\Str::uuid(),
+                    'type' => 'App\Notifications\OnboardingCompleted',
+                    'notifiable_type' => \App\Models\User::class,
+                    'notifiable_id' => $user->id,
+                    'data' => json_encode([
+                        'title' => 'Onboarding Completed!',
+                        'message' => 'Thank you for completing your teacher onboarding. Your application is now under review by our admin team. We will notify you once your verification is complete.',
+                        'level' => 'success',
+                        'action_url' => route('teacher.dashboard'),
+                        'action_text' => 'View Dashboard',
+                        'verification_request_id' => $verificationRequest->id,
+                    ]),
+                    'read_at' => null,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+                
+                // Fire real-time notification event
+                event(new \App\Events\NotificationCreated($notification));
+                
+                Log::info('Teacher onboarding completion notification created', [
+                    'user_id' => $user->id,
+                    'notification_id' => $notification->id,
+                    'verification_request_id' => $verificationRequest->id,
+                ]);
+            } catch (\Throwable $e) {
+                Log::error('Failed to send teacher onboarding completion notification', [
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
+            }
+            
+            // Notify all admins about new teacher registration
+            try {
+                $admins = \App\Models\User::whereIn('role', ['admin', 'super-admin'])->get();
+                
+                foreach ($admins as $admin) {
+                    $adminNotification = \App\Models\Notification::create([
+                        'id' => \Illuminate\Support\Str::uuid(),
+                        'type' => 'App\\Notifications\\NewTeacherRegistration',
+                        'notifiable_type' => \App\Models\User::class,
+                        'notifiable_id' => $admin->id,
+                        'data' => json_encode([
+                            'title' => 'New Teacher Registration',
+                            'message' => "{$user->name} has completed teacher onboarding and is waiting for verification.",
+                            'level' => 'info',
+                            'action_url' => route('admin.verification.show', $verificationRequest->id),
+                            'action_text' => 'Review Application',
+                            'teacher_id' => $user->id,
+                            'teacher_name' => $user->name,
+                            'verification_request_id' => $verificationRequest->id,
+                        ]),
+                        'read_at' => null,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                    
+                    // Fire real-time notification event for each admin
+                    event(new \App\Events\NotificationCreated($adminNotification));
+                }
+                
+                Log::info('Admin notifications created for new teacher registration', [
+                    'user_id' => $user->id,
+                    'admins_notified' => $admins->count(),
+                    'verification_request_id' => $verificationRequest->id,
+                ]);
+            } catch (\Throwable $e) {
+                Log::error('Failed to send admin notifications for new teacher', [
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
+            }
         }
 
         // Stay on onboarding page - success screen will show until verification
-        return redirect()->route('onboarding.teacher')->with('onboarding_completed', true);
+        return redirect()->route('onboarding.teacher')
+            ->with('onboarding_completed', true)
+            ->with('success', 'Congratulations! Your teacher onboarding is complete. Your application is now under review.');
     }
 
     /**

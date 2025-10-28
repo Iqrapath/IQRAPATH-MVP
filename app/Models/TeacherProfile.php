@@ -33,6 +33,11 @@ class TeacherProfile extends Model
         'hourly_rate_usd',
         'hourly_rate_ngn',
         'preferred_currency',
+        'permanent_meeting_link',
+        'permanent_meeting_platform',
+        'permanent_meeting_id',
+        'permanent_meeting_password',
+        'permanent_meeting_created_at',
     ];
 
     /**
@@ -48,6 +53,7 @@ class TeacherProfile extends Model
         'join_date' => 'datetime',
         'hourly_rate_usd' => 'decimal:2',
         'hourly_rate_ngn' => 'decimal:2',
+        'permanent_meeting_created_at' => 'datetime',
     ];
 
     /**
@@ -163,5 +169,39 @@ class TeacherProfile extends Model
 
         $currency = $this->hourly_rate_ngn ? '₦' : '$';
         return $currency . number_format($rate, 2);
+    }
+
+    /**
+     * Check if teacher has a permanent meeting link.
+     */
+    public function hasPermanentMeetingLink(): bool
+    {
+        return !empty($this->permanent_meeting_link);
+    }
+
+    /**
+     * Get the permanent meeting link or null.
+     */
+    public function getPermanentMeetingLink(): ?string
+    {
+        return $this->permanent_meeting_link;
+    }
+
+    /**
+     * Get all permanent meeting details.
+     */
+    public function getPermanentMeetingDetails(): ?array
+    {
+        if (!$this->hasPermanentMeetingLink()) {
+            return null;
+        }
+
+        return [
+            'link' => $this->permanent_meeting_link,
+            'platform' => $this->permanent_meeting_platform,
+            'meeting_id' => $this->permanent_meeting_id,
+            'password' => $this->permanent_meeting_password,
+            'created_at' => $this->permanent_meeting_created_at,
+        ];
     }
 }

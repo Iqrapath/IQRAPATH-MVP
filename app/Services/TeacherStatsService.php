@@ -85,32 +85,42 @@ class TeacherStatsService
      */
     public function getUpcomingSessions(int $teacherId): array
     {
-        return Booking::with(['student', 'subject.template'])
+        return TeachingSession::with(['student', 'subject.template', 'student.studentProfile'])
             ->where('teacher_id', $teacherId)
-            ->where('status', 'approved')
-            ->where('booking_date', '>=', now())
-            ->orderBy('booking_date', 'asc')
+            ->whereIn('status', ['scheduled', 'confirmed'])
+            ->where('session_date', '>=', now()->toDateString())
+            ->orderBy('session_date', 'asc')
             ->orderBy('start_time', 'asc')
             ->limit(10)
             ->get()
-            ->map(function ($booking) {
+            ->map(function ($session) {
                 // Get subject name with proper fallback
                 $subjectName = 'Unknown Subject';
-                if ($booking->subject) {
-                    if ($booking->subject->template) {
-                        $subjectName = $booking->subject->template->name;
-                    } elseif (isset($booking->subject->name)) {
-                        $subjectName = $booking->subject->name;
+                if ($session->subject) {
+                    if ($session->subject->template) {
+                        $subjectName = $session->subject->template->name;
+                    } elseif (isset($session->subject->name)) {
+                        $subjectName = $session->subject->name;
                     }
                 }
 
                 return [
-                    'id' => $booking->id,
-                    'student_name' => $booking->student->name,
+                    'id' => $session->id,
+                    'session_uuid' => $session->session_uuid,
+                    'student_name' => $session->student->name,
+                    'student_avatar' => $session->student->studentProfile->profile_picture ?? null,
                     'subject' => $subjectName,
-                    'date' => $booking->booking_date->format('Y-m-d'),
-                    'time' => $booking->start_time->format('g:i A'),
-                    'status' => ucfirst($booking->status),
+                    'date' => $session->session_date->format('Y-m-d'),
+                    'start_time' => $session->start_time->format('H:i:s'),
+                    'end_time' => $session->end_time->format('H:i:s'),
+                    'time' => $session->start_time->format('g:i A') . ' - ' . $session->end_time->format('g:i A'),
+                    'status' => ucfirst($session->status),
+                    'meeting_platform' => $session->meeting_platform,
+                    'meeting_link' => $session->meeting_link,
+                    'zoom_join_url' => $session->zoom_join_url,
+                    'google_meet_link' => $session->google_meet_link,
+                    'student_notes' => $session->student_notes,
+                    'teacher_notes' => $session->teacher_notes,
                 ];
             })
             ->toArray();
@@ -269,6 +279,70 @@ class TeacherStatsService
                     'requestedDate' => $booking->booking_date->format('Y-m-d'),
                     'requestedTime' => $booking->start_time->format('g:i A') . ' - ' . $booking->end_time->format('g:i A'),
                     'status' => 'pending',
+                ];
+            })
+            ->toArray();
+    }
+
+    /**
+     * Get past sessions for teacher sessions page.
+     */
+    public function getPastSessionsForSessionsPage(int $teacherId): array
+    {
+        return TeachingSession::with(['student', 'student.studentProfile', 'subject.template', 'teacher'])
+            ->where('teacher_id', $teacherId)
+            ->whereIn('status', ['completed', 'cancelled', 'no-show'])
+            ->orderBy('session_date', 'desc')
+            ->orderBy('start_time', 'desc')
+            ->get()
+            ->map(function ($session) {
+                // Get subject name with proper fallback
+                $subjectName = 'Unknown Subject';
+                if ($session->subject) {
+                    if ($session->subject->template) {
+                        $subjectName = $session->subject->template->name;
+                    } elseif (isset($session->subject->name)) {
+                        $subjectName = $session->subject->name;
+                    }
+                }
+
+                // Calculate duration
+                $duration = '1 Hour'; // Default
+                if ($session->start_time && $session->end_time) {
+                    $start = \Carbon\Carbon::parse($session->start_time);
+                    $end = \Carbon\Carbon::parse($session->end_time);
+                    $minutes = $start->diffInMinutes($end);
+                    $hours = floor($minutes / 60);
+                    $remainingMinutes = $minutes % 60;
+                    
+                    if ($hours > 0) {
+                        $duration = $hours . ' Hour' . ($hours > 1 ? 's' : '');
+                        if ($remainingMinutes > 0) {
+                            $duration .= ' ' . $remainingMinutes . ' Min';
+                        }
+                    } else {
+                        $duration = $minutes . ' Minutes';
+                    }
+                }
+
+                return [
+                    'id' => $session->id,
+                    'session_uuid' => $session->session_uuid,
+                    'date' => $session->session_date->format('Y-m-d'),
+                    'start_time' => $session->start_time->format('g:i A'),
+                    'end_time' => $session->end_time->format('g:i A'),
+                    'subject' => $subjectName,
+                    'student_name' => $session->student->name,
+                    'student' => $session->student->name,
+                    'student_avatar' => $session->student->studentProfile->profile_picture ?? null,
+                    'status' => $session->status,
+                    'duration' => $duration,
+                    'rating' => $session->student_rating ?? $session->teacher_rating,
+                    'feedback' => $session->student_notes ?? $session->teacher_notes,
+                    'student_rating' => $session->student_rating,
+                    'teacher_rating' => $session->teacher_rating,
+                    'student_review' => $session->student_notes,
+                    'teacher_review' => $session->teacher_notes,
                 ];
             })
             ->toArray();

@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Verification Call Scheduled - IQRAQUEST</title>
+    <title>Verification Call Scheduled - Admin Notification</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -22,7 +22,7 @@
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
         .header {
-            background: linear-gradient(135deg, #14B8A6 0%, #0D9488 100%);
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
             color: white;
             padding: 32px 24px;
             text-align: center;
@@ -32,6 +32,17 @@
             font-weight: bold;
             text-decoration: none;
             color: white;
+        }
+        .admin-badge {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         .content-card {
             padding: 32px 24px;
@@ -48,22 +59,40 @@
             margin-bottom: 24px;
             line-height: 1.7;
         }
-        .success-icon {
+        .admin-icon {
             width: 80px;
             height: 80px;
-            background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             margin: 0 auto 24px;
-            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.3);
         }
-        .success-icon::before {
-            content: "📅";
+        .admin-icon::before {
+            content: "👨‍💼";
             font-size: 40px;
-            color: white;
-            font-weight: bold;
+        }
+        .teacher-card {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 2px solid #fbbf24;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 24px 0;
+            text-align: center;
+        }
+        .teacher-name {
+            font-size: 22px;
+            font-weight: 700;
+            color: #92400e;
+            margin-bottom: 8px;
+        }
+        .teacher-label {
+            font-size: 14px;
+            color: #b45309;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         .info-card {
             background: linear-gradient(135deg, #f0fdfa 0%, #ecfdf5 100%);
@@ -102,91 +131,6 @@
         .info-value {
             font-weight: 600;
             color: #065f46;
-        }
-        .meeting-link-card {
-            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-            border: 2px solid #3b82f6;
-            border-radius: 12px;
-            padding: 24px;
-            margin: 24px 0;
-            text-align: center;
-        }
-        .meeting-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: #1e40af;
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .meeting-title::before {
-            content: "🔗";
-            margin-right: 8px;
-            font-size: 20px;
-        }
-        .meeting-link {
-            display: inline-block;
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-            color: white;
-            padding: 16px 32px;
-            text-decoration: none;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 18px;
-            margin: 16px 0;
-            box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);
-            transition: all 0.3s ease;
-        }
-        .meeting-link:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
-        }
-        .preparation-section {
-            background: #f8fafc;
-            border-radius: 12px;
-            padding: 24px;
-            margin: 24px 0;
-        }
-        .preparation-title {
-            font-size: 20px;
-            font-weight: 600;
-            color: #1e293b;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        .preparation-item {
-            display: flex;
-            align-items: center;
-            margin-bottom: 12px;
-            padding: 12px 16px;
-            background: white;
-            border-radius: 8px;
-            border-left: 4px solid #14B8A6;
-        }
-        .preparation-item:last-child {
-            margin-bottom: 0;
-        }
-        .preparation-icon {
-            margin-right: 12px;
-            font-size: 18px;
-        }
-        .preparation-text {
-            color: #1e293b;
-            font-weight: 500;
-        }
-        .important-note {
-            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-            border: 1px solid #fbbf24;
-            border-radius: 12px;
-            padding: 20px;
-            margin: 24px 0;
-            text-align: center;
-        }
-        .important-text {
-            color: #92400e;
-            font-weight: 600;
-            font-size: 16px;
         }
         .countdown-card {
             background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
@@ -263,6 +207,78 @@
             font-weight: 700;
             margin-top: 8px;
         }
+        .meeting-link-card {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            border: 2px solid #3b82f6;
+            border-radius: 12px;
+            padding: 24px;
+            margin: 24px 0;
+            text-align: center;
+        }
+        .meeting-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e40af;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .meeting-title::before {
+            content: "🔗";
+            margin-right: 8px;
+            font-size: 20px;
+        }
+        .meeting-link {
+            display: inline-block;
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+            padding: 16px 32px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 18px;
+            margin: 16px 0;
+            box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);
+            transition: all 0.3s ease;
+        }
+        .meeting-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+        }
+        .admin-reminders {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 24px;
+            margin: 24px 0;
+        }
+        .reminders-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .reminder-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            padding: 12px 16px;
+            background: white;
+            border-radius: 8px;
+            border-left: 4px solid #6366f1;
+        }
+        .reminder-item:last-child {
+            margin-bottom: 0;
+        }
+        .reminder-icon {
+            margin-right: 12px;
+            font-size: 18px;
+        }
+        .reminder-text {
+            color: #1e293b;
+            font-weight: 500;
+        }
         .notes-card {
             background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
             border: 1px solid #86efac;
@@ -305,7 +321,7 @@
             margin: 16px 0;
         }
         .support-link a {
-            color: #14B8A6;
+            color: #6366f1;
             text-decoration: none;
             font-weight: 500;
         }
@@ -320,26 +336,29 @@
         .mb-4 {
             margin-bottom: 16px;
         }
-        .mt-6 {
-            margin-top: 24px;
-        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <a href="{{ config('app.url') }}" class="logo">IQRAQUEST</a>
+            <div class="admin-badge">Admin Notification</div>
         </div>
 
         <div class="content-card">
             <div class="text-center">
-                <div class="success-icon"></div>
-                <div class="greeting">Hello {{ $verificationRequest->teacherProfile->user->name ?? 'Teacher' }}!</div>
+                <div class="admin-icon"></div>
+                <div class="greeting">Verification Call Scheduled</div>
                 <div class="main-message">
-                    Your verification call has been <strong>scheduled successfully</strong>! 🎉
+                    A verification call has been scheduled with a teacher candidate.
                 </div>
             </div>
             
+            <div class="teacher-card">
+                <div class="teacher-label">Teacher Candidate</div>
+                <div class="teacher-name">{{ $teacherName }}</div>
+            </div>
+
             <div class="info-card">
                 <div class="info-title">Call Details</div>
                 <div class="info-item">
@@ -350,18 +369,16 @@
                     <span class="info-label">Platform:</span>
                     <span class="info-value">{{ $platformLabel }}</span>
                 </div>
+                <div class="info-item">
+                    <span class="info-label">Teacher ID:</span>
+                    <span class="info-value">#{{ $verificationRequest->teacherProfile->user->id }}</span>
+                </div>
                 @if($meetingLink)
                 <div class="info-item">
                     <span class="info-label">Meeting Link:</span>
                     <span class="info-value">
-                        <a href="{{ $meetingLink }}" style="color: #14B8A6; text-decoration: none;">Click to join</a>
+                        <a href="{{ $meetingLink }}" style="color: #6366f1; text-decoration: none;">Available</a>
                     </span>
-                </div>
-                @endif
-                @if($notes)
-                <div class="info-item">
-                    <span class="info-label">Notes:</span>
-                    <span class="info-value">{{ $notes }}</span>
                 </div>
                 @endif
             </div>
@@ -382,7 +399,7 @@
 
             @if(!$isPast)
             <div class="countdown-card">
-                <div class="countdown-title">Time Until Your Verification Call</div>
+                <div class="countdown-title">Time Until Verification Call</div>
                 
                 <div class="countdown-grid">
                     <div class="countdown-item">
@@ -420,40 +437,42 @@
 
             @if($meetingLink)
             <div class="meeting-link-card">
-                <div class="meeting-title">Meeting Room</div>
+                <div class="meeting-title">Join Meeting</div>
                 <a href="{{ $meetingLink }}" class="meeting-link">
-                    Join Meeting
+                    Access Meeting Room
                 </a>
+                <div style="margin-top: 12px; font-size: 12px; color: #64748b;">
+                    💡 You can monitor this call to ensure quality standards
+                </div>
             </div>
             @endif
 
-            <div class="preparation-section">
-                <div class="preparation-title">What to Prepare</div>
+            <div class="admin-reminders">
+                <div class="reminders-title">Admin Checklist</div>
                 
-                <div class="preparation-item">
-                    <span class="preparation-icon">🆔</span>
-                    <span class="preparation-text">Valid government-issued ID</span>
+                <div class="reminder-item">
+                    <span class="reminder-icon">✓</span>
+                    <span class="reminder-text">Review teacher's documents before the call</span>
                 </div>
                 
-                <div class="preparation-item">
-                    <span class="preparation-icon">📜</span>
-                    <span class="preparation-text">Teaching certificates or qualifications</span>
+                <div class="reminder-item">
+                    <span class="reminder-icon">✓</span>
+                    <span class="reminder-text">Prepare verification questions</span>
                 </div>
                 
-                <div class="preparation-item">
-                    <span class="preparation-icon">🌐</span>
-                    <span class="preparation-text">Stable internet connection</span>
+                <div class="reminder-item">
+                    <span class="reminder-icon">✓</span>
+                    <span class="reminder-text">Test your audio/video setup beforehand</span>
                 </div>
                 
-                <div class="preparation-item">
-                    <span class="preparation-icon">🔇</span>
-                    <span class="preparation-text">Quiet environment</span>
+                <div class="reminder-item">
+                    <span class="reminder-icon">✓</span>
+                    <span class="reminder-text">Have the verification form ready</span>
                 </div>
-            </div>
-
-            <div class="important-note">
-                <div class="important-text">
-                    ⏰ Please join 5 minutes early to test your setup.
+                
+                <div class="reminder-item">
+                    <span class="reminder-icon">✓</span>
+                    <span class="reminder-text">Join 5 minutes early</span>
                 </div>
             </div>
 
@@ -467,17 +486,21 @@
             @endif
 
             <div class="text-center mb-4">
-                If you have any questions, please contact our support team.
+                <a href="{{ config('app.url') }}/admin/verification/{{ $verificationRequest->id }}" 
+                   style="color: #6366f1; text-decoration: none; font-weight: 600;">
+                    View Teacher's Verification Request →
+                </a>
             </div>
         </div>
 
         <div class="footer">
             <div class="footer-text">
-                Best regards,<br>IQRAQUEST Team
+                This is an automated admin notification.<br>
+                Please ensure you're available at the scheduled time.
             </div>
             
             <div class="support-link">
-                <a href="mailto:support@iqraquest.com">support@iqraquest.com</a>
+                <a href="mailto:admin@iqraquest.com">admin@iqraquest.com</a>
             </div>
 
             <div class="copyright">
@@ -488,3 +511,4 @@
     </div>
 </body>
 </html>
+

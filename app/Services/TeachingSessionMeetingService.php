@@ -18,6 +18,7 @@ class TeachingSessionMeetingService
 
     /**
      * Create meeting links for a teaching session
+     * UPDATED: Now uses teacher's permanent meeting link if available
      */
     public function createMeetingLinks(TeachingSession $session, User $teacher): array
     {
@@ -35,6 +36,36 @@ class TeachingSessionMeetingService
             'google_calendar_event_id' => null,
         ];
 
+        // Check if teacher has a permanent meeting link
+        $teacherProfile = $teacher->teacherProfile;
+        if ($teacherProfile && $teacherProfile->hasPermanentMeetingLink()) {
+            $permanentDetails = $teacherProfile->getPermanentMeetingDetails();
+            
+            $meetingData['meeting_platform'] = $permanentDetails['platform'] ?? 'zoom';
+            $meetingData['meeting_link'] = $permanentDetails['link'];
+            $meetingData['meeting_password'] = $permanentDetails['password'];
+            
+            // Map to platform-specific fields
+            if ($permanentDetails['platform'] === 'zoom') {
+                $meetingData['zoom_join_url'] = $permanentDetails['link'];
+                $meetingData['zoom_meeting_id'] = $permanentDetails['meeting_id'];
+                $meetingData['zoom_password'] = $permanentDetails['password'];
+            } elseif ($permanentDetails['platform'] === 'google_meet') {
+                $meetingData['google_meet_link'] = $permanentDetails['link'];
+                $meetingData['google_meet_id'] = $permanentDetails['meeting_id'];
+            }
+
+            Log::info('Using teacher permanent meeting link for session', [
+                'session_id' => $session->id,
+                'teacher_id' => $teacher->id,
+                'meeting_platform' => $meetingData['meeting_platform'],
+                'permanent_link' => $permanentDetails['link'],
+            ]);
+
+            return $meetingData;
+        }
+
+        // Fallback: Create new meeting links if teacher doesn't have permanent link
         try {
             // Create Zoom meeting using adhoc method (primary)
             $zoomMeeting = $this->createZoomMeeting($session, $teacher);
@@ -58,7 +89,7 @@ class TeachingSessionMeetingService
                 ]);
             }
 
-            Log::info('Meeting links created for session', [
+            Log::info('Meeting links created for session (fallback to new meeting)', [
                 'session_id' => $session->id,
                 'teacher_id' => $teacher->id,
                 'meeting_platform' => $meetingData['meeting_platform'],

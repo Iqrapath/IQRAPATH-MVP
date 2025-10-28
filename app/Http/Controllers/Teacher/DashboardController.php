@@ -28,16 +28,24 @@ class DashboardController extends Controller
         // Get upcoming sessions
         $upcomingSessions = $this->statsService->getUpcomingSessions($user->id);
         
-        // Check if teacher was recently verified (within last 24 hours)
-        $recentlyVerified = false;
-        if ($teacherProfile && $teacherProfile->verified) {
+        // Check if we should show verification success modal (only once)
+        $showVerificationSuccess = false;
+        
+        // Only check if teacher is verified and we haven't shown the modal yet
+        if ($teacherProfile && $teacherProfile->verified && !$request->session()->has('verification_modal_shown')) {
             $verificationRequest = $teacherProfile->verificationRequests()
                 ->where('status', 'verified')
                 ->latest()
                 ->first();
             
+            // Show modal if verified within last 7 days (but only once per session)
             if ($verificationRequest && $verificationRequest->reviewed_at) {
-                $recentlyVerified = $verificationRequest->reviewed_at->isAfter(now()->subDay());
+                $showVerificationSuccess = $verificationRequest->reviewed_at->isAfter(now()->subDays(7));
+                
+                // Mark that we've shown the modal in this session
+                if ($showVerificationSuccess) {
+                    $request->session()->put('verification_modal_shown', true);
+                }
             }
         }
         
@@ -46,7 +54,7 @@ class DashboardController extends Controller
             'user' => $user,
             'stats' => $stats,
             'upcomingSessions' => $upcomingSessions,
-            'showVerificationSuccess' => $recentlyVerified,
+            'showVerificationSuccess' => $showVerificationSuccess,
         ]);
     }
 }

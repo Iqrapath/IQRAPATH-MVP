@@ -23,6 +23,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
@@ -722,6 +723,38 @@ class TeacherVerificationController extends Controller
                 'notes' => $validated['notes'] ?? null,
             ]);
             
+            // Store this meeting link as teacher's permanent meeting link for future sessions
+            $teacherProfile = $verificationRequest->teacherProfile;
+            if ($teacherProfile && !empty($validated['meeting_link'])) {
+                // Extract meeting ID from the link based on platform
+                $meetingId = null;
+                if ($validated['video_platform'] === 'zoom') {
+                    // Extract Zoom meeting ID (format: https://zoom.us/j/1234567890)
+                    if (preg_match('/\/j\/(\d+)/', $validated['meeting_link'], $matches)) {
+                        $meetingId = $matches[1];
+                    }
+                } elseif ($validated['video_platform'] === 'google_meet') {
+                    // Extract Google Meet code (format: https://meet.google.com/abc-defg-hij)
+                    if (preg_match('/meet\.google\.com\/([a-z-]+)/', $validated['meeting_link'], $matches)) {
+                        $meetingId = $matches[1];
+                    }
+                }
+                
+                $teacherProfile->update([
+                    'permanent_meeting_link' => $validated['meeting_link'],
+                    'permanent_meeting_platform' => $validated['video_platform'],
+                    'permanent_meeting_id' => $meetingId,
+                    'permanent_meeting_password' => null, // Can be added manually later
+                    'permanent_meeting_created_at' => now(),
+                ]);
+                
+                Log::info('Stored permanent meeting link for teacher', [
+                    'teacher_id' => $teacherProfile->user_id,
+                    'platform' => $validated['video_platform'],
+                    'meeting_id' => $meetingId,
+                ]);
+            }
+            
             // Create a verification call
             $verificationRequest->calls()->create([
                 'scheduled_at' => $validated['scheduled_call_at'],
@@ -737,7 +770,7 @@ class TeacherVerificationController extends Controller
                 'status' => 'pending',
                 'changed_by' => $request->user()->id,
                 'changed_at' => now(),
-                'notes' => 'Live video verification scheduled',
+                'notes' => 'Live video verification scheduled and permanent meeting link stored',
             ]);
         });
 

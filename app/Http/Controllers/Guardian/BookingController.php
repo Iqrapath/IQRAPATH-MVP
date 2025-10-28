@@ -1296,6 +1296,7 @@ class BookingController extends Controller
                 'amount' => $requiredAmountNGN,
                 'status' => 'completed',
                 'description' => 'Class booking payment',
+                'transaction_date' => now(),
                 'reference' => 'BOOKING-' . \Illuminate\Support\Str::random(10),
             ]);
         }

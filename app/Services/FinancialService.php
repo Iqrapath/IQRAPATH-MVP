@@ -449,6 +449,7 @@ class FinancialService
                 'reference_type' => 'subscription',
                 'reference_id' => $subscription->id,
                 'status' => 'completed',
+                'transaction_date' => now(),
                 'balance_after' => $wallet->balance - $amountNGN,
             ]);
         });

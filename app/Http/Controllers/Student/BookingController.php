@@ -329,9 +329,16 @@ class BookingController extends Controller
                 
                 // Create availability string from actual data
                 $dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-                $activeDays = $availabilitiesByDay->keys()->sort()->map(function($dayNum) use ($dayNames) {
-                    return $dayNames[$dayNum];
-                })->take(3)->implode(', ');
+                $activeDays = $availabilitiesByDay->keys()
+                    ->filter(function($dayNum) {
+                        return $dayNum !== null && $dayNum !== '';
+                    })
+                    ->sort()
+                    ->map(function($dayNum) use ($dayNames) {
+                        return $dayNames[$dayNum] ?? 'Unknown';
+                    })
+                    ->take(3)
+                    ->implode(', ');
                 
                 if ($activeDays) {
                     $firstSlot = $availabilities->first();
@@ -821,6 +828,7 @@ class BookingController extends Controller
                 'amount' => $requiredAmountNGN,
                 'status' => 'completed',
                 'description' => 'Class booking payment',
+                'transaction_date' => now(),
                 'reference' => 'BOOKING-' . Str::random(10),
             ]);
         }

@@ -63,6 +63,7 @@ class SessionsController extends Controller
 
             // Create teaching session
             $teachingSession = $booking->teachingSession()->create([
+                'booking_id' => $booking->id,
                 'teacher_id' => $teacherId,
                 'student_id' => $booking->student_id,
                 'subject_id' => $booking->subject_id,
@@ -70,7 +71,7 @@ class SessionsController extends Controller
                 'start_time' => $booking->start_time,
                 'end_time' => $booking->end_time,
                 'status' => 'scheduled',
-                'notes' => $booking->notes,
+                'teacher_notes' => $booking->notes,
             ]);
 
             // Create meeting links (Zoom + Google Meet)
@@ -209,32 +210,18 @@ class SessionsController extends Controller
         try {
             $teacherId = $request->user()->id;
             
-            // Get past sessions (completed, cancelled, no-show)
-            $sessions = Booking::where('teacher_id', $teacherId)
-                ->whereIn('status', ['completed', 'cancelled'])
-                ->with(['student', 'subject.template', 'teachingSession'])
-                ->orderBy('booking_date', 'desc')
-                ->orderBy('start_time', 'desc')
-                ->get()
-                ->map(function ($booking) {
-                    return [
-                        'id' => $booking->id,
-                        'date' => $booking->booking_date,
-                        'startTime' => \Carbon\Carbon::parse($booking->start_time)->format('g:i A'),
-                        'endTime' => \Carbon\Carbon::parse($booking->end_time)->format('g:i A'),
-                        'subject' => $booking->subject->template->name ?? 'Unknown Subject',
-                        'student' => $booking->student->name,
-                        'status' => $booking->status,
-                        'rating' => $booking->teachingSession?->rating,
-                        'feedback' => $booking->teachingSession?->feedback
-                    ];
-                });
+            $sessions = $this->teacherStatsService->getPastSessionsForSessionsPage($teacherId);
             
             return response()->json([
                 'success' => true,
                 'sessions' => $sessions
             ]);
         } catch (\Exception $e) {
+            \Log::error('Error in getPastSessions', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch past sessions: ' . $e->getMessage()

@@ -203,6 +203,7 @@ class SidebarController extends Controller
 
                 // Create teaching session
                 $teachingSession = $booking->teachingSession()->create([
+                    'booking_id' => $booking->id,
                     'teacher_id' => $booking->teacher_id,
                     'student_id' => $booking->student_id,
                     'subject_id' => $booking->subject_id,
@@ -210,6 +211,7 @@ class SidebarController extends Controller
                     'start_time' => $booking->start_time,
                     'end_time' => $booking->end_time,
                     'status' => 'scheduled',
+                    'teacher_notes' => $booking->notes,
                 ]);
 
                 // Create meeting links (Zoom + Google Meet)

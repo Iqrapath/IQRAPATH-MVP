@@ -22,6 +22,34 @@ Route::post('/api/google-meet/webhook', [App\Http\Controllers\GoogleMeetWebhookC
 Route::post('/api/google-meet/push-notification', [App\Http\Controllers\GoogleMeetWebhookController::class, 'handlePushNotification'])
     ->name('google-meet.push-notification');
 
+// Session Access Control Routes (Time-based access)
+Route::middleware(['auth'])->group(function () {
+    // Check if user can access a session
+    Route::get('/sessions/{sessionId}/check-access', [App\Http\Controllers\SessionAccessController::class, 'checkAccess'])
+        ->name('sessions.check-access');
+    
+    // Get meeting link (with access control)
+    Route::get('/sessions/{sessionId}/meeting-link', [App\Http\Controllers\SessionAccessController::class, 'getMeetingLink'])
+        ->name('sessions.meeting-link');
+    
+    // Join session (redirect to meeting link if access granted)
+    Route::get('/sessions/{sessionId}/join', [App\Http\Controllers\SessionAccessController::class, 'joinSession'])
+        ->name('sessions.join');
+    
+    // Waiting room (when too early to join)
+    Route::get('/sessions/{sessionId}/waiting-room', [App\Http\Controllers\SessionAccessController::class, 'waitingRoom'])
+        ->name('sessions.waiting-room');
+    
+    // Admin monitoring routes
+    Route::middleware(['role:admin,super-admin'])->group(function () {
+        Route::get('/admin/monitoring/sessions', [App\Http\Controllers\SessionAccessController::class, 'monitoringDashboard'])
+            ->name('admin.monitoring.sessions');
+        
+        Route::get('/admin/monitoring/sessions/active', [App\Http\Controllers\SessionAccessController::class, 'getActiveSessionsForMonitoring'])
+            ->name('admin.monitoring.sessions.active');
+    });
+});
+
 // Session Attendance Routes
 Route::middleware(['auth'])->group(function () {
     Route::post('/sessions/{session}/teacher-join', [App\Http\Controllers\SessionAttendanceController::class, 'teacherJoin'])

@@ -65,28 +65,17 @@ class VerificationCallScheduledNotification extends Notification implements Shou
                     'notes' => $this->notes,
                 ]);
         } else {
-            // Admin notification - keep simple for now
-            $title = 'Verification Call Scheduled - IQRAQUEST';
-            $message = "Verification call scheduled for {$this->verificationRequest->teacherProfile->user->name} on {$scheduledDate->format('M d, Y g:i A')}";
-            
-            $mail = (new MailMessage)
-                ->subject($title)
-                ->greeting('Admin Notification')
-                ->line($message)
-                ->line('**Scheduled Date:** ' . $scheduledDate->format('M d, Y g:i A'))
-                ->line('**Platform:** ' . $platformLabel);
-                
-            if ($this->meetingLink) {
-                $mail->action('Join Meeting', $this->meetingLink);
-            }
-            
-            if ($this->notes) {
-                $mail->line('**Notes:** ' . $this->notes);
-            }
-            
-            return $mail->line('Please make sure you are available at the scheduled time.')
-                       ->line('If you have any questions, please contact our support team.')
-                       ->salutation('Best regards, IQRAQUEST Team');
+            // Admin notification with countdown
+            return (new MailMessage)
+                ->subject('Verification Call Scheduled - IQRAQUEST')
+                ->view('emails.admin-verification-call-scheduled', [
+                    'verificationRequest' => $this->verificationRequest,
+                    'scheduledDate' => $scheduledDate,
+                    'platformLabel' => $platformLabel,
+                    'meetingLink' => $this->meetingLink,
+                    'notes' => $this->notes,
+                    'teacherName' => $this->verificationRequest->teacherProfile->user->name,
+                ]);
         }
     }
 

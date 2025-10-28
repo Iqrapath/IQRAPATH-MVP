@@ -26,6 +26,16 @@ interface NotificationDropdownProps {
 export function NotificationDropdown({ className, iconSize = 24 }: NotificationDropdownProps) {
   const { auth } = usePage().props as any;
   const userRole = auth?.user?.role;
+  const [currentTime, setCurrentTime] = useState(new Date());
+  
+  // Update current time every minute for countdown timers
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // Update every minute
+    
+    return () => clearInterval(interval);
+  }, []);
   
   
   const {
@@ -366,17 +376,79 @@ export function NotificationDropdown({ className, iconSize = 24 }: NotificationD
                       )}
                       
                       {notification.data.action_text && notification.data.action_url && (
-                        <Link
-                          href={notification.data.action_url}
-                          className="mt-1 text-xs text-primary hover:underline inline-block"
-                          onClick={() => {
-                            if (isUnread) {
-                              handleMarkAsRead(notification.id);
-                            }
-                          }}
-                        >
-                          {notification.data.action_text}
-                        </Link>
+                        <>
+                          {/* Check if action_url is external (contains http/https) */}
+                          {notification.data.action_url.startsWith('http://') || notification.data.action_url.startsWith('https://') ? (
+                            (() => {
+                              // Check if this is a scheduled event with time restrictions
+                              const scheduledAt = (notification.data as any).scheduled_at;
+                              const isScheduled = !!scheduledAt;
+                              const scheduledTime = scheduledAt ? new Date(scheduledAt) : null;
+                              
+                              // Allow access 30 minutes before scheduled time (for teachers/students to prepare)
+                              const earlyAccessTime = scheduledTime ? new Date(scheduledTime.getTime() - 30 * 60 * 1000) : null;
+                              const canAccessNow = !isScheduled || !earlyAccessTime || currentTime >= earlyAccessTime;
+                              
+                              // Calculate time until access is available
+                              const msUntilAccess = earlyAccessTime ? (earlyAccessTime.getTime() - currentTime.getTime()) : 0;
+                              const minutesUntilAccess = Math.ceil(msUntilAccess / (60 * 1000));
+                              const hoursUntilAccess = Math.floor(minutesUntilAccess / 60);
+                              const remainingMinutes = minutesUntilAccess % 60;
+                              
+                              // Format countdown display
+                              let countdownText = '';
+                              if (hoursUntilAccess > 0) {
+                                countdownText = `${hoursUntilAccess}h ${remainingMinutes}m`;
+                              } else if (minutesUntilAccess > 0) {
+                                countdownText = `${minutesUntilAccess} min`;
+                              }
+                              
+                              if (!canAccessNow) {
+                                return (
+                                  <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs text-yellow-800">
+                                        🔒 {notification.data.action_text}
+                                      </span>
+                                    </div>
+                                    <p className="text-[10px] text-yellow-700 mt-1">
+                                      Available in {countdownText}
+                                    </p>
+                                  </div>
+                                );
+                              }
+                              
+                              return (
+                                <a
+                                  href={notification.data.action_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="mt-1 text-xs text-primary hover:underline inline-flex items-center gap-1 font-medium"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (isUnread) {
+                                      handleMarkAsRead(notification.id);
+                                    }
+                                  }}
+                                >
+                                  {notification.data.action_text} ↗
+                                </a>
+                              );
+                            })()
+                          ) : (
+                            <Link
+                              href={notification.data.action_url}
+                              className="mt-1 text-xs text-primary hover:underline inline-block"
+                              onClick={() => {
+                                if (isUnread) {
+                                  handleMarkAsRead(notification.id);
+                                }
+                              }}
+                            >
+                              {notification.data.action_text}
+                            </Link>
+                          )}
+                        </>
                       )}
                       
                       <div className="flex items-center justify-between mt-1">

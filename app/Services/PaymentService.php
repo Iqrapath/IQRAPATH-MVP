@@ -238,11 +238,12 @@ class PaymentService
         WalletTransaction::create([
             'wallet_id' => $wallet->id,
             'transaction_id' => $transaction->id,
-            'type' => 'credit',
+            'transaction_type' => 'credit',
             'amount' => $paymentData['amount'],
             'balance_before' => $wallet->balance - $paymentData['amount'],
             'balance_after' => $wallet->balance,
             'description' => 'Wallet funding via credit card',
+            'transaction_date' => now(),
             'status' => 'completed'
         ]);
 
@@ -301,11 +302,12 @@ class PaymentService
         WalletTransaction::create([
             'wallet_id' => $wallet->id,
             'transaction_id' => $transaction->id,
-            'type' => 'credit',
+            'transaction_type' => 'credit',
             'amount' => $paymentData['amount'],
             'balance_before' => $wallet->balance - $paymentData['amount'],
             'balance_after' => $wallet->balance,
             'description' => 'Wallet funding via Paystack',
+            'transaction_date' => now(),
             'status' => 'pending'
         ]);
 

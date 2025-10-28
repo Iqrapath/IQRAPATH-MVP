@@ -1,4 +1,4 @@
-import { Head, useForm, router } from '@inertiajs/react';
+import { Head, useForm, router, usePage } from '@inertiajs/react';
 import { FormEventHandler, useState, useEffect } from 'react';
 import { type User } from '@/types';
 import { toast } from 'sonner';
@@ -356,6 +356,9 @@ const sortedCountries = [
 ];
 
 export default function TeacherOnboarding({ user, subjects, availableCurrencies = [], onboardingCompleted = false, teacherData = {}, fileUploadLimits, verificationRequest }: TeacherOnboardingProps) {
+    // Get flash messages from Inertia
+    const { flash } = usePage().props as any;
+    
     // Fallback currency data if not provided
     const currencies = availableCurrencies.length > 0 ? availableCurrencies : [
         { value: 'NGN', label: 'Nigerian Naira (NGN)', symbol: '₦', is_default: true },
@@ -363,6 +366,19 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
         { value: 'EUR', label: 'Euro (EUR)', symbol: '€', is_default: false },
         { value: 'GBP', label: 'British Pound (GBP)', symbol: '£', is_default: false }
     ];
+    
+    // Handle flash messages
+    useEffect(() => {
+        if (flash?.success) {
+            toast.success(flash.success);
+        }
+        if (flash?.error) {
+            toast.error(flash.error);
+        }
+        if (flash?.info) {
+            toast.info(flash.info);
+        }
+    }, [flash]);
     const [currentStep, setCurrentStep] = useState(() => {
         // Retrieve step from sessionStorage on component mount with security validation
         try {
