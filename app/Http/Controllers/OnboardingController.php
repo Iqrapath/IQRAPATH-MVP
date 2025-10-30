@@ -935,51 +935,16 @@ class OnboardingController extends Controller
                     ]
                 );
 
-                // Create teacher wallet with payment methods and settings
-                $paymentMethods = [];
-                
-                // Add withdrawal method to payment methods
-                $paymentMethodData = [
-                    'id' => $request->withdrawal_method . '_' . uniqid(),
-                    'type' => $request->withdrawal_method,
-                    'is_default' => true,
-                    'created_at' => now()->toDateTimeString(),
-                ];
-                
-                // Add method-specific details
-                switch ($request->withdrawal_method) {
-                    case 'bank_transfer':
-                        $bankName = $request->bank_name === 'other' ? $request->custom_bank_name : $request->bank_name;
-                        $paymentMethodData['bank_name'] = $bankName;
-                        $paymentMethodData['account_number'] = $request->account_number;
-                        $paymentMethodData['account_name'] = $request->account_name;
-                        break;
-                        
-            case 'mobile_money':
-                $paymentMethodData['provider'] = $request->mobile_provider;
-                $paymentMethodData['mobile_number'] = $request->mobile_number;
-                break;
-                
-            case 'paypal':
-                $paymentMethodData['email'] = $request->paypal_email;
-                break;
-        }
-                
-                $paymentMethods[] = $paymentMethodData;
-
+                // Create teacher wallet (without JSON payment methods)
                 $withdrawalSettings = [
-                    'preferred_method' => $request->withdrawal_method,
                     'preferred_currency' => $request->preferred_currency,
                 ];
 
-                // Create or update teacher wallet
                 $walletData = [
                     'balance' => 0,
                     'total_earned' => 0,
                     'total_withdrawn' => 0,
                     'pending_payouts' => 0,
-                    'payment_methods' => $paymentMethods,
-                    'default_payment_method' => $paymentMethods[0]['id'] ?? null,
                     'auto_withdrawal_enabled' => false,
                     'auto_withdrawal_threshold' => null,
                     'withdrawal_settings' => $withdrawalSettings,
@@ -995,11 +960,89 @@ class OnboardingController extends Controller
                     $walletData
                 );
 
-                \Log::info('Teacher wallet created/updated during onboarding', [
+                // Create payment method in payment_methods table (NEW SYSTEM)
+                $paymentMethodData = [
+                    'user_id' => $user->id,
+                    'type' => $request->withdrawal_method,
+                    'is_default' => true,
+                    'is_active' => true,
+                    'verification_status' => 'pending',
+                ];
+
+                // Add method-specific details
+                switch ($request->withdrawal_method) {
+                    case 'bank_transfer':
+                        $bankName = $request->bank_name === 'other' ? $request->custom_bank_name : $request->bank_name;
+                        $paymentMethodData['name'] = $bankName . ' Account';
+                        $paymentMethodData['bank_name'] = $bankName;
+                        $paymentMethodData['account_number'] = $request->account_number;
+                        $paymentMethodData['account_name'] = $request->account_name;
+                        $paymentMethodData['gateway'] = 'paystack';
+                        
+                        // Get bank code for verification
+                        $bankCode = $this->getBankCode($bankName);
+                        if ($bankCode) {
+                            $paymentMethodData['bank_code'] = $bankCode;
+                            
+                            // Try to verify with Paystack
+                            try {
+                                $bankVerificationService = app(\App\Services\BankVerificationService::class);
+                                $verificationResult = $bankVerificationService->verifyBankAccount(
+                                    $request->account_number,
+                                    $bankCode
+                                );
+                                
+                                if ($verificationResult['success']) {
+                                    $paymentMethodData['account_name'] = $verificationResult['data']['account_name'] ?? $request->account_name;
+                                    $paymentMethodData['verification_status'] = 'verified';
+                                    $paymentMethodData['verified_at'] = now();
+                                    $paymentMethodData['is_verified'] = true;
+                                } else {
+                                    $paymentMethodData['verification_notes'] = 'Pending manual verification';
+                                }
+                            } catch (\Exception $e) {
+                                \Log::warning('Bank verification failed during onboarding', [
+                                    'user_id' => $user->id,
+                                    'error' => $e->getMessage()
+                                ]);
+                                $paymentMethodData['verification_notes'] = 'Verification service unavailable. Pending manual review.';
+                            }
+                        }
+                        
+                        // Store only last 4 digits for security
+                        $paymentMethodData['last_four'] = substr($request->account_number, -4);
+                        $paymentMethodData['account_number'] = null; // Don't store full number
+                        break;
+                        
+                    case 'mobile_money':
+                        $paymentMethodData['name'] = $request->mobile_provider . ' Mobile Money';
+                        $paymentMethodData['metadata'] = [
+                            'provider' => $request->mobile_provider,
+                            'mobile_number' => $request->mobile_number
+                        ];
+                        $paymentMethodData['verification_notes'] = 'Mobile money pending verification';
+                        break;
+                        
+                    case 'paypal':
+                        $paymentMethodData['name'] = 'PayPal Account';
+                        $paymentMethodData['gateway'] = 'paypal';
+                        $paymentMethodData['metadata'] = [
+                            'paypal_email' => $request->paypal_email
+                        ];
+                        $paymentMethodData['verification_notes'] = 'PayPal account pending email verification';
+                        break;
+                }
+
+                // Create payment method record
+                $paymentMethod = \App\Models\PaymentMethod::create($paymentMethodData);
+
+                \Log::info('Teacher wallet and payment method created during onboarding', [
                     'user_id' => $user->id,
                     'wallet_id' => $wallet->id,
+                    'payment_method_id' => $paymentMethod->id,
                     'withdrawal_method' => $request->withdrawal_method,
                     'preferred_currency' => $request->preferred_currency,
+                    'verification_status' => $paymentMethod->verification_status
                 ]);
 
                 // Create verification request for admin review (for both new and reapplying teachers)
@@ -1043,6 +1086,38 @@ class OnboardingController extends Controller
             'teacher' => $this->createTeacherProfileAndWallet($user),
             default => null,
         };
+    }
+
+    /**
+     * Get bank code from bank name for Paystack verification
+     */
+    private function getBankCode(string $bankName): ?string
+    {
+        $bankCodes = [
+            'Access Bank' => '044',
+            'Citibank' => '023',
+            'Diamond Bank' => '063',
+            'Ecobank Nigeria' => '050',
+            'Fidelity Bank Nigeria' => '070',
+            'First Bank of Nigeria' => '011',
+            'First City Monument Bank' => '214',
+            'Guaranty Trust Bank' => '058',
+            'Heritage Bank Plc' => '030',
+            'Keystone Bank Limited' => '082',
+            'Providus Bank Plc' => '101',
+            'Polaris Bank' => '076',
+            'Stanbic IBTC Bank Nigeria Limited' => '221',
+            'Standard Chartered Bank' => '068',
+            'Sterling Bank' => '232',
+            'Suntrust Bank Nigeria Limited' => '100',
+            'Union Bank of Nigeria' => '032',
+            'United Bank for Africa' => '033',
+            'Unity Bank Plc' => '215',
+            'Wema Bank' => '035',
+            'Zenith Bank' => '057',
+        ];
+
+        return $bankCodes[$bankName] ?? null;
     }
 
     /**

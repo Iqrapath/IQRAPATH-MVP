@@ -29,13 +29,14 @@ class BankVerificationService
     public function verifyBankAccount(string $accountNumber, string $bankCode): array
     {
         try {
-            $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->paystackSecretKey,
-                'Content-Type' => 'application/json',
-            ])->get("{$this->paystackBaseUrl}/bank/resolve", [
-                'account_number' => $accountNumber,
-                'bank_code' => $bankCode,
-            ]);
+            $response = Http::timeout(10) // 10 second timeout for verification
+                ->withHeaders([
+                    'Authorization' => 'Bearer ' . $this->paystackSecretKey,
+                    'Content-Type' => 'application/json',
+                ])->get("{$this->paystackBaseUrl}/bank/resolve", [
+                    'account_number' => $accountNumber,
+                    'bank_code' => $bankCode,
+                ]);
 
             if (!$response->successful()) {
                 $error = $response->json('message') ?? 'Bank verification failed';
@@ -94,12 +95,13 @@ class BankVerificationService
 
         return Cache::remember($cacheKey, 86400, function () use ($country) {
             try {
-                $response = Http::withHeaders([
-                    'Authorization' => 'Bearer ' . $this->paystackSecretKey,
-                ])->get("{$this->paystackBaseUrl}/bank", [
-                    'country' => $country,
-                    'perPage' => 100,
-                ]);
+                $response = Http::timeout(5) // 5 second timeout
+                    ->withHeaders([
+                        'Authorization' => 'Bearer ' . $this->paystackSecretKey,
+                    ])->get("{$this->paystackBaseUrl}/bank", [
+                        'country' => $country,
+                        'perPage' => 100,
+                    ]);
 
                 if (!$response->successful()) {
                     Log::error('Failed to fetch bank list', [

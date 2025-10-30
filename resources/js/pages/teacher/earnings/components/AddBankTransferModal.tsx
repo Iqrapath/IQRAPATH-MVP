@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { X, Building2, Hash } from 'lucide-react';
+import { router } from '@inertiajs/react';
+import { toast } from 'sonner';
 
 interface AddBankTransferModalProps {
     isOpen: boolean;
@@ -16,36 +18,18 @@ interface BankDetails {
     accountNumber: string;
 }
 
-const nigerianBanks = [
-    'Access Bank',
-    'Citibank Nigeria',
-    'Diamond Bank',
-    'Ecobank Nigeria',
-    'Fidelity Bank',
-    'First Bank of Nigeria',
-    'First City Monument Bank',
-    'Guaranty Trust Bank',
-    'Heritage Bank',
-    'Keystone Bank',
-    'Kuda Bank',
-    'Opay',
-    'PalmPay',
-    'Polaris Bank',
-    'Providus Bank',
-    'Stanbic IBTC Bank',
-    'Standard Chartered Bank',
-    'Sterling Bank',
-    'Union Bank of Nigeria',
-    'United Bank for Africa',
-    'VFD Microfinance Bank',
-    'Wema Bank',
-    'Zenith Bank'
-];
+interface Bank {
+    id: number;
+    name: string;
+    code: string;
+    slug: string | null;
+    country: string;
+}
 
-export default function AddBankTransferModal({ 
-    isOpen, 
-    onClose, 
-    onSuccess 
+export default function AddBankTransferModal({
+    isOpen,
+    onClose,
+    onSuccess
 }: AddBankTransferModalProps) {
     const [formData, setFormData] = useState<BankDetails>({
         accountName: '',
@@ -55,7 +39,40 @@ export default function AddBankTransferModal({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errors, setErrors] = useState<Partial<BankDetails>>({});
     const [showBankSuggestions, setShowBankSuggestions] = useState(false);
-    const [filteredBanks, setFilteredBanks] = useState<string[]>([]);
+    const [banks, setBanks] = useState<Bank[]>([]);
+    const [filteredBanks, setFilteredBanks] = useState<Bank[]>([]);
+    const [isLoadingBanks, setIsLoadingBanks] = useState(false);
+
+    // Fetch banks from API
+    useEffect(() => {
+        if (isOpen && banks.length === 0) {
+            fetchBanks();
+        }
+    }, [isOpen]);
+
+    const fetchBanks = async () => {
+        try {
+            setIsLoadingBanks(true);
+            const response = await fetch('/teacher/banks', {
+                headers: {
+                    'Accept': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch banks');
+            }
+
+            const data = await response.json();
+            console.log('Fetched banks:', data.length, 'banks');
+            setBanks(data);
+        } catch (error) {
+            console.error('Error fetching banks:', error);
+            toast.error('Failed to load banks. Please try again.');
+        } finally {
+            setIsLoadingBanks(false);
+        }
+    };
 
     if (!isOpen) return null;
 
@@ -69,20 +86,50 @@ export default function AddBankTransferModal({
         // Handle bank name search
         if (field === 'bankName') {
             if (value.trim()) {
-                const filtered = nigerianBanks.filter(bank =>
-                    bank.toLowerCase().includes(value.toLowerCase())
+                const filtered = banks.filter(bank =>
+                    bank.name.toLowerCase().includes(value.toLowerCase())
                 );
                 setFilteredBanks(filtered);
                 setShowBankSuggestions(true);
             } else {
-                setShowBankSuggestions(false);
+                // Show all banks when input is empty
+                setFilteredBanks(banks);
+                setShowBankSuggestions(true);
             }
         }
     };
 
-    const handleBankSelect = (bankName: string) => {
-        setFormData(prev => ({ ...prev, bankName }));
+    const handleBankFocus = () => {
+        // Show all banks when field is focused
+        if (banks.length > 0) {
+            if (formData.bankName.trim()) {
+                const filtered = banks.filter(bank =>
+                    bank.name.toLowerCase().includes(formData.bankName.toLowerCase())
+                );
+                setFilteredBanks(filtered);
+            } else {
+                setFilteredBanks(banks);
+            }
+            setShowBankSuggestions(true);
+        }
+    };
+
+    const handleBankSelect = (bank: Bank) => {
+        console.log('Bank selected:', bank.name);
+        setFormData(prev => ({ ...prev, bankName: bank.name }));
         setShowBankSuggestions(false);
+        setFilteredBanks([]);
+        // Clear any error
+        if (errors.bankName) {
+            setErrors(prev => ({ ...prev, bankName: undefined }));
+        }
+    };
+
+    const handleBankBlur = () => {
+        // Delay hiding to allow click on dropdown items
+        setTimeout(() => {
+            setShowBankSuggestions(false);
+        }, 300);
     };
 
     const validateForm = (): boolean => {
@@ -106,23 +153,77 @@ export default function AddBankTransferModal({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         if (!validateForm()) return;
+
+        // Find the selected bank to get its code
+        const selectedBank = banks.find(bank => bank.name === formData.bankName);
+
+        if (!selectedBank) {
+            setErrors(prev => ({ ...prev, bankName: 'Please select a valid bank from the list' }));
+            return;
+        }
 
         setIsSubmitting(true);
         
+        // Show loading toast
+        const loadingToast = toast.loading('Verifying bank account...');
+
         try {
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            
-            // Here you would make the actual API call to save the bank details
-            console.log('Bank details submitted:', formData);
-            
-            onSuccess();
-            onClose();
+            // Prepare data for API
+            const paymentMethodData = {
+                type: 'bank_transfer',
+                name: `${selectedBank.name} - ${formData.accountNumber.slice(-4)}`,
+                bank_code: selectedBank.code,
+                bank_name: selectedBank.name,
+                account_number: formData.accountNumber,
+                account_name: formData.accountName,
+                currency: 'NGN'
+            };
+
+            // Submit using Inertia
+            router.post('/teacher/payment-methods', paymentMethodData, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    toast.dismiss(loadingToast);
+                    toast.success('Bank account added successfully');
+                    handleClose();
+                    onSuccess();
+                },
+                onError: (errors) => {
+                    toast.dismiss(loadingToast);
+                    console.error('Validation errors:', errors);
+
+                    // Map backend errors to form errors
+                    const formErrors: Partial<BankDetails> = {};
+                    if (errors.account_number) {
+                        formErrors.accountNumber = errors.account_number as string;
+                    }
+                    if (errors.bank_code || errors.bank_name) {
+                        formErrors.bankName = (errors.bank_code || errors.bank_name) as string;
+                    }
+                    if (errors.account_name) {
+                        formErrors.accountName = errors.account_name as string;
+                    }
+
+                    setErrors(formErrors);
+
+                    // Show generic error toast if no specific field errors
+                    if (Object.keys(formErrors).length === 0) {
+                        toast.error(errors.error as string || 'Failed to add bank account. Please try again.');
+                    } else {
+                        toast.error('Please check the form for errors');
+                    }
+                },
+                onFinish: () => {
+                    toast.dismiss(loadingToast);
+                    setIsSubmitting(false);
+                }
+            });
         } catch (error) {
+            toast.dismiss(loadingToast);
             console.error('Error saving bank details:', error);
-        } finally {
+            toast.error('An unexpected error occurred. Please try again.');
             setIsSubmitting(false);
         }
     };
@@ -196,7 +297,8 @@ export default function AddBankTransferModal({
                                 onChange={(e) => handleInputChange('bankName', e.target.value)}
                                 placeholder="Select bank"
                                 className="pl-10 pr-10 bg-gray-100 border-gray-200"
-                                onFocus={() => setShowBankSuggestions(true)}
+                                onFocus={handleBankFocus}
+                                onBlur={handleBankBlur}
                             />
                             <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                                 <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -204,23 +306,31 @@ export default function AddBankTransferModal({
                                 </svg>
                             </div>
                         </div>
-                        
+
                         {/* Bank Suggestions Dropdown */}
                         {showBankSuggestions && filteredBanks.length > 0 && (
                             <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                                 {filteredBanks.map((bank) => (
                                     <button
-                                        key={bank}
+                                        key={bank.code}
                                         type="button"
-                                        onClick={() => handleBankSelect(bank)}
+                                        onMouseDown={(e) => {
+                                            e.preventDefault();
+                                            handleBankSelect(bank);
+                                        }}
                                         className="w-full px-4 py-2 text-left hover:bg-gray-50 text-sm"
                                     >
-                                        {bank}
+                                        {bank.name}
                                     </button>
                                 ))}
                             </div>
                         )}
-                        
+
+                        {/* Loading banks indicator */}
+                        {isLoadingBanks && (
+                            <p className="text-gray-500 text-xs mt-1">Loading banks...</p>
+                        )}
+
                         {errors.bankName && (
                             <p className="text-red-500 text-xs mt-1">{errors.bankName}</p>
                         )}

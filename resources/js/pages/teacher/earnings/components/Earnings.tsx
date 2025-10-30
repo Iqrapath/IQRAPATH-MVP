@@ -172,8 +172,8 @@ export default function Earnings() {
                 </CardHeader>
                 <CardContent className="space-y-6">
                     {/* Preferred Currency */}
-                    <div className="flex items-center justify-between">
-                        <div>
+                    <div className="flex items-center">
+                        <div className='mr-8'>
                             <label className="text-sm font-medium text-gray-900">Preferred Currency</label>
                         </div>
                         <Select
@@ -194,13 +194,14 @@ export default function Earnings() {
                     </div>
 
                     {/* Automatic Payouts */}
-                    <div className="flex items-center justify-between">
-                        <div>
+                    <div className="flex items-center">
+                        <div className='mr-8'>
                             <label className="text-sm font-medium text-gray-900">Automatic Payouts</label>
                         </div>
                         <Switch
                             checked={earningsData.automaticPayouts}
                             onCheckedChange={(checked) => setEarningsData(prev => ({ ...prev, automaticPayouts: checked }))}
+                            className="data-[state=checked]:bg-[#338078] data-[state=unchecked]:bg-gray-200"
                         />
                     </div>
 

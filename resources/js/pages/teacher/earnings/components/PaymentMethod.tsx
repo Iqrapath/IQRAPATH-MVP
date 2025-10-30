@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeftRight, Check, Plus, ChevronRight, X, CreditCard } from 'lucide-react';
-import { usePage } from '@inertiajs/react';
+import { usePage, router } from '@inertiajs/react';
+import { toast } from 'sonner';
 import AddWithdrawalModal from './AddWithdrawalModal';
 import AddPayPalModal from './AddPayPalModal';
+import ConfirmationModal from '@/components/ui/confirmation-modal';
 import { PaypalIcon } from '@/components/icons/paypal-icon';
 
 interface PaymentMethod {
@@ -11,28 +13,28 @@ interface PaymentMethod {
     user_id: number;
     type: 'bank_transfer' | 'mobile_money' | 'card' | 'paypal';
     name: string;
-    
+
     // Gateway fields
     gateway: 'stripe' | 'paystack' | 'paypal' | null;
     gateway_token: string | null;
     gateway_customer_id: string | null;
-    
+
     // Card fields
     last_four: string | null;
     card_brand: string | null;
     expiry_month: number | null;
     expiry_year: number | null;
-    
+
     // Bank fields
     bank_name: string | null;
     bank_code: string | null;
     account_name: string | null;
     account_number: string | null;
-    
+
     // Mobile money fields
     phone_number: string | null;
     provider: string | null;
-    
+
     // Status fields
     currency: string;
     is_default: boolean;
@@ -41,27 +43,66 @@ interface PaymentMethod {
     verification_status: 'pending' | 'verified' | 'failed';
     verified_at: string | null;
     verification_notes: string | null;
-    
+
     // Timestamps
     created_at: string;
     updated_at: string;
     deleted_at: string | null;
-    
+
     // Legacy field (for backward compatibility)
     details: Record<string, any> | null;
 }
 
-export default function PaymentMethod() {
+interface PaymentMethodProps {
+    onPaymentMethodsUpdated?: () => void;
+}
+
+export default function PaymentMethod({ onPaymentMethodsUpdated }: PaymentMethodProps) {
     const pageProps = usePage().props as any;
     const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
     const [showAddModal, setShowAddModal] = useState(false);
     const [showAddNewOptions, setShowAddNewOptions] = useState(false);
     const [showPayPalModal, setShowPayPalModal] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [methodToDelete, setMethodToDelete] = useState<number | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
-    // Get payment methods from props
+    // Fetch payment methods from API
+    const fetchPaymentMethods = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const response = await fetch('/teacher/payment-methods', {
+                headers: {
+                    'Accept': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch payment methods');
+            }
+
+            const data = await response.json();
+            console.log('Fetched payment methods:', data);
+            if (data.length > 0) {
+                console.log('First payment method full details:', JSON.stringify(data[0], null, 2));
+            }
+            setPaymentMethods(data);
+        } catch (err) {
+            console.error('Error fetching payment methods:', err);
+            setError('Failed to load payment methods');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Get payment methods from props or fetch from API
     useEffect(() => {
         if (pageProps.paymentMethods) {
             setPaymentMethods(pageProps.paymentMethods);
+        } else {
+            fetchPaymentMethods();
         }
     }, [pageProps.paymentMethods]);
 
@@ -90,9 +131,14 @@ export default function PaymentMethod() {
         setShowPayPalModal(false);
     };
 
-    const handleConfirmPayPal = () => {
-        console.log('PayPal confirmed');
+    const handlePayPalSuccess = () => {
         setShowPayPalModal(false);
+        // Refresh payment methods list
+        fetchPaymentMethods();
+        // Notify parent component to refresh PaymentInfo tab
+        if (onPaymentMethodsUpdated) {
+            onPaymentMethodsUpdated();
+        }
     };
 
     const handleSaveChanges = () => {
@@ -105,13 +151,21 @@ export default function PaymentMethod() {
     };
 
     const handleAddBankTransfer = () => {
-        console.log('Add bank transfer');
-        setShowAddModal(false);
+        // Refresh payment methods after bank transfer is added
+        fetchPaymentMethods();
+        // Notify parent component to refresh PaymentInfo tab
+        if (onPaymentMethodsUpdated) {
+            onPaymentMethodsUpdated();
+        }
     };
 
     const handleAddMobileWallet = () => {
-        console.log('Add mobile wallet');
-        setShowAddModal(false);
+        // Refresh payment methods after mobile wallet is added
+        fetchPaymentMethods();
+        // Notify parent component to refresh PaymentInfo tab
+        if (onPaymentMethodsUpdated) {
+            onPaymentMethodsUpdated();
+        }
     };
 
     const handleChangePaymentMethod = (_methodId: number) => {
@@ -119,9 +173,110 @@ export default function PaymentMethod() {
         setShowAddModal(true);
     };
 
+    const handleRetryVerification = async (methodId: number) => {
+        try {
+            setLoading(true);
+
+            // Get CSRF token from meta tag
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+            const url = `${window.location.origin}/teacher/payment-methods/${methodId}/verify`;
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken || '',
+                },
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                // Success - refresh payment methods
+                await fetchPaymentMethods();
+                toast.success('Bank account verified successfully!');
+            } else {
+                // Failed - show error
+                toast.error(data.message || 'Verification failed. Please try again later.');
+            }
+        } catch (error) {
+            console.error('Error retrying verification:', error);
+            toast.error('An error occurred. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSetDefault = (methodId: number) => {
+        setLoading(true);
+
+        router.patch(`/teacher/payment-methods/${methodId}/set-default`, {}, {
+            preserveScroll: true,
+            onSuccess: () => {
+                fetchPaymentMethods();
+                toast.success('Default payment method updated!');
+                setLoading(false);
+                // Notify parent component to refresh PaymentInfo tab
+                if (onPaymentMethodsUpdated) {
+                    onPaymentMethodsUpdated();
+                }
+            },
+            onError: (errors) => {
+                console.error('Set default errors:', errors);
+                toast.error('Failed to set as default. Please try again.');
+                setLoading(false);
+            },
+            onFinish: () => {
+                setLoading(false);
+            }
+        });
+    };
+
+    const handleDeleteMethod = (methodId: number) => {
+        setMethodToDelete(methodId);
+        setShowDeleteModal(true);
+    };
+
+    const handleConfirmDelete = () => {
+        if (!methodToDelete) return;
+
+        setLoading(true);
+
+        // Use Inertia router for proper routing
+        router.delete(`/teacher/payment-methods/${methodToDelete}`, {
+            preserveScroll: true,
+            onSuccess: () => {
+                fetchPaymentMethods();
+                toast.success('Payment method deleted successfully!');
+                setShowDeleteModal(false);
+                setMethodToDelete(null);
+                setLoading(false);
+                // Notify parent component to refresh PaymentInfo tab
+                if (onPaymentMethodsUpdated) {
+                    onPaymentMethodsUpdated();
+                }
+            },
+            onError: (errors) => {
+                console.error('Delete errors:', errors);
+                toast.error(errors.error || 'Failed to delete payment method.');
+                setLoading(false);
+            },
+            onFinish: () => {
+                setLoading(false);
+            }
+        });
+    };
+
+    const handleCancelDelete = () => {
+        setShowDeleteModal(false);
+        setMethodToDelete(null);
+    };
+
     return (
         <div className="bg-white rounded-2xl p-6 border border-gray-200 relative">
-            
+
 
             {/* Header Description */}
             <p className="text-gray-700 text-sm mb-6">
@@ -136,8 +291,8 @@ export default function PaymentMethod() {
                             <ArrowLeftRight className="h-5 w-5 text-gray-900" />
                             <span className="font-bold text-gray-900">
                                 {defaultPaymentMethod.type === 'bank_transfer' ? 'Bank Account (Direct Withdrawal)' :
-                                 defaultPaymentMethod.type === 'mobile_money' ? 'Mobile Money' :
-                                 defaultPaymentMethod.type === 'paypal' ? 'PayPal' : 'Card Payment'}
+                                    defaultPaymentMethod.type === 'mobile_money' ? 'Mobile Money' :
+                                        defaultPaymentMethod.type === 'paypal' ? 'PayPal' : 'Card Payment'}
                             </span>
                             {/* Verification Status Badge */}
                             {defaultPaymentMethod.is_verified ? (
@@ -145,13 +300,29 @@ export default function PaymentMethod() {
                                     Verified
                                 </span>
                             ) : defaultPaymentMethod.verification_status === 'failed' ? (
-                                <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full font-medium">
-                                    Failed
-                                </span>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full font-medium">
+                                        Failed
+                                    </span>
+                                    <button
+                                        onClick={() => handleRetryVerification(defaultPaymentMethod.id)}
+                                        className="text-xs text-[#338078] hover:underline font-medium"
+                                    >
+                                        Retry
+                                    </button>
+                                </div>
                             ) : (
-                                <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full font-medium">
-                                    Pending
-                                </span>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full font-medium">
+                                        Pending
+                                    </span>
+                                    <button
+                                        onClick={() => handleRetryVerification(defaultPaymentMethod.id)}
+                                        className="text-xs text-[#338078] hover:underline font-medium"
+                                    >
+                                        Retry
+                                    </button>
+                                </div>
                             )}
                         </div>
                         <div className="w-4 h-4 bg-[#338078] rounded-full flex items-center justify-center">
@@ -161,83 +332,129 @@ export default function PaymentMethod() {
                 </div>
             )}
 
-            {/* Bank Details Section */}
-            {defaultPaymentMethod ? (
-                <div className="mb-6">
-                    <div className="flex items-center justify-between mb-4">
-                        {/* Left side - Checkmark and title */}
-                        <div className="flex items-center space-x-3">
-                            <div className="w-4 h-4 bg-[#338078] rounded-full flex items-center justify-center">
-                                <Check className="h-3 w-3 text-white" />
-                            </div>
-                            <h3 className="font-bold text-gray-900 text-sm">
-                                1. {defaultPaymentMethod.type === 'bank_transfer' ? 'Bank Account' :
-                                    defaultPaymentMethod.type === 'mobile_money' ? 'Mobile Money' : 'Card'}
-                            </h3>
-                        </div>
+            {/* All Payment Methods List */}
+            {paymentMethods.length > 0 ? (
+                <div className="mb-6 space-y-3">
+                    <h3 className="font-bold text-gray-900 text-sm mb-3">Your Payment Methods</h3>
 
-                        {/* Right side - Change button */}
-                        <button 
-                            onClick={() => handleChangePaymentMethod(defaultPaymentMethod.id)}
-                            className="text-[#338078] text-sm font-medium hover:underline flex items-center gap-1"
+                    {paymentMethods.map((method, index) => (
+                        <div
+                            key={method.id}
+                            className={`border rounded-xl p-4 ${method.is_default ? 'border-[#338078] bg-[#338078]/5' : 'border-gray-200'}`}
                         >
-                            Change
-                            <ChevronRight className="h-4 w-4" />
-                        </button>
-                    </div>
+                            <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                    {/* Method Type and Status */}
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <span className="font-semibold text-gray-900 text-sm">
+                                            {index + 1}. {method.type === 'bank_transfer' ? 'Bank Account' :
+                                                method.type === 'mobile_money' ? 'Mobile Money' :
+                                                    method.type === 'paypal' ? 'PayPal' : 'Card'}
+                                        </span>
 
-                    {/* Payment Method Information */}
-                    <div>
-                        {defaultPaymentMethod.type === 'bank_transfer' && (
-                            <>
-                                <p className="text-gray-900 font-medium text-base">
-                                    {defaultPaymentMethod.bank_name || 'Bank Name'}
-                                </p>
-                                <p className="text-gray-600 text-sm mt-1">
-                                    {defaultPaymentMethod.account_name || 'Account Holder'} | 
-                                    {defaultPaymentMethod.last_four 
-                                        ? ` ...${defaultPaymentMethod.last_four}` 
-                                        : ` ${defaultPaymentMethod.account_number || 'Account Number'}`}
-                                </p>
-                            </>
-                        )}
-                        
-                        {defaultPaymentMethod.type === 'mobile_money' && (
-                            <>
-                                <p className="text-gray-900 font-medium text-base">
-                                    {defaultPaymentMethod.provider || 'Provider'}
-                                </p>
-                                <p className="text-gray-600 text-sm mt-1">
-                                    {defaultPaymentMethod.phone_number || 'Phone Number'}
-                                </p>
-                            </>
-                        )}
+                                        {method.is_default && (
+                                            <span className="text-xs bg-[#338078] text-white px-2 py-0.5 rounded-full font-medium">
+                                                Default
+                                            </span>
+                                        )}
 
-                        {defaultPaymentMethod.type === 'card' && (
-                            <>
-                                <p className="text-gray-900 font-medium text-base">
-                                    {defaultPaymentMethod.card_brand 
-                                        ? `${defaultPaymentMethod.card_brand.toUpperCase()} ending in ${defaultPaymentMethod.last_four}`
-                                        : defaultPaymentMethod.name}
-                                </p>
-                            </>
-                        )}
+                                        {/* Verification Badge */}
+                                        {method.is_verified ? (
+                                            <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full font-medium">
+                                                Verified
+                                            </span>
+                                        ) : method.verification_status === 'failed' ? (
+                                            <span className="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded-full font-medium">
+                                                Failed
+                                            </span>
+                                        ) : (
+                                            <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full font-medium">
+                                                Pending
+                                            </span>
+                                        )}
+                                    </div>
 
-                        {defaultPaymentMethod.type === 'paypal' && (
-                            <p className="text-gray-900 font-medium text-base">
-                                {defaultPaymentMethod.name}
-                            </p>
-                        )}
-                    </div>
+                                    {/* Method Details */}
+                                    {method.type === 'bank_transfer' && (
+                                        <>
+                                            <p className="text-gray-900 font-medium text-sm">
+                                                {method.bank_name ||
+                                                    (method.details as any)?.bank_name ||
+                                                    'Bank Name'}
+                                            </p>
+                                            <p className="text-gray-600 text-xs mt-1">
+                                                {method.account_name ||
+                                                    (method.details as any)?.account_holder ||
+                                                    'Account Holder'} |
+                                                {method.last_four
+                                                    ? ` ...${method.last_four}`
+                                                    : (method.details as any)?.account_number
+                                                        ? ` ...${(method.details as any).account_number.slice(-4)}`
+                                                        : ` Account Number`}
+                                            </p>
+                                        </>
+                                    )}
+
+                                    {method.type === 'mobile_money' && (
+                                        <>
+                                            <p className="text-gray-900 font-medium text-sm">
+                                                {method.provider || 'Provider'}
+                                            </p>
+                                            <p className="text-gray-600 text-xs mt-1">
+                                                {method.phone_number || 'Phone Number'}
+                                            </p>
+                                        </>
+                                    )}
+
+                                    {method.type === 'paypal' && (
+                                        <p className="text-gray-900 font-medium text-sm">
+                                            {method.name}
+                                        </p>
+                                    )}
+
+                                    {/* Action Buttons */}
+                                    <div className="flex items-center gap-3 mt-3">
+                                        {!method.is_default && method.is_verified && (
+                                            <button
+                                                onClick={() => handleSetDefault(method.id)}
+                                                className="text-xs text-[#338078] hover:underline font-medium"
+                                            >
+                                                Set as Default
+                                            </button>
+                                        )}
+
+                                        {!method.is_verified && (
+                                            <button
+                                                onClick={() => handleRetryVerification(method.id)}
+                                                className="text-xs text-[#338078] hover:underline font-medium"
+                                            >
+                                                Retry Verification
+                                            </button>
+                                        )}
+
+                                        {!method.is_default && (
+                                            <button
+                                                onClick={() => handleDeleteMethod(method.id)}
+                                                className="text-xs text-red-600 hover:underline font-medium"
+                                            >
+                                                Delete
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
                 </div>
             ) : (
-                <div className="mb-6 text-center">
-                    <p className="text-gray-500 text-sm">No payment method selected</p>
+                <div className="mb-6 text-center py-8">
+                    <p className="text-gray-500 text-sm">No payment methods added yet</p>
+                    <p className="text-gray-400 text-xs mt-1">Add your first payment method to receive payouts</p>
                 </div>
             )}
 
             {/* Add New Payment Method */}
-            <div 
+            <div
                 onClick={handleAddPaymentMethod}
                 className="flex items-center space-x-2 text-[#338078] cursor-pointer hover:underline mb-6"
             >
@@ -315,7 +532,20 @@ export default function PaymentMethod() {
             <AddPayPalModal
                 isOpen={showPayPalModal}
                 onClose={handleClosePayPalModal}
-                onConfirm={handleConfirmPayPal}
+                onSuccess={handlePayPalSuccess}
+            />
+
+            {/* Delete Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={showDeleteModal}
+                onClose={handleCancelDelete}
+                onConfirm={handleConfirmDelete}
+                title="Delete Payment Method"
+                message="Are you sure you want to delete this payment method? This action cannot be undone."
+                confirmText="Delete"
+                cancelText="Cancel"
+                variant="danger"
+                isLoading={loading}
             />
         </div>
     );

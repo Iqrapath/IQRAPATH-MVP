@@ -7,6 +7,7 @@ use App\Models\PayoutRequest;
 use App\Models\Transaction;
 use App\Services\FinancialService;
 use App\Services\CurrencyService;
+use App\Services\WalletSyncService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -15,11 +16,16 @@ class FinancialController extends Controller
 {
     protected $financialService;
     protected $currencyService;
+    protected $walletSyncService;
 
-    public function __construct(FinancialService $financialService, CurrencyService $currencyService)
-    {
+    public function __construct(
+        FinancialService $financialService,
+        CurrencyService $currencyService,
+        WalletSyncService $walletSyncService
+    ) {
         $this->financialService = $financialService;
         $this->currencyService = $currencyService;
+        $this->walletSyncService = $walletSyncService;
     }
 
     /**
@@ -57,12 +63,11 @@ class FinancialController extends Controller
         // Get preferred currency from teacher profile or platform default
         $preferredCurrency = $this->currencyService->getTeacherPreferredCurrency($teacher->id);
         
-        // HYBRID APPROACH: Use wallet data as primary source, sync with other tables
-        $this->syncFinancialData($teacher, $teacherWallet);
-        
-        $walletBalance = $teacherWallet->fresh()->balance;
-        $totalEarned = $teacherWallet->fresh()->total_earned;
-        $pendingPayouts = $teacherWallet->fresh()->pending_payouts;
+        // Read current wallet values directly (no sync on page load for performance)
+        // Wallet is synced after transactions via background jobs
+        $walletBalance = $teacherWallet->balance;
+        $totalEarned = $teacherWallet->total_earned;
+        $pendingPayouts = $teacherWallet->pending_payouts;
         
         // Get upcoming earnings from scheduled sessions (only if teacher has rates set)
         $upcomingEarnings = [];
@@ -504,6 +509,103 @@ class FinancialController extends Controller
         return Inertia::render('Teacher/Financial/PayoutRequestDetails', [
             'payoutRequest' => $payoutRequest->load(['processedBy', 'transaction']),
         ]);
+    }
+
+    /**
+     * Manually sync wallet balance from transactions.
+     */
+    public function syncWallet(Request $request)
+    {
+        try {
+            $teacher = Auth::user();
+
+            // Use WalletSyncService for consistent syncing
+            $walletData = $this->walletSyncService->syncTeacherWallet($teacher);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Balance refreshed successfully',
+                'data' => [
+                    'balance' => $walletData['balance'],
+                    'totalEarned' => $walletData['total_earned'],
+                    'pendingPayouts' => $walletData['pending_payouts']
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to sync wallet', [
+                'teacher_id' => Auth::id(),
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to refresh balance. Please try again.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Save earnings settings (preferred currency and automatic payouts).
+     */
+    public function saveSettings(Request $request)
+    {
+        try {
+            // Accept both camelCase and snake_case for flexibility
+            $validated = $request->validate([
+                'preferred_currency' => 'required|string|in:NGN,USD,EUR,GBP',
+                'automatic_payouts' => 'required|boolean'
+            ]);
+
+            $teacher = Auth::user();
+            $teacherWallet = $teacher->teacherWallet;
+
+            if (!$teacherWallet) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Wallet not found'
+                ], 404);
+            }
+
+            // Update wallet settings
+            $withdrawalSettings = $teacherWallet->withdrawal_settings ?? [];
+            $withdrawalSettings['preferred_currency'] = $validated['preferred_currency'];
+
+            $teacherWallet->update([
+                'auto_withdrawal_enabled' => $validated['automatic_payouts'],
+                'withdrawal_settings' => $withdrawalSettings
+            ]);
+
+            // Also update teacher profile if it exists
+            if ($teacher->teacherProfile) {
+                $teacher->teacherProfile->update([
+                    'preferred_currency' => $validated['preferred_currency']
+                ]);
+            }
+
+            \Illuminate\Support\Facades\Log::info('Earnings settings updated', [
+                'teacher_id' => $teacher->id,
+                'preferred_currency' => $validated['preferred_currency'],
+                'automatic_payouts' => $validated['automatic_payouts']
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Settings saved successfully'
+            ]);
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to save earnings settings', [
+                'teacher_id' => Auth::id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to save settings. Please try again.'
+            ], 500);
+        }
     }
 
     /**

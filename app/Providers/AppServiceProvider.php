@@ -52,8 +52,8 @@ class AppServiceProvider extends ServiceProvider
             'App\\Http\\Controllers\\Admin\\User' => \App\Models\User::class,
         ]);
 
-        if (config('app.env') === 'local') {
-            URL::forceScheme('https');
-        }
+        // if (config('app.env') === 'local') {
+        //     URL::forceScheme('https');
+        // }
     }
 }

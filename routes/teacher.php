@@ -103,6 +103,8 @@ Route::middleware(['auth', 'verified', 'role:teacher', 'teacher.verified'])->pre
     Route::get('/earnings/history', [FinancialController::class, 'history'])->name('earnings.history');
     Route::get('/earnings/payouts', [FinancialController::class, 'payouts'])->name('earnings.payouts');
     Route::post('/earnings/request-payout', [FinancialController::class, 'requestPayout'])->name('earnings.request-payout');
+    Route::post('/earnings/settings', [FinancialController::class, 'saveSettings'])->name('earnings.save-settings');
+    Route::post('/earnings/sync-wallet', [FinancialController::class, 'syncWallet'])->name('earnings.sync-wallet');
     
     // Teacher profile routes
     Route::get('/profile', [ProfileController::class, 'index'])->name('profile.index');
@@ -156,4 +158,36 @@ Route::middleware(['auth', 'verified', 'role:teacher', 'teacher.verified'])->pre
     
     // Recommended students API
     Route::get('/recommended-students', [RecommendedStudentsController::class, 'getRecommendedStudents'])->name('recommended-students');
+    
+    // Payment Methods
+    Route::get('/payment-methods', [App\Http\Controllers\Teacher\PaymentMethodController::class, 'index'])->name('payment-methods.index');
+    Route::post('/payment-methods', [App\Http\Controllers\Teacher\PaymentMethodController::class, 'store'])->name('payment-methods.store');
+    Route::patch('/payment-methods/{paymentMethod}', [App\Http\Controllers\Teacher\PaymentMethodController::class, 'update'])->name('payment-methods.update');
+    Route::delete('/payment-methods/{paymentMethod}', [App\Http\Controllers\Teacher\PaymentMethodController::class, 'destroy'])->name('payment-methods.destroy');
+    Route::patch('/payment-methods/{paymentMethod}/set-default', [App\Http\Controllers\Teacher\PaymentMethodController::class, 'setDefault'])->name('payment-methods.set-default');
+    Route::post('/payment-methods/{paymentMethod}/verify', [App\Http\Controllers\Teacher\PaymentMethodController::class, 'verify'])->name('payment-methods.verify');
+    
+    // Banks list for payment methods
+    Route::get('/banks', [App\Http\Controllers\Teacher\PaymentMethodController::class, 'getBanks'])->name('banks');
+    
+    // Debug route to test bank fetching
+    Route::get('/debug-banks', function () {
+        $service = app(\App\Services\BankVerificationService::class);
+        $banks = $service->getBankList('NG');
+        return response()->json([
+            'count' => count($banks),
+            'sample' => array_slice($banks, 0, 5),
+            'all' => $banks
+        ]);
+    })->name('debug.banks');
+    
+    // Debug route to check payment methods
+    Route::get('/debug-payment-methods', function () {
+        $user = auth()->user();
+        $methods = $user->paymentMethods()->latest()->get();
+        return response()->json([
+            'count' => $methods->count(),
+            'methods' => $methods->toArray()
+        ]);
+    })->name('debug.payment-methods');
 }); 

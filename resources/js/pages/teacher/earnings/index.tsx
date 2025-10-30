@@ -8,6 +8,12 @@ import PaymentMethod from './components/PaymentMethod';
 
 export default function TeacherEarnings() {
     const [activeTab, setActiveTab] = useState<'earnings' | 'payment-info' | 'payment-method'>('earnings');
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+    const handlePaymentMethodsUpdated = () => {
+        // Trigger refresh for PaymentInfo component
+        setRefreshTrigger(prev => prev + 1);
+    };
 
     return (
         <TeacherLayout pageTitle="Earnings & Wallet" showRightSidebar={true}>
@@ -27,8 +33,8 @@ export default function TeacherEarnings() {
 
                 {/* Tab Content */}
                 {activeTab === 'earnings' && <Earnings />}
-                {activeTab === 'payment-info' && <PaymentInfo />}
-                {activeTab === 'payment-method' && <PaymentMethod />}
+                {activeTab === 'payment-info' && <PaymentInfo key={refreshTrigger} />}
+                {activeTab === 'payment-method' && <PaymentMethod onPaymentMethodsUpdated={handlePaymentMethodsUpdated} />}
             </div>
         </TeacherLayout>
     );
