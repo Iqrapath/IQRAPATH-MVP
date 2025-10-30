@@ -220,4 +220,42 @@ class Subscription extends Model
         
         return $this->save();
     }
+
+    /**
+     * Toggle auto-renewal setting.
+     *
+     * @param bool $enabled
+     * @return bool
+     */
+    public function toggleAutoRenewal(bool $enabled): bool
+    {
+        if ($this->status !== 'active') {
+            return false;
+        }
+
+        $this->auto_renew = $enabled;
+        $this->next_billing_date = $enabled ? $this->end_date : null;
+        
+        return $this->save();
+    }
+
+    /**
+     * Enable auto-renewal.
+     *
+     * @return bool
+     */
+    public function enableAutoRenewal(): bool
+    {
+        return $this->toggleAutoRenewal(true);
+    }
+
+    /**
+     * Disable auto-renewal.
+     *
+     * @return bool
+     */
+    public function disableAutoRenewal(): bool
+    {
+        return $this->toggleAutoRenewal(false);
+    }
 } 

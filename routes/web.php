@@ -92,9 +92,4 @@ require __DIR__.'/sessions.php';
 require __DIR__.'/payments.php';
 require __DIR__.'/feedback.php';
 require __DIR__.'/notifications.php';
-
-// Webhook routes (no CSRF protection needed)
-Route::prefix('webhooks')->group(function () {
-    Route::post('/paystack/transfer', [App\Http\Controllers\WebhookController::class, 'handlePayStackWebhook']);
-    Route::post('/paypal/payout', [App\Http\Controllers\WebhookController::class, 'handlePayPalWebhook']);
-});
+// Webhooks are loaded separately in bootstrap/app.php with api middleware

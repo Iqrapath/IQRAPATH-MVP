@@ -13,8 +13,10 @@ return new class extends Migration
     {
         Schema::create('payment_gateway_logs', function (Blueprint $table) {
             $table->id();
+            $table->string('idempotency_key')->unique()->nullable(); // Prevents duplicate payments
             $table->string('gateway')->index(); // paystack, flutterwave, etc.
             $table->string('reference')->unique();
+            $table->string('transaction_reference')->nullable()->index(); // Links to internal transactions
             $table->string('transaction_id')->nullable(); // Gateway transaction ID
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->foreignId('subscription_transaction_id')->nullable()->constrained('subscription_transactions')->nullOnDelete();

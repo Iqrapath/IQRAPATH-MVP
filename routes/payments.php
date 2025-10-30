@@ -28,6 +28,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/payment/verify/{gateway}/{reference}', [App\Http\Controllers\PaymentController::class, 'verifyPayment'])
         ->name('payment.verify');
     
+    // Payment callback (after payment on gateway)
+    Route::get('/payment/callback', [App\Http\Controllers\PaymentController::class, 'callback'])
+        ->name('payment.callback');
+    
     // Wallet management
     Route::get('/wallet', [App\Http\Controllers\PaymentController::class, 'managePaymentMethods'])
         ->name('wallet.manage');

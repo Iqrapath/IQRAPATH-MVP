@@ -117,6 +117,7 @@ Route::middleware(['auth', 'verified', 'role:student'])->prefix('student')->name
     Route::get('/plans', [App\Http\Controllers\Student\PlanController::class, 'index'])->name('plans.index');
     Route::get('/plans/{plan}', [App\Http\Controllers\Student\PlanController::class, 'show'])->name('plans.show');
     Route::post('/plans/enroll', [App\Http\Controllers\Student\PlanController::class, 'enroll'])->name('plans.enroll');
+    Route::patch('/subscriptions/{subscriptionUuid}/auto-renewal', [App\Http\Controllers\Student\PlanController::class, 'updateAutoRenewal'])->name('subscriptions.auto-renewal');
 });
 
 // Teacher routes

@@ -264,4 +264,66 @@ class PlanController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Update auto-renewal setting for a subscription.
+     */
+    public function updateAutoRenewal(Request $request, string $subscriptionUuid): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            
+            // Validate request
+            $request->validate([
+                'auto_renew' => 'required|boolean',
+            ]);
+            
+            // Find subscription
+            $subscription = \App\Models\Subscription::where('subscription_uuid', $subscriptionUuid)
+                ->where('user_id', $user->id)
+                ->firstOrFail();
+            
+            // Check if subscription is active
+            if ($subscription->status !== 'active') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Only active subscriptions can have auto-renewal updated.',
+                ], 422);
+            }
+            
+            // Toggle auto-renewal
+            $subscription->toggleAutoRenewal($request->auto_renew);
+            
+            // Send notification
+            $this->notificationService->createNotification([
+                'title' => 'Auto-Renewal Updated',
+                'body' => $request->auto_renew 
+                    ? 'Auto-renewal has been enabled for your subscription.' 
+                    : 'Auto-renewal has been disabled for your subscription.',
+                'type' => 'subscription',
+                'sender_type' => 'system',
+                'user_id' => $user->id,
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Auto-renewal setting updated successfully.',
+                'data' => [
+                    'subscription' => $subscription->load('plan'),
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Auto-renewal update failed', [
+                'user_id' => $request->user()->id,
+                'subscription_uuid' => $subscriptionUuid,
+                'error' => $e->getMessage()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while updating auto-renewal. Please try again.',
+            ], 500);
+        }
+    }
 }

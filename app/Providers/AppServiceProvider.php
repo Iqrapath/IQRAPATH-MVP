@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\ServiceProvider;
 use Inertia\Inertia;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Support\Facades\URL;
 use App\Models\StudentProfile;
 use App\Models\TeacherEarning;
 use App\Models\TeacherWallet;
@@ -50,5 +51,9 @@ class AppServiceProvider extends ServiceProvider
             'App\\Http\\Controllers\\User' => \App\Models\User::class,
             'App\\Http\\Controllers\\Admin\\User' => \App\Models\User::class,
         ]);
+
+        if (config('app.env') === 'local') {
+            URL::forceScheme('https');
+        }
     }
 }

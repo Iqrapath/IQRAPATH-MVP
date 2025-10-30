@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -15,6 +16,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->decimal('balance', 10, 2)->default(0);
+            $table->string('currency', 3)->default('NGN'); // Multi-currency support
+            $table->decimal('locked_balance', 10, 2)->default(0); // For pending transactions
             $table->decimal('total_earned', 10, 2)->default(0);
             $table->decimal('total_withdrawn', 10, 2)->default(0);
             $table->decimal('pending_payouts', 10, 2)->default(0);
@@ -28,7 +31,16 @@ return new class extends Migration
             
             // Ensure one wallet per teacher
             $table->unique('user_id');
+            
+            // Index for low balance queries
+            $table->index('balance', 'idx_teacher_wallet_balance');
         });
+        
+        // Add check constraints (MySQL 8.0.16+)
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement('ALTER TABLE teacher_wallets ADD CONSTRAINT chk_teacher_balance CHECK (balance >= 0)');
+            DB::statement('ALTER TABLE teacher_wallets ADD CONSTRAINT chk_teacher_locked_balance CHECK (locked_balance >= 0)');
+        }
     }
 
     /**

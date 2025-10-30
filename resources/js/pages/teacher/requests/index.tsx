@@ -91,8 +91,8 @@ export default function TeacherRequests({
         timePreference: 'Select time',
         budget: {
             currency: 'NGN',
-            min: 100,
-            max: 10000
+            min: 0,
+            max: 999999 // Set to very high number to show all by default
         },
         language: 'Choose Language'
     });
@@ -257,8 +257,8 @@ export default function TeacherRequests({
                     language={filters.language}
                     onChangeLanguage={(language) => setFilters(prev => ({ ...prev, language: language || 'Choose Language' }))}
                     budgetRanges={budgetRanges || []}
-                    maxPrice={filters.budget.max}
-                    onChangeMaxPrice={(maxPrice) => setFilters(prev => ({ ...prev, budget: { ...prev.budget, max: maxPrice || 10000 } }))}
+                    maxPrice={filters.budget.max === 999999 ? undefined : filters.budget.max}
+                    onChangeMaxPrice={(maxPrice) => setFilters(prev => ({ ...prev, budget: { ...prev.budget, max: maxPrice || 999999 } }))}
                     timePreferences={timePreferences || []}
                     timePreference={filters.timePreference}
                     onChangeTimePreference={(timePreference) => setFilters(prev => ({ ...prev, timePreference: timePreference || 'Select time' }))}
@@ -267,6 +267,69 @@ export default function TeacherRequests({
                     minRating={0}
                     onToggleFourPlus={() => console.log('Toggle 4+ stars')}
                 />
+
+                {/* Status Tabs */}
+                <Card>
+                    <CardContent className="p-6">
+                        <div className="flex items-center justify-between gap-4 flex-wrap">
+                            {/* Status Filter Tabs */}
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <Button
+                                    variant={filterStatus === 'all' ? 'default' : 'outline'}
+                                    size="sm"
+                                    onClick={() => setFilterStatus('all')}
+                                    className={filterStatus === 'all' ? 'bg-teal-600 hover:bg-teal-700' : ''}
+                                >
+                                    All ({stats.total})
+                                </Button>
+                                <Button
+                                    variant={filterStatus === 'pending' ? 'default' : 'outline'}
+                                    size="sm"
+                                    onClick={() => setFilterStatus('pending')}
+                                    className={filterStatus === 'pending' ? 'bg-yellow-600 hover:bg-yellow-700' : ''}
+                                >
+                                    Pending ({stats.pending})
+                                </Button>
+                                <Button
+                                    variant={filterStatus === 'accepted' ? 'default' : 'outline'}
+                                    size="sm"
+                                    onClick={() => setFilterStatus('accepted')}
+                                    className={filterStatus === 'accepted' ? 'bg-green-600 hover:bg-green-700' : ''}
+                                >
+                                    Accepted ({stats.accepted})
+                                </Button>
+                                <Button
+                                    variant={filterStatus === 'declined' ? 'default' : 'outline'}
+                                    size="sm"
+                                    onClick={() => setFilterStatus('declined')}
+                                    className={filterStatus === 'declined' ? 'bg-red-600 hover:bg-red-700' : ''}
+                                >
+                                    Declined ({stats.declined})
+                                </Button>
+                            </div>
+
+                            {/* Sort Controls */}
+                            <div className="flex items-center gap-2">
+                                <select
+                                    value={sortBy}
+                                    onChange={(e) => setSortBy(e.target.value as 'date' | 'priority' | 'student')}
+                                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                >
+                                    <option value="date">Sort by Date</option>
+                                    <option value="priority">Sort by Priority</option>
+                                    <option value="student">Sort by Student</option>
+                                </select>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                                >
+                                    {sortOrder === 'asc' ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />}
+                                </Button>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
 
                 {/* Requests List */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

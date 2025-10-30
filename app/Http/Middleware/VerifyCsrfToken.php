@@ -12,6 +12,7 @@ class VerifyCsrfToken extends Middleware
      * @var array<int, string>
      */
     protected $except = [
-
+        'webhooks/*', // All webhook routes
+        'api/payment/webhook/*', // Legacy payment webhook routes
     ];
 } 

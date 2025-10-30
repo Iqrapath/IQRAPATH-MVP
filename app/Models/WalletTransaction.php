@@ -16,10 +16,19 @@ class WalletTransaction extends Model
      * @var array<int, string>
      */
     protected $fillable = [
+        'idempotency_key',
         'wallet_id',
         'transaction_type',
         'amount',
+        'currency',
+        'original_amount',
+        'original_currency',
+        'exchange_rate',
+        'balance_before',
+        'balance_after',
         'description',
+        'reference_type',
+        'reference_id',
         'status',
         'transaction_date',
         'metadata',
@@ -32,6 +41,10 @@ class WalletTransaction extends Model
      */
     protected $casts = [
         'amount' => 'decimal:2',
+        'original_amount' => 'decimal:2',
+        'exchange_rate' => 'decimal:4',
+        'balance_before' => 'decimal:2',
+        'balance_after' => 'decimal:2',
         'transaction_date' => 'datetime',
         'metadata' => 'array',
     ];

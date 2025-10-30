@@ -148,6 +148,29 @@ class PaymentController extends Controller
     }
 
     /**
+     * Handle payment callback (redirect after payment).
+     */
+    public function callback(Request $request)
+    {
+        $reference = $request->query('reference');
+        $trxref = $request->query('trxref');
+        
+        // Paystack uses 'reference' or 'trxref'
+        $paymentReference = $reference ?? $trxref;
+        
+        if (!$paymentReference) {
+            return redirect()->route('subscriptions.my')
+                ->with('error', 'Payment reference not found.');
+        }
+        
+        // Redirect to verification route
+        return redirect()->route('payment.verify', [
+            'gateway' => 'paystack',
+            'reference' => $paymentReference
+        ]);
+    }
+
+    /**
      * Handle payment webhook.
      */
     public function webhook(Request $request, string $gateway)

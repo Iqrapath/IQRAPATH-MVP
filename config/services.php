@@ -56,7 +56,7 @@ return [
 
     'paystack' => [
         'public_key' => env('PAYSTACK_PUBLIC_KEY'),
-        'secret_key' => env('PAYSTACK_SECRET_KEY'),
+        'secret_key' => env('PAYSTACK_SECRET_KEY'), // Also used for webhook signature verification
         'merchant_email' => env('PAYSTACK_MERCHANT_EMAIL'),
         'base_url' => env('PAYSTACK_BASE_URL', 'https://api.paystack.co'),
     ],

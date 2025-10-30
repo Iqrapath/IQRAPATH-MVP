@@ -1,25 +1,54 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeftRight, Check, Plus, ChevronRight, X, CreditCard } from 'lucide-react';
 import { usePage } from '@inertiajs/react';
 import AddWithdrawalModal from './AddWithdrawalModal';
 import AddPayPalModal from './AddPayPalModal';
 import { PaypalIcon } from '@/components/icons/paypal-icon';
+
 interface PaymentMethod {
     id: number;
-    type: 'bank_transfer' | 'mobile_money' | 'card';
+    user_id: number;
+    type: 'bank_transfer' | 'mobile_money' | 'card' | 'paypal';
     name: string;
-    details: {
-        bank_name?: string;
-        account_holder?: string;
-        account_number?: string;
-        provider?: string;
-        phone_number?: string;
-    };
+    
+    // Gateway fields
+    gateway: 'stripe' | 'paystack' | 'paypal' | null;
+    gateway_token: string | null;
+    gateway_customer_id: string | null;
+    
+    // Card fields
+    last_four: string | null;
+    card_brand: string | null;
+    expiry_month: number | null;
+    expiry_year: number | null;
+    
+    // Bank fields
+    bank_name: string | null;
+    bank_code: string | null;
+    account_name: string | null;
+    account_number: string | null;
+    
+    // Mobile money fields
+    phone_number: string | null;
+    provider: string | null;
+    
+    // Status fields
+    currency: string;
     is_default: boolean;
     is_active: boolean;
+    is_verified: boolean;
+    verification_status: 'pending' | 'verified' | 'failed';
+    verified_at: string | null;
+    verification_notes: string | null;
+    
+    // Timestamps
     created_at: string;
     updated_at: string;
+    deleted_at: string | null;
+    
+    // Legacy field (for backward compatibility)
+    details: Record<string, any> | null;
 }
 
 export default function PaymentMethod() {
@@ -38,7 +67,6 @@ export default function PaymentMethod() {
 
     // Get the default payment method
     const defaultPaymentMethod = paymentMethods.find(method => method.is_default && method.is_active);
-    const hasPaymentMethods = paymentMethods.length > 0;
 
     const handleAddPaymentMethod = () => {
         setShowAddNewOptions(true);
@@ -86,7 +114,8 @@ export default function PaymentMethod() {
         setShowAddModal(false);
     };
 
-    const handleChangePaymentMethod = (methodId: number) => {
+    const handleChangePaymentMethod = (_methodId: number) => {
+        // TODO: Load specific method details for editing
         setShowAddModal(true);
     };
 
@@ -107,8 +136,23 @@ export default function PaymentMethod() {
                             <ArrowLeftRight className="h-5 w-5 text-gray-900" />
                             <span className="font-bold text-gray-900">
                                 {defaultPaymentMethod.type === 'bank_transfer' ? 'Bank Account (Direct Withdrawal)' :
-                                 defaultPaymentMethod.type === 'mobile_money' ? 'Mobile Money' : 'Card Payment'}
+                                 defaultPaymentMethod.type === 'mobile_money' ? 'Mobile Money' :
+                                 defaultPaymentMethod.type === 'paypal' ? 'PayPal' : 'Card Payment'}
                             </span>
+                            {/* Verification Status Badge */}
+                            {defaultPaymentMethod.is_verified ? (
+                                <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full font-medium">
+                                    Verified
+                                </span>
+                            ) : defaultPaymentMethod.verification_status === 'failed' ? (
+                                <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full font-medium">
+                                    Failed
+                                </span>
+                            ) : (
+                                <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full font-medium">
+                                    Pending
+                                </span>
+                            )}
                         </div>
                         <div className="w-4 h-4 bg-[#338078] rounded-full flex items-center justify-center">
                             <div className="w-2 h-2 bg-white rounded-full"></div>
@@ -142,15 +186,18 @@ export default function PaymentMethod() {
                         </button>
                     </div>
 
-                    {/* Bank Information */}
+                    {/* Payment Method Information */}
                     <div>
                         {defaultPaymentMethod.type === 'bank_transfer' && (
                             <>
                                 <p className="text-gray-900 font-medium text-base">
-                                    {defaultPaymentMethod.details.bank_name || 'Bank Name'}
+                                    {defaultPaymentMethod.bank_name || 'Bank Name'}
                                 </p>
                                 <p className="text-gray-600 text-sm mt-1">
-                                    {defaultPaymentMethod.details.account_holder || 'Account Holder'} | {defaultPaymentMethod.details.account_number || 'Account Number'}
+                                    {defaultPaymentMethod.account_name || 'Account Holder'} | 
+                                    {defaultPaymentMethod.last_four 
+                                        ? ` ...${defaultPaymentMethod.last_four}` 
+                                        : ` ${defaultPaymentMethod.account_number || 'Account Number'}`}
                                 </p>
                             </>
                         )}
@@ -158,15 +205,25 @@ export default function PaymentMethod() {
                         {defaultPaymentMethod.type === 'mobile_money' && (
                             <>
                                 <p className="text-gray-900 font-medium text-base">
-                                    {defaultPaymentMethod.details.provider || 'Provider'}
+                                    {defaultPaymentMethod.provider || 'Provider'}
                                 </p>
                                 <p className="text-gray-600 text-sm mt-1">
-                                    {defaultPaymentMethod.details.phone_number || 'Phone Number'}
+                                    {defaultPaymentMethod.phone_number || 'Phone Number'}
                                 </p>
                             </>
                         )}
 
                         {defaultPaymentMethod.type === 'card' && (
+                            <>
+                                <p className="text-gray-900 font-medium text-base">
+                                    {defaultPaymentMethod.card_brand 
+                                        ? `${defaultPaymentMethod.card_brand.toUpperCase()} ending in ${defaultPaymentMethod.last_four}`
+                                        : defaultPaymentMethod.name}
+                                </p>
+                            </>
+                        )}
+
+                        {defaultPaymentMethod.type === 'paypal' && (
                             <p className="text-gray-900 font-medium text-base">
                                 {defaultPaymentMethod.name}
                             </p>
