@@ -609,6 +609,132 @@ class FinancialController extends Controller
     }
 
     /**
+     * Request a payout
+     */
+    public function requestPayout(Request $request)
+    {
+        try {
+            $teacher = Auth::user();
+            $teacherWallet = $teacher->teacherWallet;
+
+            if (!$teacherWallet) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Wallet not found'
+                ], 404);
+            }
+
+            // Get teacher's preferred currency from teacher profile
+            $teacherProfile = $teacher->teacherProfile;
+            $preferredCurrency = $teacherProfile ? $teacherProfile->preferred_currency : 'NGN';
+
+            // Set minimum withdrawal based on currency
+            $minWithdrawal = $preferredCurrency === 'NGN' ? 5000 : 10;
+            
+            // Format minimum for display
+            $minFormatted = $preferredCurrency === 'NGN' 
+                ? 'NGN ' . number_format($minWithdrawal)
+                : $preferredCurrency . ' ' . number_format($minWithdrawal);
+
+            // Log the request for debugging
+            \Illuminate\Support\Facades\Log::info('Payout request received', [
+                'teacher_id' => $teacher->id,
+                'amount' => $request->input('amount'),
+                'preferred_currency' => $preferredCurrency,
+                'min_withdrawal' => $minWithdrawal
+            ]);
+
+            $validated = $request->validate([
+                'amount' => "required|numeric|min:{$minWithdrawal}",
+                'payment_method_id' => 'required|exists:payment_methods,id',
+                'notes' => 'nullable|string|max:500'
+            ], [
+                'amount.min' => "Minimum withdrawal amount is {$minFormatted}",
+                'amount.required' => 'Please enter a withdrawal amount',
+                'amount.numeric' => 'Amount must be a valid number',
+                'payment_method_id.required' => 'Please select a payment method',
+                'payment_method_id.exists' => 'Invalid payment method selected'
+            ]);
+
+            // Check if amount is available
+            if ($validated['amount'] > $teacherWallet->balance) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Insufficient balance'
+                ], 400);
+            }
+
+            // Verify payment method belongs to teacher and is verified
+            $paymentMethod = \App\Models\PaymentMethod::where('id', $validated['payment_method_id'])
+                ->where('user_id', $teacher->id)
+                ->where('is_active', true)
+                ->first();
+
+            if (!$paymentMethod) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid payment method'
+                ], 400);
+            }
+
+            if (!$paymentMethod->is_verified) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Payment method must be verified before withdrawal'
+                ], 400);
+            }
+
+            // Create payout request
+            \Illuminate\Support\Facades\DB::transaction(function () use ($validated, $teacher, $teacherWallet, $paymentMethod) {
+                $payout = PayoutRequest::create([
+                    'teacher_id' => $teacher->id,
+                    'amount' => $validated['amount'],
+                    'payment_method' => $paymentMethod->type,
+                    'payment_details' => [
+                        'payment_method_id' => $paymentMethod->id,
+                        'bank_name' => $paymentMethod->bank_name,
+                        'account_name' => $paymentMethod->account_name,
+                        'last_four' => $paymentMethod->last_four,
+                    ],
+                    'status' => 'pending',
+                    'request_date' => now(),
+                    'notes' => $validated['notes']
+                ]);
+
+                // Update wallet pending payouts
+                $teacherWallet->increment('pending_payouts', $validated['amount']);
+
+                \Illuminate\Support\Facades\Log::info('Payout request created', [
+                    'teacher_id' => $teacher->id,
+                    'payout_id' => $payout->id,
+                    'amount' => $validated['amount'],
+                    'payment_method_id' => $paymentMethod->id
+                ]);
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Payout request submitted successfully'
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // Let Laravel handle validation errors automatically
+            throw $e;
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Payout request failed', [
+                'teacher_id' => Auth::id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to request payout. Please try again.'
+            ], 500);
+        }
+    }
+
+    /**
      * Sync financial data between different tables to ensure consistency.
      * Only uses real transaction data from the database.
      */
@@ -657,4 +783,74 @@ class FinancialController extends Controller
         );
     }
 
-} 
+    /**
+     * Email activity report to teacher
+     */
+    public function emailActivityReport(Request $request)
+    {
+        try {
+            $teacher = Auth::user();
+            
+            if (!$teacher->email) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No email address found'
+                ], 400);
+            }
+
+            // Get recent transactions (last 30 days)
+            $recentTransactions = \App\Models\UnifiedTransaction::where('wallet_type', 'App\\Models\\TeacherWallet')
+                ->where('wallet_id', $teacher->teacherWallet->id)
+                ->where('created_at', '>=', now()->subDays(30))
+                ->orderBy('created_at', 'desc')
+                ->limit(20)
+                ->get()
+                ->map(function ($transaction) {
+                    return [
+                        'date' => $transaction->created_at->format('M d, Y'),
+                        'description' => $transaction->description ?? ucfirst(str_replace('_', ' ', $transaction->transaction_type)),
+                        'amount' => $transaction->amount,
+                        'type' => $transaction->transaction_type,
+                        'status' => $transaction->status,
+                    ];
+                });
+
+            // Get earnings summary
+            $teacherWallet = $teacher->teacherWallet;
+            $summary = [
+                'total_earned' => $teacherWallet->total_earned ?? 0,
+                'current_balance' => $teacherWallet->balance ?? 0,
+                'pending_payouts' => $teacherWallet->pending_payouts ?? 0,
+                'total_withdrawn' => $teacherWallet->total_withdrawn ?? 0,
+            ];
+
+            // Send email
+            \Illuminate\Support\Facades\Mail::to($teacher->email)->send(
+                new \App\Mail\Teacher\EarningsActivityReport($teacher, $summary, $recentTransactions->toArray())
+            );
+
+            \Illuminate\Support\Facades\Log::info('Activity report emailed', [
+                'teacher_id' => $teacher->id,
+                'email' => $teacher->email,
+                'transactions_count' => $recentTransactions->count()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Activity report sent to your email'
+            ]);
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to email activity report', [
+                'teacher_id' => Auth::id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send activity report. Please try again.'
+            ], 500);
+        }
+    }
+}

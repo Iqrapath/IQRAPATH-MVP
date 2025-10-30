@@ -105,6 +105,7 @@ Route::middleware(['auth', 'verified', 'role:teacher', 'teacher.verified'])->pre
     Route::post('/earnings/request-payout', [FinancialController::class, 'requestPayout'])->name('earnings.request-payout');
     Route::post('/earnings/settings', [FinancialController::class, 'saveSettings'])->name('earnings.save-settings');
     Route::post('/earnings/sync-wallet', [FinancialController::class, 'syncWallet'])->name('earnings.sync-wallet');
+    Route::post('/earnings/email-report', [FinancialController::class, 'emailActivityReport'])->name('earnings.email-report');
     
     // Teacher profile routes
     Route::get('/profile', [ProfileController::class, 'index'])->name('profile.index');

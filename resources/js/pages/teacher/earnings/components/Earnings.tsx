@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { FileText, ExternalLink } from 'lucide-react';
 import axios from 'axios';
 import { route } from 'ziggy-js';
+import WithdrawFundsModal from './WithdrawFundsModal';
 
 interface EarningsData {
     totalEarnings: number;
@@ -71,6 +72,8 @@ export default function Earnings() {
 
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+    const [emailingReport, setEmailingReport] = useState(false);
 
     // Update data when props change
     useEffect(() => {
@@ -115,6 +118,74 @@ export default function Earnings() {
             });
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleWithdrawClick = () => {
+        if (walletBalance <= 0) {
+            toast.error('Insufficient balance', {
+                description: 'You need funds in your wallet to withdraw',
+            });
+            return;
+        }
+        
+        const paymentMethods = pageProps.paymentMethods || [];
+        if (!paymentMethods || paymentMethods.length === 0) {
+            toast.error('No payment methods', {
+                description: 'Please add a payment method first in the Payment Methods tab',
+            });
+            return;
+        }
+        
+        const verifiedMethods = paymentMethods.filter((m: any) => m.is_verified);
+        if (verifiedMethods.length === 0) {
+            toast.error('No verified payment methods', {
+                description: 'Please verify a payment method before withdrawing',
+            });
+            return;
+        }
+        
+        setShowWithdrawModal(true);
+    };
+
+    const handleWithdrawSuccess = () => {
+        setShowWithdrawModal(false);
+        // Refresh the page to show updated balance
+        window.location.reload();
+    };
+
+    const handleEmailReport = async () => {
+        setEmailingReport(true);
+        try {
+            const response = await axios.post('/teacher/earnings/email-report', {}, {
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            console.log('Email report response:', response.data);
+
+            if (response.data.success) {
+                toast.success('Activity report sent!', {
+                    description: 'Check your email for the earnings activity report',
+                    duration: 4000,
+                });
+            } else {
+                toast.error('Failed to send report', {
+                    description: response.data.message || 'Unknown error occurred',
+                    duration: 5000,
+                });
+            }
+        } catch (error: any) {
+            console.error('Error sending activity report:', error);
+            const errorMessage = error.response?.data?.message || 'Failed to send activity report';
+            toast.error('Failed to send report', {
+                description: errorMessage,
+                duration: 5000,
+            });
+        } finally {
+            setEmailingReport(false);
         }
     };
 
@@ -250,7 +321,10 @@ export default function Earnings() {
 
                     {/* Withdraw Fund Button */}
                     <div className="flex justify-center">
-                        <Button className="bg-[#338078] hover:bg-[#338078]/80 text-white px-8 py-3 rounded-full">
+                        <Button 
+                            onClick={handleWithdrawClick}
+                            className="bg-[#338078] hover:bg-[#338078]/80 text-white px-8 py-3 rounded-full"
+                        >
                             Withdraw Fund
                         </Button>
                     </div>
@@ -302,10 +376,14 @@ export default function Earnings() {
                 <CardHeader>
                     <div className="flex justify-between items-center">
                         <CardTitle className="text-lg text-gray-900">Recent Transaction</CardTitle>
-                        <a href="#" className="text-[#338078] text-sm font-medium hover:underline flex items-center gap-1">
+                        <button 
+                            onClick={handleEmailReport}
+                            className="text-[#338078] text-sm font-medium hover:underline flex items-center gap-1"
+                            disabled={emailingReport}
+                        >
                             <FileText className="h-4 w-4" />
-                            Email Activity report
-                        </a>
+                            {emailingReport ? 'Sending...' : 'Email Activity report'}
+                        </button>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -343,6 +421,16 @@ export default function Earnings() {
                     )}
                 </CardContent>
             </Card>
+
+            {/* Withdraw Funds Modal */}
+            <WithdrawFundsModal
+                isOpen={showWithdrawModal}
+                onClose={() => setShowWithdrawModal(false)}
+                onSuccess={handleWithdrawSuccess}
+                availableBalance={walletBalance}
+                preferredCurrency={earningsData.preferredCurrency}
+                paymentMethods={pageProps.paymentMethods || []}
+            />
         </div>
     );
 }
