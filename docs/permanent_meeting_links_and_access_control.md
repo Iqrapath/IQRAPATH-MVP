@@ -299,5 +299,5 @@ Potential improvements:
 
 **Last Updated**: October 23, 2025  
 **Version**: 1.0  
-**Author**: IQRAPATH Development Team
+**Author**: IQRAQUEST Development Team
 

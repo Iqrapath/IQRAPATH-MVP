@@ -1,16 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import TeacherLayout from '@/layouts/teacher/teacher-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Calendar, FileText, Download, ChevronDown, Filter } from 'lucide-react';
+import { Calendar, FileText, Filter, DollarSign, TrendingDown } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { route } from 'ziggy-js';
+import { toast } from 'sonner';
+import axios from 'axios';
 
 interface Transaction {
     id: number;
@@ -55,6 +56,7 @@ export default function TransactionHistory() {
     const transactionTypes = pageProps.transactionTypes || [];
     const statuses = pageProps.statuses || [];
 
+    const [activeTab, setActiveTab] = useState<'earnings' | 'withdrawals'>('earnings');
     const [localFilters, setLocalFilters] = useState<Filters>(filters);
     const [dateFrom, setDateFrom] = useState<Date | undefined>(() => {
         try {
@@ -72,6 +74,7 @@ export default function TransactionHistory() {
     });
     const [showFilters, setShowFilters] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [emailingReport, setEmailingReport] = useState(false);
 
     const formatCurrency = (amount: number, currency: string): string => {
         const currencyMap = {
@@ -80,9 +83,9 @@ export default function TransactionHistory() {
             'EUR': { locale: 'en-EU', currency: 'EUR' },
             'GBP': { locale: 'en-GB', currency: 'GBP' },
         };
-        
+
         const config = currencyMap[currency as keyof typeof currencyMap] || currencyMap['NGN'];
-        
+
         return new Intl.NumberFormat(config.locale, {
             style: 'currency',
             currency: config.currency,
@@ -122,7 +125,7 @@ export default function TransactionHistory() {
     const applyFilters = () => {
         setIsLoading(true);
         const params = { ...localFilters };
-        
+
         if (dateFrom) {
             params.date_from = format(dateFrom, 'yyyy-MM-dd');
         }
@@ -157,6 +160,34 @@ export default function TransactionHistory() {
             replace: true,
             onFinish: () => setIsLoading(false),
         });
+    };
+
+    const handleEmailReport = async () => {
+        setEmailingReport(true);
+        try {
+            const response = await axios.post('/teacher/earnings/email-report', {}, {
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.data.success) {
+                toast.success('Activity report sent!', {
+                    description: 'Check your email for the earnings activity report',
+                    duration: 4000,
+                });
+            }
+        } catch (error: any) {
+            console.error('Error sending email report:', error);
+            const errorMessage = error.response?.data?.message || 'Failed to send email report';
+            toast.error('Email failed', {
+                description: errorMessage,
+                duration: 5000,
+            });
+        } finally {
+            setEmailingReport(false);
+        }
     };
 
     return (
@@ -307,121 +338,190 @@ export default function TransactionHistory() {
                     )}
                 </Card>
 
-                {/* Transaction History Card */}
-                <Card className="bg-white rounded-lg border border-gray-200 shadow-sm">
-                    <CardHeader>
-                        <div className="flex justify-between items-center">
-                            <CardTitle className="text-lg text-gray-900">Transaction History</CardTitle>
-                            <a 
-                                href="#" 
-                                className="text-[#338078] text-sm font-medium hover:underline flex items-center gap-1"
-                            >
-                                <FileText className="h-4 w-4" />
-                                Email Activity report
-                            </a>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        {isLoading ? (
-                            <div className="text-center text-gray-500 py-12">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#338078] mx-auto mb-4"></div>
-                                <p>Loading transactions...</p>
+                {/* Tab Navigation */}
+                <div className="flex space-x-1 bg-white p-1 rounded-lg border border-gray-200 w-fit">
+                    <Button
+                        variant={activeTab === 'earnings' ? 'default' : 'ghost'}
+                        onClick={() => setActiveTab('earnings')}
+                        className={`px-6 py-2 rounded-md transition-all duration-200 flex items-center gap-2 ${activeTab === 'earnings'
+                            ? 'bg-[#338078] text-white shadow-sm'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                            }`}
+                    >
+                        <DollarSign className="h-4 w-4" />
+                        Teaching Earnings
+                    </Button>
+                    <Button
+                        variant={activeTab === 'withdrawals' ? 'default' : 'ghost'}
+                        onClick={() => setActiveTab('withdrawals')}
+                        className={`px-6 py-2 rounded-md transition-all duration-200 flex items-center gap-2 ${activeTab === 'withdrawals'
+                            ? 'bg-[#338078] text-white shadow-sm'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                            }`}
+                    >
+                        <TrendingDown className="h-4 w-4" />
+                        Withdrawals
+                    </Button>
+                </div>
+
+                {/* Teaching Earnings Table */}
+                {activeTab === 'earnings' && (
+                    <Card className="bg-white rounded-lg border border-gray-200 shadow-sm">
+                        <CardHeader>
+                            <div className="flex justify-between items-center">
+                                <CardTitle className="text-lg text-gray-900">Teaching Earnings History</CardTitle>
+                                <button
+                                    onClick={handleEmailReport}
+                                    className="text-[#338078] text-sm font-medium hover:underline flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={emailingReport}
+                                >
+                                    <FileText className="h-4 w-4" />
+                                    {emailingReport ? 'Sending...' : 'Email Activity report'}
+                                </button>
                             </div>
-                        ) : transactions?.data && transactions.data.length > 0 ? (
-                            <div className="space-y-4">
-                                {/* Transaction Table */}
-                                <div className="overflow-x-auto">
-                                    <table className="w-full">
-                                        <thead>
-                                            <tr className="border-b border-gray-200">
-                                                <th className="text-left py-3 px-4 font-medium text-gray-600">Date</th>
-                                                <th className="text-left py-3 px-4 font-medium text-gray-600">Subject</th>
-                                                <th className="text-left py-3 px-4 font-medium text-gray-600">Name</th>
-                                                <th className="text-left py-3 px-4 font-medium text-gray-600">Amount</th>
-                                                <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {transactions.data.map((transaction) => (
-                                                <tr key={transaction.id} className="border-b border-gray-100 hover:bg-gray-50">
-                                                    <td className="py-3 px-4 text-gray-900">
-                                                        {(() => {
-                                                            try {
-                                                                return format(new Date(transaction.transaction_date), 'd MMM');
-                                                            } catch {
-                                                                return 'Invalid Date';
-                                                            }
-                                                        })()}
-                                                    </td>
-                                                    <td className="py-3 px-4 text-gray-900">
-                                                        {transaction.session?.subject?.name || getTransactionTypeLabel(transaction.transaction_type)}
-                                                    </td>
-                                                    <td className="py-3 px-4 text-gray-900">
-                                                        {transaction.session?.student?.name || 'System'}
-                                                    </td>
-                                                    <td className="py-3 px-4 text-gray-900 font-semibold">
-                                                        {formatCurrency(transaction.amount, transaction.currency)}
-                                                    </td>
-                                                    <td className="py-3 px-4">
-                                                        {getStatusBadge(transaction.status)}
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                        </CardHeader>
+                        <CardContent>
+                            {isLoading ? (
+                                <div className="text-center text-gray-500 py-12">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#338078] mx-auto mb-4"></div>
+                                    <p>Loading earnings...</p>
                                 </div>
-
-                                {/* Pagination */}
-                                {transactions?.last_page && transactions.last_page > 1 && (
-                                    <div className="flex justify-center items-center gap-2 pt-4">
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => handlePageChange((transactions?.current_page || 1) - 1)}
-                                            disabled={(transactions?.current_page || 1) === 1}
-                                        >
-                                            Previous
-                                        </Button>
-                                        
-                                        <div className="flex items-center gap-1">
-                                            {Array.from({ length: Math.min(5, transactions?.last_page || 1) }, (_, i) => {
-                                                const page = i + 1;
-                                                const isActive = (transactions?.current_page || 1) === page;
-                                                return (
-                                                    <Button
-                                                        key={page}
-                                                        variant={isActive ? "default" : "outline"}
-                                                        size="sm"
-                                                        onClick={() => handlePageChange(page)}
-                                                        className={isActive ? "bg-[#338078] hover:bg-[#338078]/80" : ""}
-                                                    >
-                                                        {page}
-                                                    </Button>
-                                                );
-                                            })}
-                                        </div>
-
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => handlePageChange((transactions?.current_page || 1) + 1)}
-                                            disabled={(transactions?.current_page || 1) === (transactions?.last_page || 1)}
-                                        >
-                                            Next
-                                        </Button>
+                            ) : transactions?.data && transactions.data.filter(t => t.transaction_type === 'earning' && t.session).length > 0 ? (
+                                <div className="space-y-4">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full">
+                                            <thead>
+                                                <tr className="border-b border-gray-200">
+                                                    <th className="text-left py-3 px-4 font-medium text-gray-600">Date</th>
+                                                    <th className="text-left py-3 px-4 font-medium text-gray-600">Subject</th>
+                                                    <th className="text-left py-3 px-4 font-medium text-gray-600">Student Name</th>
+                                                    <th className="text-left py-3 px-4 font-medium text-gray-600">Amount</th>
+                                                    <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {transactions.data
+                                                    .filter(t => t.transaction_type === 'earning' && t.session)
+                                                    .map((transaction) => (
+                                                        <tr key={transaction.id} className="border-b border-gray-100 hover:bg-gray-50">
+                                                            <td className="py-3 px-4 text-gray-900">
+                                                                {(() => {
+                                                                    try {
+                                                                        return format(new Date(transaction.transaction_date), 'd MMM yyyy');
+                                                                    } catch {
+                                                                        return 'Invalid Date';
+                                                                    }
+                                                                })()}
+                                                            </td>
+                                                            <td className="py-3 px-4 text-gray-900">
+                                                                {transaction.session?.subject?.name || 'General Class'}
+                                                            </td>
+                                                            <td className="py-3 px-4 text-gray-900">
+                                                                {transaction.session?.student?.name || 'Unknown'}
+                                                            </td>
+                                                            <td className="py-3 px-4 text-green-600 font-semibold">
+                                                                +{formatCurrency(transaction.amount, transaction.currency)}
+                                                            </td>
+                                                            <td className="py-3 px-4">
+                                                                {getStatusBadge(transaction.status)}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                            </tbody>
+                                        </table>
                                     </div>
-                                )}
+                                </div>
+                            ) : (
+                                <div className="text-center text-gray-500 py-12">
+                                    <DollarSign className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                                    <p className="text-lg font-medium">No teaching earnings found</p>
+                                    <p className="text-sm">Your earnings from teaching sessions will appear here</p>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* Withdrawals Table */}
+                {activeTab === 'withdrawals' && (
+                    <Card className="bg-white rounded-lg border border-gray-200 shadow-sm">
+                        <CardHeader>
+                            <div className="flex justify-between items-center">
+                                <CardTitle className="text-lg text-gray-900">Withdrawal History</CardTitle>
+                                <button
+                                    onClick={handleEmailReport}
+                                    className="text-[#338078] text-sm font-medium hover:underline flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={emailingReport}
+                                >
+                                    <FileText className="h-4 w-4" />
+                                    {emailingReport ? 'Sending...' : 'Email Activity report'}
+                                </button>
                             </div>
-                        ) : (
-                            <div className="text-center text-gray-500 py-12">
-                                <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                                <p className="text-lg font-medium">No transactions found</p>
-                                <p className="text-sm">Try adjusting your filters or check back later</p>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                        </CardHeader>
+                        <CardContent>
+                            {isLoading ? (
+                                <div className="text-center text-gray-500 py-12">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#338078] mx-auto mb-4"></div>
+                                    <p>Loading withdrawals...</p>
+                                </div>
+                            ) : transactions?.data && transactions.data.filter(t => t.transaction_type === 'withdrawal').length > 0 ? (
+                                <div className="space-y-4">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full">
+                                            <thead>
+                                                <tr className="border-b border-gray-200">
+                                                    <th className="text-left py-3 px-4 font-medium text-gray-600">Date</th>
+                                                    <th className="text-left py-3 px-4 font-medium text-gray-600">Description</th>
+                                                    <th className="text-left py-3 px-4 font-medium text-gray-600">Transaction ID</th>
+                                                    <th className="text-left py-3 px-4 font-medium text-gray-600">Amount</th>
+                                                    <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {transactions.data
+                                                    .filter(t => t.transaction_type === 'withdrawal')
+                                                    .map((transaction) => (
+                                                        <tr key={transaction.id} className="border-b border-gray-100 hover:bg-gray-50">
+                                                            <td className="py-3 px-4 text-gray-900">
+                                                                {(() => {
+                                                                    try {
+                                                                        return format(new Date(transaction.transaction_date), 'd MMM yyyy');
+                                                                    } catch {
+                                                                        return 'Invalid Date';
+                                                                    }
+                                                                })()}
+                                                            </td>
+                                                            <td className="py-3 px-4 text-gray-900">
+                                                                {transaction.description || 'Withdrawal'}
+                                                            </td>
+                                                            <td className="py-3 px-4 text-gray-500 text-sm font-mono">
+                                                                {transaction.transaction_uuid?.substring(0, 12)}...
+                                                            </td>
+                                                            <td className="py-3 px-4 text-red-600 font-semibold">
+                                                                -{formatCurrency(transaction.amount, transaction.currency)}
+                                                            </td>
+                                                            <td className="py-3 px-4">
+                                                                {getStatusBadge(transaction.status)}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-center text-gray-500 py-12">
+                                    <TrendingDown className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                                    <p className="text-lg font-medium">No withdrawals found</p>
+                                    <p className="text-sm">Your approved withdrawal requests will appear here</p>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
             </div>
         </TeacherLayout>
     );
 }
+
+

@@ -1,283 +1,94 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Http\Controllers\Webhooks;
 
 use App\Http\Controllers\Controller;
-use App\Models\WebhookEvent;
-use App\Models\PaymentIntent;
-use App\Models\PayoutRequest;
-use Illuminate\Http\JsonResponse;
+use App\Services\PayPalPayoutService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 
 class PayPalWebhookController extends Controller
 {
+    public function __construct(
+        private PayPalPayoutService $payPalService
+    ) {}
+
     /**
-     * Handle PayPal webhook events.
+     * Handle PayPal payout webhook
      */
-    public function handle(Request $request): JsonResponse
+    public function handlePayoutWebhook(Request $request): JsonResponse
     {
-        $payload = $request->all();
-        $eventId = $payload['id'] ?? null;
-        $eventType = $payload['event_type'] ?? null;
-
-        if (!$eventId || !$eventType) {
-            return response()->json(['error' => 'Invalid payload'], 400);
-        }
-
-        // Check if event already processed (idempotency)
-        if (WebhookEvent::isProcessed($eventId, 'paypal')) {
-            Log::info('PayPal webhook already processed', ['event_id' => $eventId]);
-            return response()->json(['status' => 'already_processed'], 200);
-        }
-
-        // Store webhook event
-        $webhookEvent = WebhookEvent::create([
-            'event_id' => $eventId,
-            'gateway' => 'paypal',
-            'type' => $eventType,
-            'payload' => $payload,
-            'status' => 'pending',
-        ]);
-
         try {
-            $webhookEvent->markAsProcessing();
+            // Verify webhook signature
+            if (!$this->verifySignature($request)) {
+                Log::warning('PayPal webhook signature verification failed', [
+                    'ip' => $request->ip(),
+                ]);
+                
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid signature'
+                ], 401);
+            }
 
-            // Route to appropriate handler
-            $this->routeEvent($eventType, $payload);
+            $webhookData = $request->all();
+            
+            Log::info('PayPal webhook received', [
+                'event_type' => $webhookData['event_type'] ?? 'unknown',
+                'id' => $webhookData['id'] ?? 'unknown',
+            ]);
 
-            $webhookEvent->markAsProcessed();
+            // Process the webhook
+            $result = $this->payPalService->handleWebhook($webhookData);
 
-            return response()->json(['status' => 'success'], 200);
+            if ($result['success']) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Webhook processed successfully'
+                ], 200);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => $result['message'] ?? 'Webhook processing failed'
+                ], 400);
+            }
 
         } catch (\Exception $e) {
-            $webhookEvent->markAsFailed($e->getMessage());
-            
-            Log::error('PayPal webhook processing failed', [
-                'event_id' => $eventId,
-                'event_type' => $eventType,
+            Log::error('PayPal webhook processing error', [
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
-            return response()->json(['error' => 'Processing failed'], 500);
+            return response()->json([
+                'success' => false,
+                'message' => 'Internal server error'
+            ], 500);
         }
     }
 
     /**
-     * Route event to appropriate handler.
+     * Verify PayPal webhook signature
      */
-    private function routeEvent(string $eventType, array $payload): void
+    private function verifySignature(Request $request): bool
     {
-        match ($eventType) {
-            'PAYMENT.CAPTURE.COMPLETED' => $this->handlePaymentCaptureCompleted($payload),
-            'PAYMENT.CAPTURE.DENIED' => $this->handlePaymentCaptureDenied($payload),
-            'PAYMENT.CAPTURE.REFUNDED' => $this->handlePaymentCaptureRefunded($payload),
-            'BILLING.SUBSCRIPTION.CREATED' => $this->handleSubscriptionCreated($payload),
-            'BILLING.SUBSCRIPTION.CANCELLED' => $this->handleSubscriptionCancelled($payload),
-            'BILLING.SUBSCRIPTION.SUSPENDED' => $this->handleSubscriptionSuspended($payload),
-            'BILLING.SUBSCRIPTION.EXPIRED' => $this->handleSubscriptionExpired($payload),
-            'PAYOUT-ITEM.SUCCEEDED' => $this->handlePayoutSucceeded($payload),
-            'PAYOUT-ITEM.FAILED' => $this->handlePayoutFailed($payload),
-            'PAYOUT-ITEM.BLOCKED' => $this->handlePayoutBlocked($payload),
-            default => Log::info('Unhandled PayPal event type', ['type' => $eventType]),
-        };
-    }
+        $headers = [
+            'paypal-auth-algo' => $request->header('paypal-auth-algo'),
+            'paypal-cert-url' => $request->header('paypal-cert-url'),
+            'paypal-transmission-id' => $request->header('paypal-transmission-id'),
+            'paypal-transmission-sig' => $request->header('paypal-transmission-sig'),
+            'paypal-transmission-time' => $request->header('paypal-transmission-time'),
+        ];
 
-    /**
-     * Handle PAYMENT.CAPTURE.COMPLETED event.
-     */
-    private function handlePaymentCaptureCompleted(array $payload): void
-    {
-        $resource = $payload['resource'] ?? [];
-        $captureId = $resource['id'] ?? null;
-
-        if (!$captureId) {
-            return;
+        // Check if all required headers are present
+        foreach ($headers as $key => $value) {
+            if (empty($value)) {
+                Log::warning('PayPal webhook missing header: ' . $key);
+                return false;
+            }
         }
 
-        $paymentIntent = PaymentIntent::where('gateway_intent_id', $captureId)->first();
-
-        if ($paymentIntent) {
-            DB::transaction(function () use ($paymentIntent) {
-                $paymentIntent->markAsSucceeded();
-                
-                // Update related records
-                if ($paymentIntent->reference_type === 'subscription') {
-                    $subscription = \App\Models\Subscription::find($paymentIntent->reference_id);
-                    if ($subscription && $subscription->status === 'pending') {
-                        $subscription->update(['status' => 'active']);
-                    }
-                }
-            });
-
-            Log::info('PayPal payment capture completed', [
-                'payment_intent_id' => $paymentIntent->id,
-                'capture_id' => $captureId,
-            ]);
-        }
-    }
-
-    /**
-     * Handle PAYMENT.CAPTURE.DENIED event.
-     */
-    private function handlePaymentCaptureDenied(array $payload): void
-    {
-        $resource = $payload['resource'] ?? [];
-        $captureId = $resource['id'] ?? null;
-
-        if (!$captureId) {
-            return;
-        }
-
-        $paymentIntent = PaymentIntent::where('gateway_intent_id', $captureId)->first();
-
-        if ($paymentIntent) {
-            $paymentIntent->markAsFailed(
-                'payment_denied',
-                'Payment capture was denied'
-            );
-
-            Log::warning('PayPal payment capture denied', [
-                'payment_intent_id' => $paymentIntent->id,
-                'capture_id' => $captureId,
-            ]);
-        }
-    }
-
-    /**
-     * Handle PAYMENT.CAPTURE.REFUNDED event.
-     */
-    private function handlePaymentCaptureRefunded(array $payload): void
-    {
-        $resource = $payload['resource'] ?? [];
-        $captureId = $resource['id'] ?? null;
-
-        Log::info('PayPal payment refunded', [
-            'capture_id' => $captureId,
-            'amount' => $resource['amount'] ?? null,
-        ]);
-    }
-
-    /**
-     * Handle BILLING.SUBSCRIPTION.CREATED event.
-     */
-    private function handleSubscriptionCreated(array $payload): void
-    {
-        $resource = $payload['resource'] ?? [];
-        
-        Log::info('PayPal subscription created', [
-            'subscription_id' => $resource['id'] ?? null,
-            'status' => $resource['status'] ?? null,
-        ]);
-    }
-
-    /**
-     * Handle BILLING.SUBSCRIPTION.CANCELLED event.
-     */
-    private function handleSubscriptionCancelled(array $payload): void
-    {
-        $resource = $payload['resource'] ?? [];
-        
-        Log::info('PayPal subscription cancelled', [
-            'subscription_id' => $resource['id'] ?? null,
-        ]);
-    }
-
-    /**
-     * Handle BILLING.SUBSCRIPTION.SUSPENDED event.
-     */
-    private function handleSubscriptionSuspended(array $payload): void
-    {
-        $resource = $payload['resource'] ?? [];
-        
-        Log::info('PayPal subscription suspended', [
-            'subscription_id' => $resource['id'] ?? null,
-        ]);
-    }
-
-    /**
-     * Handle BILLING.SUBSCRIPTION.EXPIRED event.
-     */
-    private function handleSubscriptionExpired(array $payload): void
-    {
-        $resource = $payload['resource'] ?? [];
-        
-        Log::info('PayPal subscription expired', [
-            'subscription_id' => $resource['id'] ?? null,
-        ]);
-    }
-
-    /**
-     * Handle PAYOUT-ITEM.SUCCEEDED event.
-     */
-    private function handlePayoutSucceeded(array $payload): void
-    {
-        $resource = $payload['resource'] ?? [];
-        $payoutItemId = $resource['payout_item_id'] ?? null;
-
-        if (!$payoutItemId) {
-            return;
-        }
-
-        $payoutRequest = PayoutRequest::where('gateway_reference', $payoutItemId)->first();
-
-        if ($payoutRequest) {
-            $payoutRequest->update([
-                'status' => 'completed',
-                'processed_at' => now(),
-                'gateway_response' => $resource,
-            ]);
-
-            Log::info('PayPal payout succeeded', [
-                'payout_request_id' => $payoutRequest->id,
-                'payout_item_id' => $payoutItemId,
-            ]);
-        }
-    }
-
-    /**
-     * Handle PAYOUT-ITEM.FAILED event.
-     */
-    private function handlePayoutFailed(array $payload): void
-    {
-        $resource = $payload['resource'] ?? [];
-        $payoutItemId = $resource['payout_item_id'] ?? null;
-
-        if (!$payoutItemId) {
-            return;
-        }
-
-        $payoutRequest = PayoutRequest::where('gateway_reference', $payoutItemId)->first();
-
-        if ($payoutRequest) {
-            $payoutRequest->update([
-                'status' => 'failed',
-                'failed_at' => now(),
-                'failure_reason' => $resource['errors'][0]['message'] ?? 'Payout failed',
-                'gateway_response' => $resource,
-            ]);
-
-            Log::warning('PayPal payout failed', [
-                'payout_request_id' => $payoutRequest->id,
-                'payout_item_id' => $payoutItemId,
-            ]);
-        }
-    }
-
-    /**
-     * Handle PAYOUT-ITEM.BLOCKED event.
-     */
-    private function handlePayoutBlocked(array $payload): void
-    {
-        $resource = $payload['resource'] ?? [];
-        $payoutItemId = $resource['payout_item_id'] ?? null;
-
-        Log::warning('PayPal payout blocked', [
-            'payout_item_id' => $payoutItemId,
-            'reason' => $resource['errors'][0]['message'] ?? 'Unknown',
-        ]);
+        return $this->payPalService->verifyWebhookSignature($headers, $request->getContent());
     }
 }

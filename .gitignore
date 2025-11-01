@@ -32,3 +32,17 @@ yarn-error.log
 
 # Kiro IDE
 .kiro/
+.kiro.json
+.kiroignore
+*.kiro
+
+# Test files
+test-*.php
+*-test.php
+test*.php
+fetch-*.php
+email-preview.html
+*.test.js
+*.test.ts
+*.spec.js
+*.spec.ts

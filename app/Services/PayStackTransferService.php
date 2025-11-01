@@ -28,12 +28,21 @@ class PayStackTransferService
     public function initializeBankTransfer(PayoutRequest $payoutRequest): array
     {
         try {
-            $paymentDetails = json_decode($payoutRequest->payment_details, true);
+            $paymentDetails = is_string($payoutRequest->payment_details) 
+                ? json_decode($payoutRequest->payment_details, true) 
+                : $payoutRequest->payment_details;
             
             // Validate required bank details
             if (!$this->validateBankDetails($paymentDetails)) {
                 throw new \Exception('Invalid bank details for transfer');
             }
+
+            Log::info('Starting PayStack transfer', [
+                'payout_request_id' => $payoutRequest->id,
+                'amount' => $payoutRequest->amount,
+                'bank_name' => $paymentDetails['bank_name'],
+                'account_number' => $paymentDetails['account_number'],
+            ]);
 
             // Create transfer recipient first
             $recipient = $this->createTransferRecipient($paymentDetails);
@@ -42,23 +51,53 @@ class PayStackTransferService
                 throw new \Exception($recipient['message']);
             }
 
+            Log::info('PayStack recipient created', [
+                'recipient_code' => $recipient['data']['recipient_code'],
+                'account_name' => $recipient['data']['details']['account_name'] ?? 'N/A',
+            ]);
+
             // Initialize transfer
             $transferData = [
                 'source' => 'balance',
-                'amount' => $payoutRequest->amount * 100, // Convert to kobo
+                'amount' => (int)($payoutRequest->amount * 100), // Convert to kobo (integer)
                 'recipient' => $recipient['data']['recipient_code'],
                 'reason' => 'Teacher withdrawal - ' . $payoutRequest->teacher->name,
                 'reference' => 'WITHDRAWAL_' . $payoutRequest->id . '_' . time(),
             ];
 
-            $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->secretKey,
-                'Content-Type' => 'application/json',
-            ])->post($this->baseUrl . '/transfer', $transferData);
+            Log::info('Initiating PayStack transfer', [
+                'transfer_data' => $transferData,
+                'api_url' => $this->baseUrl . '/transfer',
+            ]);
+
+            $response = Http::timeout(30)
+                ->retry(3, 100)
+                ->withHeaders([
+                    'Authorization' => 'Bearer ' . $this->secretKey,
+                    'Content-Type' => 'application/json',
+                ])->post($this->baseUrl . '/transfer', $transferData);
 
             $responseData = $response->json();
 
+            Log::info('PayStack transfer response', [
+                'status_code' => $response->status(),
+                'response_data' => $responseData,
+            ]);
+
             if ($response->successful() && $responseData['status']) {
+                // In TEST mode, transfers need to be finalized with OTP
+                // For now, we'll mark as processing and finalize automatically
+                if (config('app.env') !== 'production') {
+                    // Auto-finalize test transfers
+                    $finalizeResult = $this->finalizeTransfer($responseData['data']['transfer_code']);
+                    
+                    if ($finalizeResult['success']) {
+                        Log::info('Test transfer auto-finalized', [
+                            'transfer_code' => $responseData['data']['transfer_code'],
+                        ]);
+                    }
+                }
+
                 // Update payout request with PayStack details
                 $payoutRequest->update([
                     'external_reference' => $responseData['data']['reference'],
@@ -67,10 +106,25 @@ class PayStackTransferService
                     'processed_at' => now(),
                 ]);
 
-                Log::info('PayStack transfer initialized', [
+                // Log to payment_gateway_logs table
+                \App\Models\PaymentGatewayLog::create([
+                    'user_id' => $payoutRequest->teacher_id,
+                    'gateway' => 'paystack',
+                    'reference' => $responseData['data']['reference'],
+                    'transaction_reference' => $payoutRequest->request_uuid,
+                    'transaction_id' => $responseData['data']['transfer_code'],
+                    'amount' => $payoutRequest->amount,
+                    'currency' => 'NGN',
+                    'status' => 'success',
+                    'request_data' => $transferData,
+                    'response_data' => $responseData,
+                ]);
+
+                Log::info('PayStack transfer initialized successfully', [
                     'payout_request_id' => $payoutRequest->id,
                     'transfer_code' => $responseData['data']['transfer_code'],
                     'amount' => $payoutRequest->amount,
+                    'status' => $responseData['data']['status'],
                 ]);
 
                 return [
@@ -81,6 +135,19 @@ class PayStackTransferService
                     'message' => 'Transfer initialized successfully'
                 ];
             } else {
+                // Log failed attempt
+                \App\Models\PaymentGatewayLog::create([
+                    'user_id' => $payoutRequest->teacher_id,
+                    'gateway' => 'paystack',
+                    'reference' => 'FAILED-' . $payoutRequest->request_uuid . '-' . time(),
+                    'transaction_reference' => $payoutRequest->request_uuid,
+                    'amount' => $payoutRequest->amount,
+                    'currency' => 'NGN',
+                    'status' => 'failed',
+                    'request_data' => $transferData,
+                    'response_data' => $responseData,
+                ]);
+                
                 throw new \Exception($responseData['message'] ?? 'Failed to initialize transfer');
             }
 
@@ -88,12 +155,153 @@ class PayStackTransferService
             Log::error('PayStack transfer initialization failed', [
                 'payout_request_id' => $payoutRequest->id,
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            // Check if error is due to account restrictions
+            $isAccountRestriction = $this->isAccountRestrictionError($e->getMessage());
+            
+            if ($isAccountRestriction) {
+                // Mark for manual processing
+                $payoutRequest->update([
+                    'status' => 'requires_manual_processing',
+                    'notes' => 'PayStack transfers disabled. Requires manual bank transfer. Error: ' . $e->getMessage(),
+                ]);
+                
+                Log::warning('Payout marked for manual processing', [
+                    'payout_request_id' => $payoutRequest->id,
+                    'reason' => 'PayStack account restriction',
+                ]);
+
+                // Notify all admins
+                $this->notifyAdminsOfRestriction($payoutRequest, $e->getMessage());
+            }
+
+            // Log failed attempt to payment_gateway_logs
+            \App\Models\PaymentGatewayLog::create([
+                'user_id' => $payoutRequest->teacher_id,
+                'gateway' => 'paystack',
+                'reference' => 'ERROR-' . $payoutRequest->request_uuid . '-' . time(),
+                'transaction_reference' => $payoutRequest->request_uuid,
+                'amount' => $payoutRequest->amount,
+                'currency' => 'NGN',
+                'status' => 'failed',
+                'request_data' => [
+                    'payout_request_id' => $payoutRequest->id,
+                    'amount' => $payoutRequest->amount,
+                    'payment_details' => $payoutRequest->payment_details,
+                    'error' => $e->getMessage(),
+                    'requires_manual_processing' => $isAccountRestriction,
+                ],
+                'response_data' => null,
             ]);
 
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
-                'message' => 'Failed to initialize PayStack transfer'
+                'message' => 'Failed to initialize PayStack transfer',
+                'requires_manual_processing' => $isAccountRestriction,
+            ];
+        }
+    }
+
+    /**
+     * Check if error is due to account restrictions
+     */
+    private function isAccountRestrictionError(string $errorMessage): bool
+    {
+        $restrictionKeywords = [
+            'cannot initiate third party payouts',
+            'transfers not enabled',
+            'account not verified',
+            'business verification required',
+            'settlement account required',
+            'insufficient permissions',
+        ];
+
+        $errorLower = strtolower($errorMessage);
+        
+        foreach ($restrictionKeywords as $keyword) {
+            if (stripos($errorLower, $keyword) !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Notify all admins about PayStack account restriction
+     */
+    private function notifyAdminsOfRestriction(PayoutRequest $payoutRequest, string $errorMessage): void
+    {
+        try {
+            // Get all admin and super-admin users
+            $admins = \App\Models\User::whereIn('role', ['admin', 'super-admin'])->get();
+            
+            foreach ($admins as $admin) {
+                $admin->notify(new \App\Notifications\PayStackAccountRestrictionNotification(
+                    $payoutRequest,
+                    $errorMessage
+                ));
+            }
+            
+            Log::info('Admin notifications sent for PayStack restriction', [
+                'payout_request_id' => $payoutRequest->id,
+                'admins_notified' => $admins->count(),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to send admin notifications', [
+                'payout_request_id' => $payoutRequest->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Finalize a transfer (for test mode)
+     * In test mode, PayStack requires OTP finalization
+     */
+    private function finalizeTransfer(string $transferCode): array
+    {
+        try {
+            // Use test OTP for finalization
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $this->secretKey,
+                'Content-Type' => 'application/json',
+            ])->post($this->baseUrl . '/transfer/finalize_transfer', [
+                'transfer_code' => $transferCode,
+                'otp' => '123456', // Test OTP for test mode
+            ]);
+
+            $responseData = $response->json();
+
+            if ($response->successful() && $responseData['status']) {
+                return [
+                    'success' => true,
+                    'message' => 'Transfer finalized successfully'
+                ];
+            } else {
+                Log::warning('Transfer finalization failed', [
+                    'transfer_code' => $transferCode,
+                    'response' => $responseData,
+                ]);
+                
+                return [
+                    'success' => false,
+                    'message' => $responseData['message'] ?? 'Finalization failed'
+                ];
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Transfer finalization error', [
+                'transfer_code' => $transferCode,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'message' => $e->getMessage()
             ];
         }
     }
@@ -104,20 +312,34 @@ class PayStackTransferService
     private function createTransferRecipient(array $bankDetails): array
     {
         try {
+            $bankCode = $this->getBankCode($bankDetails['bank_name']);
+            
             $recipientData = [
                 'type' => 'nuban',
                 'name' => $bankDetails['account_name'],
                 'account_number' => $bankDetails['account_number'],
-                'bank_code' => $this->getBankCode($bankDetails['bank_name']),
+                'bank_code' => $bankCode,
                 'currency' => 'NGN',
             ];
 
-            $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->secretKey,
-                'Content-Type' => 'application/json',
-            ])->post($this->baseUrl . '/transferrecipient', $recipientData);
+            Log::info('Creating PayStack transfer recipient', [
+                'recipient_data' => $recipientData,
+                'api_url' => $this->baseUrl . '/transferrecipient',
+            ]);
+
+            $response = Http::timeout(30)
+                ->retry(3, 100)
+                ->withHeaders([
+                    'Authorization' => 'Bearer ' . $this->secretKey,
+                    'Content-Type' => 'application/json',
+                ])->post($this->baseUrl . '/transferrecipient', $recipientData);
 
             $responseData = $response->json();
+
+            Log::info('PayStack recipient creation response', [
+                'status_code' => $response->status(),
+                'response_data' => $responseData,
+            ]);
 
             if ($response->successful() && $responseData['status']) {
                 return [
@@ -125,6 +347,11 @@ class PayStackTransferService
                     'data' => $responseData['data']
                 ];
             } else {
+                Log::error('PayStack recipient creation failed', [
+                    'recipient_data' => $recipientData,
+                    'response' => $responseData,
+                ]);
+                
                 return [
                     'success' => false,
                     'message' => $responseData['message'] ?? 'Failed to create transfer recipient'
@@ -132,6 +359,11 @@ class PayStackTransferService
             }
 
         } catch (\Exception $e) {
+            Log::error('PayStack recipient creation exception', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
             return [
                 'success' => false,
                 'message' => $e->getMessage()
@@ -141,10 +373,30 @@ class PayStackTransferService
 
     /**
      * Get PayStack bank code from bank name
+     * Fetches from PayStack API and caches for 24 hours
      */
     private function getBankCode(string $bankName): string
     {
-        $bankCodes = [
+        // Try to get from cache first
+        $banks = \Cache::remember('paystack_banks', 86400, function () {
+            $result = $this->getSupportedBanks();
+            return $result['success'] ? $result['banks'] : [];
+        });
+
+        // Search for bank by name (case-insensitive, partial match)
+        foreach ($banks as $bank) {
+            if (stripos($bank['name'], $bankName) !== false || stripos($bankName, $bank['name']) !== false) {
+                Log::info('Bank code found', [
+                    'search_name' => $bankName,
+                    'found_name' => $bank['name'],
+                    'code' => $bank['code'],
+                ]);
+                return $bank['code'];
+            }
+        }
+
+        // Fallback to static list if API fails
+        $staticBankCodes = [
             'Access Bank' => '044',
             'Citibank' => '023',
             'Diamond Bank' => '063',
@@ -152,27 +404,60 @@ class PayStackTransferService
             'Fidelity Bank' => '070',
             'First Bank' => '011',
             'First City Monument Bank' => '214',
+            'FCMB' => '214',
             'Guaranty Trust Bank' => '058',
+            'GTBank' => '058',
+            'GT Bank' => '058',
             'Heritage Bank' => '030',
             'Keystone Bank' => '082',
             'Kuda Bank' => '50211',
-            'Opay' => '100022',
+            'Kuda' => '50211',
+            'Opay' => '999992',
+            'OPay' => '999992',
             'PalmPay' => '999991',
             'Polaris Bank' => '076',
             'Providus Bank' => '101',
             'Stanbic IBTC Bank' => '221',
+            'Stanbic IBTC' => '221',
             'Standard Chartered Bank' => '068',
             'Sterling Bank' => '232',
             'Suntrust Bank' => '100',
             'Union Bank' => '032',
             'United Bank For Africa' => '033',
+            'UBA' => '033',
             'Unity Bank' => '215',
             'VFD' => '566',
             'Wema Bank' => '035',
             'Zenith Bank' => '057',
         ];
 
-        return $bankCodes[$bankName] ?? '011'; // Default to First Bank
+        // Try exact match
+        if (isset($staticBankCodes[$bankName])) {
+            Log::info('Bank code from static list (exact)', [
+                'bank_name' => $bankName,
+                'code' => $staticBankCodes[$bankName],
+            ]);
+            return $staticBankCodes[$bankName];
+        }
+
+        // Try partial match
+        foreach ($staticBankCodes as $name => $code) {
+            if (stripos($name, $bankName) !== false || stripos($bankName, $name) !== false) {
+                Log::info('Bank code from static list (partial)', [
+                    'search_name' => $bankName,
+                    'found_name' => $name,
+                    'code' => $code,
+                ]);
+                return $code;
+            }
+        }
+
+        Log::warning('Bank code not found, using default', [
+            'bank_name' => $bankName,
+            'default_code' => '011',
+        ]);
+
+        return '011'; // Default to First Bank
     }
 
     /**

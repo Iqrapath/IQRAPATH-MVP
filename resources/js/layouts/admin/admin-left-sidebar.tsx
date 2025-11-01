@@ -186,14 +186,9 @@ export default function AdminLeftSidebar({ className, isMobile = false, isOpen =
         },
         {
             title: 'Payment Management',
-            href: '/admin/payments',
+            href: '/admin/financial',
             icon: CreditCard,
             divider: true,
-            isComingSoon: true,
-            onClick: (e) => {
-                e.preventDefault();
-                handleMissingPage('Payment Management');
-            },
         },
         {
             title: 'CMS',

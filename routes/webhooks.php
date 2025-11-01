@@ -1,32 +1,28 @@
 <?php
 
-use App\Http\Controllers\Webhooks\StripeWebhookController;
-use App\Http\Controllers\Webhooks\PaystackWebhookController;
-use App\Http\Controllers\Webhooks\PayPalWebhookController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Webhooks\PayStackWebhookController;
+use App\Http\Controllers\Webhooks\StripeWebhookController;
+use App\Http\Controllers\Webhooks\PayPalWebhookController;
 
 /*
 |--------------------------------------------------------------------------
 | Webhook Routes
 |--------------------------------------------------------------------------
 |
-| These routes handle incoming webhooks from payment gateways.
-| They are protected by signature verification middleware.
-| CSRF protection is disabled for these routes.
+| These routes handle webhooks from payment gateways for payout status updates.
+| They are excluded from CSRF protection in VerifyCsrfToken middleware.
 |
 */
 
-// Stripe Webhooks (with signature verification)
-Route::post('/webhooks/stripe', [StripeWebhookController::class, 'handle'])
-    ->middleware('verify.stripe')
-    ->name('webhooks.stripe');
+// PayStack Webhooks
+Route::post('/webhooks/paystack/transfer', [PayStackWebhookController::class, 'handleTransferWebhook'])
+    ->name('webhooks.paystack.transfer');
 
-// Paystack Webhooks (with signature verification)
-Route::post('/webhooks/paystack', [PaystackWebhookController::class, 'handle'])
-    ->middleware('verify.paystack')
-    ->name('webhooks.paystack');
+// Stripe Webhooks
+Route::post('/webhooks/stripe/payout', [StripeWebhookController::class, 'handlePayoutWebhook'])
+    ->name('webhooks.stripe.payout');
 
-// PayPal Webhooks (with signature verification)
-Route::post('/webhooks/paypal', [PayPalWebhookController::class, 'handle'])
-    ->middleware('verify.paypal')
-    ->name('webhooks.paypal');
+// PayPal Webhooks
+Route::post('/webhooks/paypal/payout', [PayPalWebhookController::class, 'handlePayoutWebhook'])
+    ->name('webhooks.paypal.payout');

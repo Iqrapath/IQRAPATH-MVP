@@ -25,11 +25,11 @@ class AccountRestoredNotification extends Notification implements ShouldQueue
     public function toMail($notifiable): MailMessage
     {
         $message = (new MailMessage)
-            ->subject('Account Restored - IQRAPATH')
+            ->subject('Account Restored - IQRAQUEST')
             ->greeting('Hello ' . $notifiable->name . ',')
             ->line('Great news! Your account has been restored and you can now access all features.')
             ->action('Access Your Account', url('/dashboard'))
-            ->line('Welcome back to IQRAPATH!');
+            ->line('Welcome back to IQRAQUEST!');
 
         if ($this->reason) {
             $message->line('Reason: ' . $this->reason);

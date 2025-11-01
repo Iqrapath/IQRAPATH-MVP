@@ -25,13 +25,13 @@ class AccountDeletedNotification extends Notification implements ShouldQueue
     public function toMail($notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Account Deleted - IQRAPATH')
+            ->subject('Account Deleted - IQRAQUEST')
             ->greeting('Hello ' . $notifiable->name . ',')
             ->line('Your account has been deleted due to the following reason:')
             ->line($this->reason)
             ->line('If you believe this is an error, please contact our support team.')
             ->action('Contact Support', url('/contact'))
-            ->line('Thank you for using IQRAPATH.');
+            ->line('Thank you for using IQRAQUEST.');
     }
 
     public function toDatabase($notifiable): array

@@ -53,6 +53,8 @@ Route::middleware(['auth', 'verified', 'role:super-admin, admin'])->prefix('admi
     Route::post('/user-management/{user}/delete', [UserManagementController::class, 'delete'])->name('user-management.delete');
     Route::post('/user-management/{user}/restore', [UserManagementController::class, 'restore'])->name('user-management.restore');
     Route::post('/user-management/{user}/force-delete', [UserManagementController::class, 'forceDelete'])->name('user-management.force-delete');
+
+    // Payment Management handled under routes/financial.php (/admin/financial)
     Route::get('/user-management/{user}/audit-logs', [UserManagementController::class, 'auditLogs'])->name('user-management.audit-logs');
     Route::post('/user-management/bulk-action', [UserManagementController::class, 'bulkAction'])->name('user-management.bulk-action');
     
@@ -186,6 +188,5 @@ Route::patch('/verification/documents/{documentId}/reject', [TeacherVerification
         Route::post('/faqs/update-order', [FaqController::class, 'updateOrder'])->name('faqs.update-order');
         Route::patch('/faqs/{faq}/toggle-published', [FaqController::class, 'togglePublished'])->name('faqs.toggle-published');
     });
-    
 
 }); 

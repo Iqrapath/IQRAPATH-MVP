@@ -108,12 +108,14 @@ class FinancialController extends Controller
                 });
         }
         
-        // Get recent transactions from unified transactions (HYBRID: try both sources)
+        // Get recent EARNING transactions only (not withdrawals)
         $recentTransactions = [];
         
-        // First try unified transactions
+        // First try unified transactions - ONLY earnings from teaching sessions
         $unifiedTransactions = \App\Models\UnifiedTransaction::where('wallet_type', 'App\\Models\\TeacherWallet')
             ->where('wallet_id', $teacherWallet->id)
+            ->where('transaction_type', 'earning')  // Only earnings, not withdrawals
+            ->whereNotNull('session_id')  // Must have a session
             ->with(['session.student', 'session.subject'])
             ->orderBy('transaction_date', 'desc')
             ->take(10)
@@ -133,8 +135,10 @@ class FinancialController extends Controller
                 ];
             });
         } else {
-            // Fallback to old transactions table
+            // Fallback to old transactions table - only earnings
             $oldTransactions = \App\Models\Transaction::where('teacher_id', $teacher->id)
+                ->where('transaction_type', 'earning')  // Only earnings
+                ->whereNotNull('session_id')  // Must have a session
                 ->with(['session.student', 'session.subject'])
                 ->orderBy('created_at', 'desc')
                 ->take(10)
@@ -656,11 +660,31 @@ class FinancialController extends Controller
                 'payment_method_id.exists' => 'Invalid payment method selected'
             ]);
 
-            // Check if amount is available
+            // Check for existing pending payout requests
+            $existingPendingCount = PayoutRequest::where('teacher_id', $teacher->id)
+                ->where('status', 'pending')
+                ->count();
+
+            if ($existingPendingCount >= 3) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You have too many pending payout requests. Please wait for them to be processed.'
+                ], 400);
+            }
+
+            // Check if amount is available (with buffer for safety)
             if ($validated['amount'] > $teacherWallet->balance) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Insufficient balance'
+                    'message' => 'Insufficient balance. Available: ' . $teacherWallet->getFormattedBalanceAttribute()
+                ], 400);
+            }
+
+            // Additional safety check: ensure balance won't go negative
+            if (($teacherWallet->balance - $validated['amount']) < 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Withdrawal would result in negative balance'
                 ], 400);
             }
 
@@ -684,8 +708,19 @@ class FinancialController extends Controller
                 ], 400);
             }
 
-            // Create payout request
+            // Create payout request with database locking to prevent race conditions
             \Illuminate\Support\Facades\DB::transaction(function () use ($validated, $teacher, $teacherWallet, $paymentMethod) {
+                // Lock the wallet row to prevent concurrent modifications
+                $lockedWallet = \App\Models\TeacherWallet::where('id', $teacherWallet->id)
+                    ->lockForUpdate()
+                    ->first();
+
+                // Double-check balance after lock (in case of concurrent requests)
+                if ($lockedWallet->balance < $validated['amount']) {
+                    throw new \Exception('Insufficient balance after lock check');
+                }
+
+                // Create payout request
                 $payout = PayoutRequest::create([
                     'teacher_id' => $teacher->id,
                     'amount' => $validated['amount'],
@@ -701,14 +736,21 @@ class FinancialController extends Controller
                     'notes' => $validated['notes']
                 ]);
 
-                // Update wallet pending payouts
-                $teacherWallet->increment('pending_payouts', $validated['amount']);
+                // Update wallet: move from available balance to pending payouts
+                $lockedWallet->balance -= $validated['amount'];
+                $lockedWallet->pending_payouts += $validated['amount'];
+                $lockedWallet->save();
+
+                // Sync with earnings table
+                $lockedWallet->syncWithTeacherEarning();
 
                 \Illuminate\Support\Facades\Log::info('Payout request created', [
                     'teacher_id' => $teacher->id,
                     'payout_id' => $payout->id,
                     'amount' => $validated['amount'],
-                    'payment_method_id' => $paymentMethod->id
+                    'payment_method_id' => $paymentMethod->id,
+                    'new_balance' => $lockedWallet->balance,
+                    'new_pending_payouts' => $lockedWallet->pending_payouts,
                 ]);
             });
 

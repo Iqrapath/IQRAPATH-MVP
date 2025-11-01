@@ -32,6 +32,7 @@ Route::middleware(['auth', 'role:super-admin'])->prefix('admin/financial')->name
     Route::get('/payout-requests', [App\Http\Controllers\Admin\FinancialManagementController::class, 'payoutRequests'])->name('payout-requests');
     Route::get('/payout-requests/{payoutRequest}', [App\Http\Controllers\Admin\FinancialManagementController::class, 'showPayoutRequest'])->name('payout-requests.show');
     Route::post('/payout-requests/{payoutRequest}/approve', [App\Http\Controllers\Admin\FinancialManagementController::class, 'approvePayoutRequest'])->name('payout-requests.approve');
+    Route::post('/payout-requests/{payoutRequest}/reject', [App\Http\Controllers\Admin\FinancialManagementController::class, 'rejectPayoutRequest'])->name('payout-requests.reject');
     Route::post('/payout-requests/{payoutRequest}/decline', [App\Http\Controllers\Admin\FinancialManagementController::class, 'declinePayoutRequest'])->name('payout-requests.decline');
     Route::post('/payout-requests/{payoutRequest}/mark-paid', [App\Http\Controllers\Admin\FinancialManagementController::class, 'markPayoutRequestAsPaid'])->name('payout-requests.mark-paid');
     Route::get('/system-adjustments/create', [App\Http\Controllers\Admin\FinancialManagementController::class, 'createSystemAdjustment'])->name('system-adjustments.create');

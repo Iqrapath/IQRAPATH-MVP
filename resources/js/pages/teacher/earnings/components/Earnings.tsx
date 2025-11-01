@@ -128,7 +128,7 @@ export default function Earnings() {
             });
             return;
         }
-        
+
         const paymentMethods = pageProps.paymentMethods || [];
         if (!paymentMethods || paymentMethods.length === 0) {
             toast.error('No payment methods', {
@@ -136,7 +136,7 @@ export default function Earnings() {
             });
             return;
         }
-        
+
         const verifiedMethods = paymentMethods.filter((m: any) => m.is_verified);
         if (verifiedMethods.length === 0) {
             toast.error('No verified payment methods', {
@@ -144,7 +144,7 @@ export default function Earnings() {
             });
             return;
         }
-        
+
         setShowWithdrawModal(true);
     };
 
@@ -321,7 +321,7 @@ export default function Earnings() {
 
                     {/* Withdraw Fund Button */}
                     <div className="flex justify-center">
-                        <Button 
+                        <Button
                             onClick={handleWithdrawClick}
                             className="bg-[#338078] hover:bg-[#338078]/80 text-white px-8 py-3 rounded-full"
                         >
@@ -376,7 +376,7 @@ export default function Earnings() {
                 <CardHeader>
                     <div className="flex justify-between items-center">
                         <CardTitle className="text-lg text-gray-900">Recent Transaction</CardTitle>
-                        <button 
+                        <button
                             onClick={handleEmailReport}
                             className="text-[#338078] text-sm font-medium hover:underline flex items-center gap-1"
                             disabled={emailingReport}

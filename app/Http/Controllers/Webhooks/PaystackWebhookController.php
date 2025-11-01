@@ -1,250 +1,88 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Http\Controllers\Webhooks;
 
 use App\Http\Controllers\Controller;
-use App\Models\WebhookEvent;
-use App\Models\PaymentIntent;
-use App\Models\Subscription;
-use App\Models\PayoutRequest;
-use Illuminate\Http\JsonResponse;
+use App\Services\PayStackTransferService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 
-class PaystackWebhookController extends Controller
+class PayStackWebhookController extends Controller
 {
+    public function __construct(
+        private PayStackTransferService $payStackService
+    ) {}
+
     /**
-     * Handle Paystack webhook events.
+     * Handle PayStack transfer webhook
      */
-    public function handle(Request $request): JsonResponse
+    public function handleTransferWebhook(Request $request): JsonResponse
     {
-        $payload = $request->all();
-        $event = $payload['event'] ?? null;
-        $data = $payload['data'] ?? [];
-
-        if (!$event) {
-            return response()->json(['error' => 'Invalid payload'], 400);
-        }
-
-        // Generate event ID from reference or use timestamp
-        $eventId = $data['reference'] ?? 'paystack_' . time();
-
-        // Check if event already processed (idempotency)
-        if (WebhookEvent::isProcessed($eventId, 'paystack')) {
-            Log::info('Paystack webhook already processed', ['event_id' => $eventId]);
-            return response()->json(['status' => 'already_processed'], 200);
-        }
-
-        // Store webhook event
-        $webhookEvent = WebhookEvent::create([
-            'event_id' => $eventId,
-            'gateway' => 'paystack',
-            'type' => $event,
-            'payload' => $payload,
-            'status' => 'pending',
-        ]);
-
         try {
-            $webhookEvent->markAsProcessing();
+            // Verify webhook signature
+            if (!$this->verifySignature($request)) {
+                Log::warning('PayStack webhook signature verification failed', [
+                    'ip' => $request->ip(),
+                    'headers' => $request->headers->all(),
+                ]);
+                
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid signature'
+                ], 401);
+            }
 
-            // Route to appropriate handler
-            $this->routeEvent($event, $data);
+            $webhookData = $request->all();
+            
+            Log::info('PayStack webhook received', [
+                'event' => $webhookData['event'] ?? 'unknown',
+                'data' => $webhookData['data'] ?? [],
+            ]);
 
-            $webhookEvent->markAsProcessed();
+            // Process the webhook
+            $result = $this->payStackService->handleTransferWebhook($webhookData);
 
-            return response()->json(['status' => 'success'], 200);
+            if ($result['success']) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Webhook processed successfully'
+                ], 200);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => $result['message'] ?? 'Webhook processing failed'
+                ], 400);
+            }
 
         } catch (\Exception $e) {
-            $webhookEvent->markAsFailed($e->getMessage());
-            
-            Log::error('Paystack webhook processing failed', [
-                'event_id' => $eventId,
-                'event' => $event,
+            Log::error('PayStack webhook processing error', [
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
-            return response()->json(['error' => 'Processing failed'], 500);
+            return response()->json([
+                'success' => false,
+                'message' => 'Internal server error'
+            ], 500);
         }
     }
 
     /**
-     * Route event to appropriate handler.
+     * Verify PayStack webhook signature
      */
-    private function routeEvent(string $event, array $data): void
+    private function verifySignature(Request $request): bool
     {
-        match ($event) {
-            'charge.success' => $this->handleChargeSuccess($data),
-            'charge.failed' => $this->handleChargeFailed($data),
-            'transfer.success' => $this->handleTransferSuccess($data),
-            'transfer.failed' => $this->handleTransferFailed($data),
-            'subscription.create' => $this->handleSubscriptionCreate($data),
-            'subscription.disable' => $this->handleSubscriptionDisable($data),
-            'subscription.not_renew' => $this->handleSubscriptionNotRenew($data),
-            default => Log::info('Unhandled Paystack event type', ['type' => $event]),
-        };
-    }
-
-    /**
-     * Handle charge.success event.
-     */
-    private function handleChargeSuccess(array $data): void
-    {
-        $reference = $data['reference'] ?? null;
-
-        if (!$reference) {
-            return;
+        $signature = $request->header('x-paystack-signature');
+        
+        if (!$signature) {
+            return false;
         }
 
-        $paymentIntent = PaymentIntent::where('gateway_intent_id', $reference)->first();
+        $secretKey = config('services.paystack.secret_key');
+        $computedSignature = hash_hmac('sha512', $request->getContent(), $secretKey);
 
-        if ($paymentIntent) {
-            DB::transaction(function () use ($paymentIntent, $data) {
-                $paymentIntent->markAsSucceeded();
-                
-                // Update related records
-                if ($paymentIntent->reference_type === 'subscription') {
-                    $subscription = Subscription::find($paymentIntent->reference_id);
-                    if ($subscription && $subscription->status === 'pending') {
-                        $subscription->update(['status' => 'active']);
-                    }
-                }
-
-                // Update wallet if wallet funding
-                if ($paymentIntent->reference_type === 'wallet_funding') {
-                    $user = $paymentIntent->user;
-                    $wallet = $user->studentWallet ?? $user->guardianWallet;
-                    
-                    if ($wallet) {
-                        $wallet->increment('balance', $paymentIntent->amount);
-                    }
-                }
-            });
-
-            Log::info('Paystack charge succeeded', [
-                'payment_intent_id' => $paymentIntent->id,
-                'reference' => $reference,
-                'amount' => $data['amount'] ?? 0,
-            ]);
-        }
-    }
-
-    /**
-     * Handle charge.failed event.
-     */
-    private function handleChargeFailed(array $data): void
-    {
-        $reference = $data['reference'] ?? null;
-
-        if (!$reference) {
-            return;
-        }
-
-        $paymentIntent = PaymentIntent::where('gateway_intent_id', $reference)->first();
-
-        if ($paymentIntent) {
-            $paymentIntent->markAsFailed(
-                $data['gateway_response'] ?? 'unknown',
-                $data['message'] ?? 'Payment failed'
-            );
-
-            Log::warning('Paystack charge failed', [
-                'payment_intent_id' => $paymentIntent->id,
-                'reference' => $reference,
-                'message' => $data['message'] ?? 'Unknown error',
-            ]);
-        }
-    }
-
-    /**
-     * Handle transfer.success event (teacher payouts).
-     */
-    private function handleTransferSuccess(array $data): void
-    {
-        $reference = $data['reference'] ?? null;
-
-        if (!$reference) {
-            return;
-        }
-
-        $payoutRequest = PayoutRequest::where('reference', $reference)->first();
-
-        if ($payoutRequest) {
-            DB::transaction(function () use ($payoutRequest, $data) {
-                $payoutRequest->update([
-                    'status' => 'completed',
-                    'processed_at' => now(),
-                    'gateway_response' => $data,
-                ]);
-
-                Log::info('Paystack transfer succeeded', [
-                    'payout_request_id' => $payoutRequest->id,
-                    'reference' => $reference,
-                    'amount' => $data['amount'] ?? 0,
-                ]);
-            });
-        }
-    }
-
-    /**
-     * Handle transfer.failed event.
-     */
-    private function handleTransferFailed(array $data): void
-    {
-        $reference = $data['reference'] ?? null;
-
-        if (!$reference) {
-            return;
-        }
-
-        $payoutRequest = PayoutRequest::where('reference', $reference)->first();
-
-        if ($payoutRequest) {
-            $payoutRequest->update([
-                'status' => 'failed',
-                'failed_at' => now(),
-                'failure_reason' => $data['message'] ?? 'Transfer failed',
-                'gateway_response' => $data,
-            ]);
-
-            Log::warning('Paystack transfer failed', [
-                'payout_request_id' => $payoutRequest->id,
-                'reference' => $reference,
-                'message' => $data['message'] ?? 'Unknown error',
-            ]);
-        }
-    }
-
-    /**
-     * Handle subscription.create event.
-     */
-    private function handleSubscriptionCreate(array $data): void
-    {
-        Log::info('Paystack subscription created', [
-            'subscription_code' => $data['subscription_code'] ?? null,
-            'customer' => $data['customer']['email'] ?? null,
-        ]);
-    }
-
-    /**
-     * Handle subscription.disable event.
-     */
-    private function handleSubscriptionDisable(array $data): void
-    {
-        Log::info('Paystack subscription disabled', [
-            'subscription_code' => $data['subscription_code'] ?? null,
-        ]);
-    }
-
-    /**
-     * Handle subscription.not_renew event.
-     */
-    private function handleSubscriptionNotRenew(array $data): void
-    {
-        Log::info('Paystack subscription will not renew', [
-            'subscription_code' => $data['subscription_code'] ?? null,
-        ]);
+        return hash_equals($computedSignature, $signature);
     }
 }

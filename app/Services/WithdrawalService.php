@@ -284,7 +284,9 @@ class WithdrawalService
                             'value' => number_format($payoutRequest->net_amount, 2),
                             'currency' => $payoutRequest->currency
                         ],
-                        'receiver' => json_decode($payoutRequest->payment_details, true)['email'],
+                        'receiver' => (is_string($payoutRequest->payment_details) 
+                            ? json_decode($payoutRequest->payment_details, true) 
+                            : $payoutRequest->payment_details)['email'] ?? '',
                         'note' => 'Withdrawal from IQRAQUEST',
                         'sender_item_id' => 'WITHDRAWAL_' . $payoutRequest->id
                     ]

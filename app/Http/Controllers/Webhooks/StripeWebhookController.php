@@ -1,203 +1,133 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Http\Controllers\Webhooks;
 
 use App\Http\Controllers\Controller;
-use App\Models\WebhookEvent;
-use App\Models\PaymentIntent;
-use App\Models\Subscription;
-use Illuminate\Http\JsonResponse;
+use App\Services\StripePayoutService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 
 class StripeWebhookController extends Controller
 {
+    public function __construct(
+        private StripePayoutService $stripeService
+    ) {}
+
     /**
-     * Handle Stripe webhook events.
+     * Handle Stripe payout webhook
      */
-    public function handle(Request $request): JsonResponse
+    public function handlePayoutWebhook(Request $request): JsonResponse
     {
-        $payload = $request->all();
-        $eventId = $payload['id'] ?? null;
-        $eventType = $payload['type'] ?? null;
-
-        if (!$eventId || !$eventType) {
-            return response()->json(['error' => 'Invalid payload'], 400);
-        }
-
-        // Check if event already processed (idempotency)
-        if (WebhookEvent::isProcessed($eventId, 'stripe')) {
-            Log::info('Stripe webhook already processed', ['event_id' => $eventId]);
-            return response()->json(['status' => 'already_processed'], 200);
-        }
-
-        // Store webhook event
-        $webhookEvent = WebhookEvent::create([
-            'event_id' => $eventId,
-            'gateway' => 'stripe',
-            'type' => $eventType,
-            'payload' => $payload,
-            'status' => 'pending',
-        ]);
-
         try {
-            $webhookEvent->markAsProcessing();
+            // Verify webhook signature
+            if (!$this->verifySignature($request)) {
+                Log::warning('Stripe webhook signature verification failed', [
+                    'ip' => $request->ip(),
+                ]);
+                
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid signature'
+                ], 401);
+            }
 
-            // Route to appropriate handler
-            $this->routeEvent($eventType, $payload);
+            $webhookData = $request->all();
+            
+            Log::info('Stripe webhook received', [
+                'type' => $webhookData['type'] ?? 'unknown',
+                'id' => $webhookData['id'] ?? 'unknown',
+            ]);
 
-            $webhookEvent->markAsProcessed();
+            // Process the webhook
+            $result = $this->stripeService->handleWebhook($webhookData);
 
-            return response()->json(['status' => 'success'], 200);
+            if ($result['success']) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Webhook processed successfully'
+                ], 200);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => $result['message'] ?? 'Webhook processing failed'
+                ], 400);
+            }
 
         } catch (\Exception $e) {
-            $webhookEvent->markAsFailed($e->getMessage());
-            
-            Log::error('Stripe webhook processing failed', [
-                'event_id' => $eventId,
-                'event_type' => $eventType,
+            Log::error('Stripe webhook processing error', [
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
-            return response()->json(['error' => 'Processing failed'], 500);
+            return response()->json([
+                'success' => false,
+                'message' => 'Internal server error'
+            ], 500);
         }
     }
 
     /**
-     * Route event to appropriate handler.
+     * Verify Stripe webhook signature
      */
-    private function routeEvent(string $eventType, array $payload): void
+    private function verifySignature(Request $request): bool
     {
-        match ($eventType) {
-            'payment_intent.succeeded' => $this->handlePaymentIntentSucceeded($payload),
-            'payment_intent.payment_failed' => $this->handlePaymentIntentFailed($payload),
-            'payment_method.attached' => $this->handlePaymentMethodAttached($payload),
-            'payment_method.detached' => $this->handlePaymentMethodDetached($payload),
-            'customer.subscription.created' => $this->handleSubscriptionCreated($payload),
-            'customer.subscription.updated' => $this->handleSubscriptionUpdated($payload),
-            'customer.subscription.deleted' => $this->handleSubscriptionDeleted($payload),
-            'charge.refunded' => $this->handleChargeRefunded($payload),
-            default => Log::info('Unhandled Stripe event type', ['type' => $eventType]),
-        };
-    }
+        $signature = $request->header('stripe-signature');
+        
+        if (!$signature) {
+            return false;
+        }
 
-    /**
-     * Handle payment_intent.succeeded event.
-     */
-    private function handlePaymentIntentSucceeded(array $payload): void
-    {
-        $stripeIntentId = $payload['data']['object']['id'];
+        $webhookSecret = config('services.stripe.webhook_secret');
+        
+        if (!$webhookSecret) {
+            Log::warning('Stripe webhook secret not configured');
+            return true; // Skip verification if not configured
+        }
 
-        $paymentIntent = PaymentIntent::where('gateway_intent_id', $stripeIntentId)->first();
-
-        if ($paymentIntent) {
-            DB::transaction(function () use ($paymentIntent) {
-                $paymentIntent->markAsSucceeded();
-                
-                // Update related records (wallet, subscription, etc.)
-                if ($paymentIntent->reference_type === 'subscription') {
-                    $subscription = Subscription::find($paymentIntent->reference_id);
-                    if ($subscription && $subscription->status === 'pending') {
-                        $subscription->update(['status' => 'active']);
+        try {
+            $payload = $request->getContent();
+            $sigHeader = $signature;
+            
+            // Parse signature header
+            $elements = explode(',', $sigHeader);
+            $timestamp = null;
+            $signatures = [];
+            
+            foreach ($elements as $element) {
+                $item = explode('=', $element, 2);
+                if (count($item) === 2) {
+                    if ($item[0] === 't') {
+                        $timestamp = $item[1];
+                    } elseif ($item[0] === 'v1') {
+                        $signatures[] = $item[1];
                     }
                 }
-            });
-
-            Log::info('Payment intent succeeded', [
-                'payment_intent_id' => $paymentIntent->id,
-                'stripe_intent_id' => $stripeIntentId,
+            }
+            
+            if (!$timestamp || empty($signatures)) {
+                return false;
+            }
+            
+            // Compute expected signature
+            $signedPayload = $timestamp . '.' . $payload;
+            $expectedSignature = hash_hmac('sha256', $signedPayload, $webhookSecret);
+            
+            // Compare signatures
+            foreach ($signatures as $signature) {
+                if (hash_equals($expectedSignature, $signature)) {
+                    return true;
+                }
+            }
+            
+            return false;
+            
+        } catch (\Exception $e) {
+            Log::error('Stripe signature verification error', [
+                'error' => $e->getMessage()
             ]);
+            return false;
         }
-    }
-
-    /**
-     * Handle payment_intent.payment_failed event.
-     */
-    private function handlePaymentIntentFailed(array $payload): void
-    {
-        $stripeIntentId = $payload['data']['object']['id'];
-        $error = $payload['data']['object']['last_payment_error'] ?? [];
-
-        $paymentIntent = PaymentIntent::where('gateway_intent_id', $stripeIntentId)->first();
-
-        if ($paymentIntent) {
-            $paymentIntent->markAsFailed(
-                $error['code'] ?? 'unknown',
-                $error['message'] ?? 'Payment failed'
-            );
-
-            Log::warning('Payment intent failed', [
-                'payment_intent_id' => $paymentIntent->id,
-                'stripe_intent_id' => $stripeIntentId,
-                'error' => $error,
-            ]);
-        }
-    }
-
-    /**
-     * Handle payment_method.attached event.
-     */
-    private function handlePaymentMethodAttached(array $payload): void
-    {
-        Log::info('Payment method attached', [
-            'payment_method_id' => $payload['data']['object']['id'],
-            'customer' => $payload['data']['object']['customer'],
-        ]);
-    }
-
-    /**
-     * Handle payment_method.detached event.
-     */
-    private function handlePaymentMethodDetached(array $payload): void
-    {
-        Log::info('Payment method detached', [
-            'payment_method_id' => $payload['data']['object']['id'],
-        ]);
-    }
-
-    /**
-     * Handle customer.subscription.created event.
-     */
-    private function handleSubscriptionCreated(array $payload): void
-    {
-        Log::info('Subscription created', [
-            'subscription_id' => $payload['data']['object']['id'],
-            'customer' => $payload['data']['object']['customer'],
-        ]);
-    }
-
-    /**
-     * Handle customer.subscription.updated event.
-     */
-    private function handleSubscriptionUpdated(array $payload): void
-    {
-        Log::info('Subscription updated', [
-            'subscription_id' => $payload['data']['object']['id'],
-            'status' => $payload['data']['object']['status'],
-        ]);
-    }
-
-    /**
-     * Handle customer.subscription.deleted event.
-     */
-    private function handleSubscriptionDeleted(array $payload): void
-    {
-        Log::info('Subscription deleted', [
-            'subscription_id' => $payload['data']['object']['id'],
-        ]);
-    }
-
-    /**
-     * Handle charge.refunded event.
-     */
-    private function handleChargeRefunded(array $payload): void
-    {
-        Log::info('Charge refunded', [
-            'charge_id' => $payload['data']['object']['id'],
-            'amount_refunded' => $payload['data']['object']['amount_refunded'],
-        ]);
     }
 }
