@@ -1,19 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import AppModal from '@/components/common/AppModal';
+import { useState } from 'react';
 import FundAccountModal from './FundAccountModal';
-
-interface FundingConfig {
-    min_amount: number;
-    max_amount: number;
-    currency: string;
-    payment_method: string;
-    bank_details: {
-        name: string;
-        account_holder: string;
-        account_number: string;
-    };
-}
 
 interface InsufficientFundsModalProps {
     isOpen: boolean;
@@ -37,29 +23,13 @@ export default function InsufficientFundsModal({
     onClose,
     onFundAccount,
     onBalanceUpdated,
-    onProceedToPayment,
     currentBalance,
     requiredAmount,
     currency,
     user
 }: InsufficientFundsModalProps) {
     const [showFundModal, setShowFundModal] = useState(false);
-    const [fundingConfig, setFundingConfig] = useState<FundingConfig | null>(null);
-    
-    // Fetch funding configuration when component mounts
-    useEffect(() => {
-        const fetchFundingConfig = async () => {
-            try {
-                const response = await window.axios.get('/student/wallet/funding-config');
-                setFundingConfig(response.data);
-            } catch (error) {
-                console.error('Failed to fetch funding config:', error);
-            }
-        };
 
-        fetchFundingConfig();
-    }, []);
-    
     if (!isOpen) return null;
 
     const shortfall = requiredAmount - currentBalance;
@@ -77,15 +47,15 @@ export default function InsufficientFundsModal({
         // Handle the funding logic here
         console.log('Payment successful:', paymentData);
         setShowFundModal(false);
-        
+
         // Update balance if callback provided
         if (onBalanceUpdated && paymentData.success) {
-            const newBalance = currency === 'USD' 
+            const newBalance = currency === 'USD'
                 ? (currentBalance + (paymentData.amount / 1500)) // Convert NGN to USD
                 : (currentBalance + paymentData.amount); // NGN amount
             onBalanceUpdated(newBalance);
         }
-        
+
         onClose(); // Close the insufficient funds modal
         onFundAccount(); // Call the original fund account handler
     };
@@ -106,7 +76,7 @@ export default function InsufficientFundsModal({
                         Oops! Insufficient Funds
                     </h2>
                     <p className="text-gray-600 text-sm leading-relaxed">
-                        You do not have enough funds in your account to pay for this class. Please 
+                        You do not have enough funds in your account to pay for this class. Please
                         fund your wallet and try again.
                     </p>
                 </div>

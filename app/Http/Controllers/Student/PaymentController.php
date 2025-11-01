@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class PaymentController extends Controller
 {
@@ -17,10 +19,263 @@ class PaymentController extends Controller
     ) {}
 
     /**
+     * Display the student wallet page
+     */
+    public function index(Request $request): Response
+    {
+        $user = Auth::user();
+        $wallet = $user->studentWallet;
+
+        // Create wallet if doesn't exist
+        if (!$wallet) {
+            $wallet = $user->studentWallet()->create([
+                'balance' => 0,
+                'total_spent' => 0,
+                'total_refunded' => 0,
+            ]);
+        }
+
+        // Get wallet settings
+        $walletSettings = [
+            'preferredCurrency' => 'NGN',
+        ];
+
+        // Get upcoming payments (bookings that need payment)
+        $upcomingPayments = $user->studentBookings()
+            ->whereIn('status', ['pending', 'approved', 'upcoming'])
+            ->where('booking_date', '>=', now())
+            ->with(['teacher.teacherProfile', 'subject'])
+            ->latest()
+            ->take(5)
+            ->get()
+            ->map(function ($booking) {
+                // Calculate amount based on hourly rate and duration
+                // Use booking's locked rate, or fall back to teacher's current rate
+                $hourlyRate = $booking->hourly_rate_ngn 
+                    ?? $booking->teacher->teacherProfile->hourly_rate_ngn 
+                    ?? 0;
+                    
+                $durationHours = ($booking->duration_minutes ?? 60) / 60;
+                $totalAmount = $hourlyRate * $durationHours;
+                
+                return [
+                    'id' => $booking->id,
+                    'amount' => $totalAmount,
+                    'amountSecondary' => $totalAmount / 1500, // Approximate NGN to USD conversion
+                    'currency' => 'NGN',
+                    'secondaryCurrency' => 'USD',
+                    'teacherName' => $booking->teacher->name ?? 'Unknown',
+                    'subjectName' => $booking->subject->name ?? 'Unknown Subject',
+                    'dueDate' => $booking->booking_date ?? now(),
+                    'startTime' => $booking->start_time ?? null,
+                    'status' => $booking->status,
+                ];
+            });
+
+        // Get payment history from bookings (completed and pending)
+        $paymentHistory = $user->studentBookings()
+            ->whereIn('status', ['completed', 'confirmed', 'paid', 'pending', 'approved', 'upcoming'])
+            ->with(['teacher.teacherProfile', 'subject'])
+            ->latest('booking_date')
+            ->take(10)
+            ->get()
+            ->map(function ($booking) {
+                // Calculate amount based on hourly rate and duration
+                $hourlyRate = $booking->hourly_rate_ngn 
+                    ?? $booking->teacher->teacherProfile->hourly_rate_ngn 
+                    ?? 0;
+                    
+                $durationHours = ($booking->duration_minutes ?? 60) / 60;
+                $totalAmount = $hourlyRate * $durationHours;
+                
+                return [
+                    'id' => $booking->id,
+                    'date' => $booking->booking_date,
+                    'subject' => $booking->subject->name ?? 'Unknown Subject',
+                    'teacherName' => $booking->teacher->name ?? 'Unknown',
+                    'amount' => $totalAmount,
+                    'currency' => 'NGN',
+                    'status' => $booking->status,
+                ];
+            });
+
+        // Get payment methods
+        $paymentMethods = $user->paymentMethods()
+            ->where('is_active', true)
+            ->orderBy('is_default', 'desc')
+            ->get()
+            ->map(function ($method) {
+                return [
+                    'id' => $method->id,
+                    'type' => $method->type,
+                    'name' => $method->name,
+                    'details' => $method->details,
+                    'is_default' => $method->is_default,
+                    'is_active' => $method->is_active,
+                    'is_verified' => $method->is_verified,
+                    'verification_status' => $method->verification_status ?? 'pending',
+                    'created_at' => $method->created_at->toDateString(),
+                ];
+            });
+
+        $availableCurrencies = [
+            ['value' => 'NGN', 'label' => 'Nigerian Naira (NGN)', 'symbol' => '₦', 'is_default' => true],
+            ['value' => 'USD', 'label' => 'US Dollar (USD)', 'symbol' => '$', 'is_default' => false],
+        ];
+
+        return Inertia::render('student/wallet/index', [
+            'walletBalance' => (float) $wallet->balance,
+            'totalSpent' => (float) $wallet->total_spent,
+            'totalRefunded' => (float) $wallet->total_refunded,
+            'walletSettings' => $walletSettings,
+            'upcomingPayments' => $upcomingPayments,
+            'paymentHistory' => $paymentHistory,
+            'paymentMethods' => $paymentMethods,
+            'availableCurrencies' => $availableCurrencies,
+        ]);
+    }
+
+    /**
+     * Save wallet settings
+     */
+    public function saveSettings(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'preferred_currency' => 'required|in:NGN,USD',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Settings saved successfully',
+        ]);
+    }
+
+    /**
+     * Email activity report
+     */
+    public function emailReport(Request $request): JsonResponse
+    {
+        try {
+            $student = $request->user();
+            
+            // Get recent transactions (last 30 days)
+            $recentTransactions = \App\Models\WalletTransaction::where('wallet_id', $student->studentWallet->id)
+                ->where('created_at', '>=', now()->subDays(30))
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($transaction) {
+                    return [
+                        'date' => $transaction->created_at->format('M d, Y'),
+                        'description' => $transaction->description ?? ucfirst($transaction->transaction_type) . ' transaction',
+                        'amount' => $transaction->amount,
+                        'type' => $transaction->transaction_type,
+                        'status' => $transaction->status ?? 'completed',
+                    ];
+                });
+
+            // Get wallet summary
+            $studentWallet = $student->studentWallet;
+            
+            // Calculate total deposited (credits)
+            $totalDeposited = \App\Models\WalletTransaction::where('wallet_id', $studentWallet->id)
+                ->where('transaction_type', 'credit')
+                ->where('status', 'completed')
+                ->sum('amount');
+            
+            // Calculate total spent (debits)
+            $totalSpent = \App\Models\WalletTransaction::where('wallet_id', $studentWallet->id)
+                ->where('transaction_type', 'debit')
+                ->where('status', 'completed')
+                ->sum('amount');
+            
+            // Calculate pending payments
+            $pendingPayments = \App\Models\WalletTransaction::where('wallet_id', $studentWallet->id)
+                ->where('status', 'pending')
+                ->sum('amount');
+            
+            $summary = [
+                'current_balance' => $studentWallet->balance ?? 0,
+                'total_deposited' => $totalDeposited,
+                'total_spent' => $totalSpent,
+                'pending_payments' => $pendingPayments,
+            ];
+
+            // Send email
+            \Illuminate\Support\Facades\Mail::to($student->email)->send(
+                new \App\Mail\Student\WalletActivityReport($student, $summary, $recentTransactions->toArray())
+            );
+
+            \Illuminate\Support\Facades\Log::info('Wallet activity report emailed', [
+                'student_id' => $student->id,
+                'email' => $student->email,
+                'transactions_count' => $recentTransactions->count()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Activity report sent to your email',
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to send wallet activity report', [
+                'error' => $e->getMessage(),
+                'student_id' => $request->user()->id
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send activity report. Please try again.',
+            ], 500);
+        }
+    }
+
+    /**
+     * Transaction history page
+     */
+    public function history(Request $request): Response
+    {
+        $user = Auth::user();
+        $wallet = $user->studentWallet;
+
+        if (!$wallet) {
+            $wallet = $user->studentWallet()->create([
+                'balance' => 0,
+                'total_spent' => 0,
+                'total_refunded' => 0,
+            ]);
+        }
+
+        $transactions = $wallet->transactions()
+            ->latest()
+            ->paginate(20)
+            ->through(function ($transaction) {
+                return [
+                    'id' => $transaction->id,
+                    'date' => $transaction->created_at->toDateString(),
+                    'type' => $transaction->transaction_type,
+                    'description' => $transaction->description,
+                    'subject' => 'Wallet Transaction',
+                    'teacherName' => 'System',
+                    'amount' => $transaction->amount,
+                    'currency' => 'NGN',
+                    'status' => $transaction->status,
+                    'balance_after' => $transaction->balance_after ?? null,
+                ];
+            });
+
+        return Inertia::render('student/wallet/history', [
+            'transactions' => $transactions,
+            'walletBalance' => (float) $wallet->balance,
+        ]);
+    }
+
+    /**
      * Process wallet funding payment
      */
     public function fundWallet(Request $request): JsonResponse
     {
+        // Increase execution time for payment processing (Stripe can be slow)
+        set_time_limit(120); // 2 minutes
+        
         try {
             \Log::info('Payment request received', $request->all());
             

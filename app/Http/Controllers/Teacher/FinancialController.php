@@ -114,7 +114,7 @@ class FinancialController extends Controller
         // First try unified transactions - ONLY earnings from teaching sessions
         $unifiedTransactions = \App\Models\UnifiedTransaction::where('wallet_type', 'App\\Models\\TeacherWallet')
             ->where('wallet_id', $teacherWallet->id)
-            ->where('transaction_type', 'earning')  // Only earnings, not withdrawals
+            ->whereIn('transaction_type', ['credit', 'session_payment'])  // Credits and session payments are earnings
             ->whereNotNull('session_id')  // Must have a session
             ->with(['session.student', 'session.subject'])
             ->orderBy('transaction_date', 'desc')
@@ -175,6 +175,16 @@ class FinancialController extends Controller
             ->orderBy('is_default', 'desc')
             ->orderBy('created_at', 'desc')
             ->get();
+
+        // Debug logging
+        \Log::info('Teacher Earnings Page Data', [
+            'teacher_id' => $teacher->id,
+            'teacher_name' => $teacher->name,
+            'hourly_rate_usd' => $hourlyRateUSD,
+            'hourly_rate_ngn' => $hourlyRateNGN,
+            'upcoming_earnings_count' => count($upcomingEarnings),
+            'upcoming_earnings_data' => $upcomingEarnings,
+        ]);
 
         return Inertia::render('teacher/earnings/index', [
             'walletBalance' => $walletBalance,

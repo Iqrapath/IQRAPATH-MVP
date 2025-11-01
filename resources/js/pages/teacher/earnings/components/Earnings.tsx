@@ -370,8 +370,8 @@ export default function Earnings() {
                     )}
                 </CardContent>
             </Card>
-
-            {/* Section 4: Recent Transaction */}
+Recent Transaction
+            {/* Section 4:  */}
             <Card className="bg-white rounded-lg border border-gray-200 shadow-sm">
                 <CardHeader>
                     <div className="flex justify-between items-center">

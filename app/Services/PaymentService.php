@@ -23,6 +23,11 @@ class PaymentService
 
     public function __construct()
     {
+        // Initialize Stripe with custom configuration
+        \Stripe\Stripe::setApiKey(config('services.stripe.secret_key'));
+        \Stripe\Stripe::setMaxNetworkRetries(2);
+        \Stripe\Stripe::setApiVersion('2023-10-16');
+        
         $this->stripe = new StripeClient(config('services.stripe.secret_key'));
     }
 
@@ -67,17 +72,29 @@ class PaymentService
     private function processStripePayment(User $user, array $paymentData): array
     {
         try {
+            Log::info('[Stripe Payment] Starting payment process', [
+                'user_id' => $user->id,
+                'amount' => $paymentData['amount']
+            ]);
+            
             // Create Stripe payment intent
+            Log::info('[Stripe Payment] Creating payment intent...');
             $paymentIntent = $this->createPaymentIntent($paymentData);
+            Log::info('[Stripe Payment] Payment intent created', ['intent_id' => $paymentIntent->id]);
 
             // Confirm the payment
+            Log::info('[Stripe Payment] Confirming payment...');
             $confirmedPayment = $this->confirmPayment($paymentIntent, $paymentData);
+            Log::info('[Stripe Payment] Payment confirmed', ['status' => $confirmedPayment->status]);
 
             // Update user wallet
+            Log::info('[Stripe Payment] Updating wallet...');
             $this->updateUserWallet($user, $paymentData['amount']);
 
             // Create transaction records
+            Log::info('[Stripe Payment] Creating transaction records...');
             $transaction = $this->createTransactionRecords($user, $paymentData, $confirmedPayment, 'stripe');
+            Log::info('[Stripe Payment] Payment completed successfully', ['transaction_id' => $transaction->id]);
         
             return [
                 'success' => true,
@@ -88,7 +105,7 @@ class PaymentService
             ];
 
         } catch (CardException $e) {
-            Log::error('Stripe Card Error', [
+            Log::error('[Stripe Payment] Card Error', [
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
                 'decline_code' => $e->getDeclineCode()
@@ -98,6 +115,18 @@ class PaymentService
                 'success' => false,
                 'error' => 'Card declined: ' . $e->getDeclineCode(),
                 'message' => $this->getCardErrorMessage($e->getDeclineCode())
+            ];
+        } catch (\Exception $e) {
+            Log::error('[Stripe Payment] Unexpected Error', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return [
+                'success' => false,
+                'error' => 'processing_error',
+                'message' => 'Payment processing failed: ' . $e->getMessage()
             ];
         }
     }
