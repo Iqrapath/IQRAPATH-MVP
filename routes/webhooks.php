@@ -26,3 +26,7 @@ Route::post('/webhooks/stripe/payout', [StripeWebhookController::class, 'handleP
 // PayPal Webhooks
 Route::post('/webhooks/paypal/payout', [PayPalWebhookController::class, 'handlePayoutWebhook'])
     ->name('webhooks.paypal.payout');
+
+// Paystack Virtual Account Webhook
+Route::post('/webhooks/paystack/virtual-account', [PayStackWebhookController::class, 'handleVirtualAccountWebhook'])
+    ->name('webhooks.paystack.virtual-account');

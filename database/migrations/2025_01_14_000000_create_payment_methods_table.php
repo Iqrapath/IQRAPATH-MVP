@@ -25,8 +25,11 @@ return new class extends Migration
             // Card-specific fields
             $table->string('last_four', 4)->nullable(); // Last 4 digits of card/account
             $table->string('card_brand')->nullable(); // 'visa', 'mastercard', etc.
-            $table->unsignedTinyInteger('expiry_month')->nullable(); // 1-12
-            $table->unsignedSmallInteger('expiry_year')->nullable(); // YYYY
+            $table->string('card_number_prefix', 4)->nullable(); // First 4 digits for display
+            $table->string('card_number_middle', 4)->nullable(); // Middle 4 digits for display
+            $table->unsignedTinyInteger('exp_month')->nullable(); // 1-12
+            $table->unsignedSmallInteger('exp_year')->nullable(); // YYYY
+            $table->string('stripe_payment_method_id')->nullable(); // Stripe payment method ID
             
             // Bank account fields
             $table->string('bank_name')->nullable();
@@ -71,7 +74,7 @@ return new class extends Migration
             $table->index(['verification_status'], 'idx_verification_status');
             $table->index(['expires_at'], 'idx_expires_at');
             $table->index(['gateway', 'gateway_token'], 'idx_gateway_token');
-            $table->index(['expiry_year', 'expiry_month'], 'idx_card_expiry');
+            $table->index(['exp_year', 'exp_month'], 'idx_card_expiry');
             
             // Unique constraint to prevent duplicate tokens
             $table->unique(['user_id', 'gateway_token'], 'unique_user_gateway_token');

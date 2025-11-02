@@ -1,6 +1,7 @@
 import { ArrowLeftRight, CreditCard as CardIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { PaymentMethod } from './PaymentConfig';
+import { PaypalIcon } from '@/components/icons/paypal-icon';
 
 interface PaymentMethodSelectorProps {
     selectedMethod: 'credit_card' | 'bank_transfer' | 'paypal';
@@ -28,16 +29,16 @@ export default function PaymentMethodSelector({
             id: 'paypal',
             type: 'paypal',
             name: 'Paypal',
-            icon: <div className="w-5 h-5 bg-blue-600 rounded-sm flex items-center justify-center text-white text-xs font-bold">P</div>
+            icon: <PaypalIcon className='w-5 h-5'/>
         }
     ];
 
     const handleSelect = (methodType: 'credit_card' | 'bank_transfer' | 'paypal') => {
         onSelect(methodType);
-        
-        // Show toast for unavailable methods
-        if (methodType === 'bank_transfer' || methodType === 'paypal') {
-            toast.error(`${methodType === 'bank_transfer' ? 'Bank Transfer' : 'PayPal'} payment method is not available yet. Please use Credit/Debit Card.`);
+
+        // Show toast only for PayPal (unavailable)
+        if (methodType === 'paypal') {
+            toast.error('PayPal payment method is not available yet. Please use Credit/Debit Card or Bank Transfer.');
         }
     };
 
@@ -49,11 +50,10 @@ export default function PaymentMethodSelector({
                     <div
                         key={method.id}
                         onClick={() => handleSelect(method.type)}
-                        className={`flex items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-lg cursor-pointer transition-colors border-2 ${
-                            selectedMethod === method.type
-                                ? 'bg-green-50 border-green-600'
-                                : 'bg-white border-gray-200 hover:bg-gray-50'
-                        }`}
+                        className={`flex items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-lg cursor-pointer transition-colors border-2 ${selectedMethod === method.type
+                            ? 'bg-green-50 border-green-600'
+                            : 'bg-white border-gray-200 hover:bg-gray-50'
+                            }`}
                     >
                         <div className="text-gray-600 flex-shrink-0">
                             {method.icon}

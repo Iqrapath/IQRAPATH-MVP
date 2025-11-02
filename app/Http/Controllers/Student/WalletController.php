@@ -122,17 +122,41 @@ class WalletController extends Controller
         $user = Auth::user();
         $paymentMethods = $user->activePaymentMethods()->orderBy('is_default', 'desc')->get();
 
+        $mapped = $paymentMethods->map(function ($method) {
+            $data = [
+                'id' => $method->id,
+                'type' => $method->type,
+                'name' => $method->name,
+                'display_text' => $method->display_text,
+                'is_default' => $method->is_default,
+                // Bank transfer fields
+                'bank_code' => $method->bank_code,
+                'bank_name' => $method->bank_name,
+                'account_name' => $method->account_name,
+                'last_four' => $method->last_four,
+                // Card-specific fields
+                'card_brand' => $method->card_brand,
+                'card_number_prefix' => $method->card_number_prefix,
+                'card_number_middle' => $method->card_number_middle,
+                'exp_month' => $method->exp_month,
+                'exp_year' => $method->exp_year,
+                'stripe_payment_method_id' => $method->stripe_payment_method_id,
+                // Legacy details field for backward compatibility
+                'details' => $method->details,
+                'is_active' => $method->is_active,
+                'is_verified' => $method->is_verified,
+                'verification_status' => $method->verification_status,
+                'created_at' => $method->created_at,
+                'updated_at' => $method->updated_at,
+            ];
+            
+            \Log::info('Payment Method Data', ['id' => $method->id, 'card_brand' => $method->card_brand, 'mapped_card_brand' => $data['card_brand']]);
+            
+            return $data;
+        });
+
         return response()->json([
-            'payment_methods' => $paymentMethods->map(function ($method) {
-                return [
-                    'id' => $method->id,
-                    'type' => $method->type,
-                    'name' => $method->name,
-                    'display_text' => $method->display_text,
-                    'is_default' => $method->is_default,
-                    'details' => $method->details,
-                ];
-            }),
+            'payment_methods' => $mapped,
         ]);
     }
 
@@ -190,11 +214,67 @@ class WalletController extends Controller
         }
 
         $validated = $request->validate([
+            'type' => 'sometimes|in:bank_transfer,mobile_money,card',
             'name' => 'sometimes|string|max:255',
+            'bank_code' => 'required_if:type,bank_transfer|string',
+            'bank_name' => 'required_if:type,bank_transfer|string',
+            'account_number' => 'required_if:type,bank_transfer|string|size:10',
+            'account_name' => 'required_if:type,bank_transfer|string',
+            'currency' => 'sometimes|in:NGN,USD',
             'details' => 'sometimes|array',
             'is_default' => 'sometimes|boolean',
             'is_active' => 'sometimes|boolean',
         ]);
+
+        // Handle bank transfer updates with verification
+        if (isset($validated['type']) && $validated['type'] === 'bank_transfer' && isset($validated['account_number'])) {
+            $skipVerification = config('app.env') === 'local' && config('app.debug');
+            
+            if ($skipVerification) {
+                \Log::info('Skipping bank verification in development mode (update)', [
+                    'account_number' => $validated['account_number'],
+                    'bank_name' => $validated['bank_name']
+                ]);
+                
+                $validated['is_verified'] = true;
+                $validated['verification_status'] = 'verified';
+                $validated['verified_at'] = now();
+            } else {
+                // Production mode: Verify with Paystack
+                $paystackSecretKey = config('services.paystack.secret_key');
+                
+                $response = \Illuminate\Support\Facades\Http::withHeaders([
+                    'Authorization' => 'Bearer ' . $paystackSecretKey,
+                    'Content-Type' => 'application/json',
+                ])->get('https://api.paystack.co/bank/resolve', [
+                    'account_number' => $validated['account_number'],
+                    'bank_code' => $validated['bank_code'],
+                ]);
+
+                if (!$response->successful()) {
+                    $errorMessage = $response->json()['message'] ?? 'Unable to verify bank account.';
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'account_number' => [$errorMessage]
+                    ]);
+                }
+
+                $accountData = $response->json()['data'] ?? null;
+                if (!$accountData || !isset($accountData['account_name'])) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'account_number' => ['Could not retrieve account name.']
+                    ]);
+                }
+
+                $validated['account_name'] = $accountData['account_name'];
+                $validated['is_verified'] = true;
+                $validated['verification_status'] = 'verified';
+                $validated['verified_at'] = now();
+            }
+            
+            // Store only last 4 digits for security
+            $validated['last_four'] = substr($validated['account_number'], -4);
+            unset($validated['account_number']);
+        }
 
         // If this is set as default, unset other defaults
         if (isset($validated['is_default']) && $validated['is_default']) {
@@ -209,8 +289,13 @@ class WalletController extends Controller
                 'id' => $paymentMethod->id,
                 'type' => $paymentMethod->type,
                 'name' => $paymentMethod->name,
+                'bank_code' => $paymentMethod->bank_code,
+                'bank_name' => $paymentMethod->bank_name,
+                'account_name' => $paymentMethod->account_name,
+                'last_four' => $paymentMethod->last_four,
                 'display_text' => $paymentMethod->display_text,
                 'is_default' => $paymentMethod->is_default,
+                'is_verified' => $paymentMethod->is_verified,
                 'details' => $paymentMethod->details,
             ],
             'message' => 'Payment method updated successfully',

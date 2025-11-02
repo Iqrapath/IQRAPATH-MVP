@@ -677,6 +677,25 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Get the user's virtual accounts.
+     */
+    public function virtualAccounts(): HasMany
+    {
+        return $this->hasMany(VirtualAccount::class);
+    }
+
+    /**
+     * Get the user's active virtual account.
+     */
+    public function activeVirtualAccount(): HasOne
+    {
+        return $this->hasOne(VirtualAccount::class)
+            ->where('is_active', true)
+            ->where('provider', 'paystack')
+            ->latestOfMany();
+    }
+
+    /**
      * Get the user's payment methods.
      */
     public function paymentMethods(): HasMany

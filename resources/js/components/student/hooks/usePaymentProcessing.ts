@@ -33,7 +33,7 @@ export function usePaymentProcessing(
         return error.message || 'Payment failed. Please try again.';
     };
 
-    const handleMakePayment = async (fundingAmount: string, rememberCard: boolean) => {
+    const handleMakePayment = async (fundingAmount: string, rememberCard: boolean): Promise<any> => {
         setIsLoading(true);
         
         try {
@@ -83,10 +83,6 @@ export function usePaymentProcessing(
             if (response.data.success) {
                 console.log('Payment successful:', response.data.data.transaction_id);
                 
-                toast.success(response.data.message || 'Payment successful!', {
-                    duration: 5000,
-                });
-                
                 // Call the onPayment callback with success data
                 onPayment({
                     success: true,
@@ -98,12 +94,18 @@ export function usePaymentProcessing(
                 // Reload page data to update wallet balance in header
                 router.reload({ only: ['auth'] });
                 
-                // Close modal after successful payment
-                onClose();
+                // Return success data for success modal
+                return {
+                    success: true,
+                    transactionId: response.data.data.transaction_id,
+                    amount: response.data.data.amount,
+                    newBalance: response.data.data.new_balance
+                };
             } else {
                 toast.error(response.data.message || 'Payment failed', {
                     duration: 5000,
                 });
+                return null;
             }
         } catch (error: any) {
             console.error('Payment error:', error);
@@ -128,6 +130,7 @@ export function usePaymentProcessing(
             toast.error(errorMessage, {
                 duration: 5000,
             });
+            return null;
         } finally {
             setIsLoading(false);
         }

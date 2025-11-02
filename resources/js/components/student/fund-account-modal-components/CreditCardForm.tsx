@@ -43,38 +43,30 @@ interface CreditCardFormProps {
 
 // Card brand logo component
 const CardBrandIcon = ({ brand }: { brand: string }) => {
-    switch (brand) {
-        case 'visa':
-            return (
-                VisaCardIcon({
-                    className: 'w-8 h-6',
-                })
-            );
-        case 'mastercard':
-            return (
-                MasterCardIcon({
-                    className: 'w-8 h-6',
-                })
-            );
-        case 'amex':
-            return (
-                AmericanExpressIconProps({
-                    className: 'w-8 h-6',
-                })
-            );
-        case 'discover':
-            return (
-                DiscoverIconProps({
-                    className: 'w-8 h-6',
-                })
-            );
-        default:
-            return (
-                CreditCardIcon({
-                    className: 'w-8 h-6',
-                })
-            );
-    }
+    const brandLower = brand?.toLowerCase() || 'unknown';
+    
+    const brandLogos: Record<string, string> = {
+        'visa': 'https://www.brandeps.com/logo-download/V/Visa-logo-01.svg',
+        'mastercard': 'https://www.brandeps.com/logo-download/M/Mastercard-logo-01.svg',
+        'amex': 'https://www.brandeps.com/logo-download/A/American-Express-logo-01.svg',
+        'discover': 'https://www.brandeps.com/logo-download/D/Discover-logo-01.svg',
+        'diners': 'https://www.brandeps.com/logo-download/D/Diners-Club-logo-01.svg',
+        'jcb': 'https://www.brandeps.com/logo-download/J/JCB-logo-01.svg',
+        'unionpay': 'https://www.brandeps.com/logo-download/U/UnionPay-logo-01.svg',
+    };
+
+    const logoUrl = brandLogos[brandLower];
+
+    return (
+        <img
+            src={logoUrl || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23666"%3E%3Crect x="2" y="5" width="20" height="14" rx="2" stroke-width="2"/%3E%3Cline x1="2" y1="10" x2="22" y2="10" stroke-width="2"/%3E%3C/svg%3E'}
+            alt={brand}
+            className="w-8 h-6 object-contain"
+            onError={(e) => {
+                e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23666"%3E%3Crect x="2" y="5" width="20" height="14" rx="2" stroke-width="2"/%3E%3Cline x1="2" y1="10" x2="22" y2="10" stroke-width="2"/%3E%3C/svg%3E';
+            }}
+        />
+    );
 };
 
 export default function CreditCardForm({

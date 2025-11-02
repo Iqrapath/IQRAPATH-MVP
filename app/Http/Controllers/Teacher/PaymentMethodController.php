@@ -50,13 +50,53 @@ class PaymentMethodController extends Controller
 
             // Verify bank account if type is bank_transfer
             if ($validated['type'] === 'bank_transfer') {
-                try {
-                    $verificationResult = $this->bankVerificationService->verifyBankAccount(
-                        $validated['account_number'],
-                        $validated['bank_code']
-                    );
+                $skipVerification = config('app.env') === 'local' && config('app.debug');
+                
+                if ($skipVerification) {
+                    // Development mode: Skip Paystack verification
+                    Log::info('Skipping bank verification in development mode', [
+                        'account_number' => $validated['account_number'],
+                        'bank_name' => $validated['bank_name']
+                    ]);
+                    
+                    // Use provided account name or generate a test one
+                    if (empty($validated['account_name'])) {
+                        $validated['account_name'] = 'Test Account Holder';
+                    }
+                    
+                    $validated['is_verified'] = true;
+                    $validated['verification_status'] = 'verified';
+                    $validated['verified_at'] = now();
+                } else {
+                    // Production mode: Verify with Paystack (REQUIRED)
+                    try {
+                        $verificationResult = $this->bankVerificationService->verifyBankAccount(
+                            $validated['account_number'],
+                            $validated['bank_code']
+                        );
 
-                    if ($verificationResult['success']) {
+                        if (!$verificationResult['success']) {
+                            // Verification failed - reject the account
+                            $errorMessage = $verificationResult['message'] ?? 'Unable to verify bank account. Please check your details.';
+                            
+                            Log::warning('Bank verification failed, rejecting account', [
+                                'account_number' => $validated['account_number'],
+                                'bank_code' => $validated['bank_code'],
+                                'error' => $errorMessage
+                            ]);
+                            
+                            // Check if it's a test mode issue
+                            if (stripos($errorMessage, 'test') !== false || $validated['account_number'] === '0000000000') {
+                                throw \Illuminate\Validation\ValidationException::withMessages([
+                                    'account_number' => ['Test account numbers are not supported. Please use a real bank account number.']
+                                ]);
+                            }
+                            
+                            throw \Illuminate\Validation\ValidationException::withMessages([
+                                'account_number' => [$errorMessage]
+                            ]);
+                        }
+
                         // Verification successful - use verified data
                         $validated['account_name'] = $verificationResult['data']['account_name'] ?? $validated['account_name'];
                         $validated['bank_name'] = $verificationResult['data']['bank_name'] ?? $validated['bank_name'];
@@ -66,37 +106,25 @@ class PaymentMethodController extends Controller
                         
                         Log::info('Bank account verified successfully', [
                             'account_number' => $validated['account_number'],
-                            'bank_code' => $validated['bank_code']
+                            'bank_code' => $validated['bank_code'],
+                            'account_name' => $validated['account_name']
                         ]);
-                    } else {
-                        // Verification failed - store as pending for manual verification
-                        // Keep the user-provided bank_name and account_name
-                        $validated['verification_status'] = 'pending';
-                        $validated['is_verified'] = false;
-                        $validated['verification_notes'] = 'Automatic verification failed. Pending manual review.';
                         
-                        Log::warning('Bank verification failed, storing as pending with user-provided data', [
+                    } catch (\Illuminate\Validation\ValidationException $e) {
+                        // Re-throw validation exceptions
+                        throw $e;
+                    } catch (\Exception $e) {
+                        // Verification service error - reject the account
+                        Log::error('Bank verification exception, rejecting account', [
                             'account_number' => $validated['account_number'],
                             'bank_code' => $validated['bank_code'],
-                            'bank_name' => $validated['bank_name'],
-                            'account_name' => $validated['account_name'],
-                            'error' => $verificationResult['message'] ?? 'Unknown error'
+                            'error' => $e->getMessage()
+                        ]);
+                        
+                        throw \Illuminate\Validation\ValidationException::withMessages([
+                            'account_number' => ['Unable to verify bank account. Please try again or contact support.']
                         ]);
                     }
-                } catch (\Exception $e) {
-                    // Verification error - store as pending
-                    // Keep the user-provided bank_name and account_name
-                    $validated['verification_status'] = 'pending';
-                    $validated['is_verified'] = false;
-                    $validated['verification_notes'] = 'Verification service unavailable. Pending manual review.';
-                    
-                    Log::error('Bank verification exception, storing as pending with user-provided data', [
-                        'account_number' => $validated['account_number'],
-                        'bank_code' => $validated['bank_code'],
-                        'bank_name' => $validated['bank_name'],
-                        'account_name' => $validated['account_name'],
-                        'error' => $e->getMessage()
-                    ]);
                 }
             } elseif ($validated['type'] === 'paypal') {
                 // PayPal payment method
@@ -450,19 +478,75 @@ class PaymentMethodController extends Controller
         try {
             Log::info('Fetching banks list');
             
-            $banks = $this->bankVerificationService->getBankList('NG');
+            $paystackSecretKey = config('services.paystack.secret_key');
             
-            Log::info('Banks fetched from Paystack', [
-                'count' => count($banks)
+            $response = \Illuminate\Support\Facades\Http::withHeaders([
+                'Authorization' => 'Bearer ' . $paystackSecretKey,
+                'Content-Type' => 'application/json',
+            ])->get('https://api.paystack.co/bank', [
+                'country' => 'nigeria',
+                'perPage' => 100
             ]);
 
-            // If Paystack returns empty, use fallback list
-            if (empty($banks)) {
-                Log::warning('Paystack returned empty banks, using fallback list');
-                $banks = $this->getFallbackBanks();
+            if ($response->successful()) {
+                $banks = $response->json()['data'] ?? [];
+                
+                // Filter to only active banks and remove duplicates
+                $uniqueBanks = [];
+                $seenCodes = [];
+                
+                // List of major Nigerian banks to prioritize
+                $majorBanks = [
+                    'Access Bank', 'GTBank', 'Guaranty Trust Bank', 'First Bank', 'Zenith Bank',
+                    'UBA', 'United Bank For Africa', 'Fidelity Bank', 'Union Bank',
+                    'Sterling Bank', 'Stanbic IBTC Bank', 'Polaris Bank', 'Wema Bank',
+                    'Ecobank Nigeria', 'FCMB', 'Keystone Bank', 'Unity Bank', 'Heritage Bank',
+                    'Providus Bank', 'Jaiz Bank', 'SunTrust Bank', 'Titan Trust Bank',
+                    'Globus Bank', 'Parallex Bank', 'Premium Trust Bank'
+                ];
+                
+                foreach ($banks as $bank) {
+                    $code = $bank['code'] ?? null;
+                    $name = $bank['name'] ?? '';
+                    $isActive = $bank['active'] ?? true;
+                    
+                    // Skip if no code, duplicate, or inactive
+                    if (!$code || in_array($code, $seenCodes) || !$isActive) {
+                        continue;
+                    }
+                    
+                    // Skip test banks and non-commercial banks
+                    if (stripos($name, 'test') !== false || 
+                        stripos($name, 'microfinance') !== false ||
+                        stripos($name, 'mortgage') !== false) {
+                        continue;
+                    }
+                    
+                    $uniqueBanks[] = $bank;
+                    $seenCodes[] = $code;
+                }
+                
+                // Sort banks: major banks first, then alphabetically
+                usort($uniqueBanks, function($a, $b) use ($majorBanks) {
+                    $aIsMajor = in_array($a['name'], $majorBanks);
+                    $bIsMajor = in_array($b['name'], $majorBanks);
+                    
+                    if ($aIsMajor && !$bIsMajor) return -1;
+                    if (!$aIsMajor && $bIsMajor) return 1;
+                    
+                    return strcmp($a['name'], $b['name']);
+                });
+                
+                Log::info('Banks fetched from Paystack', [
+                    'count' => count($uniqueBanks)
+                ]);
+                
+                return response()->json($uniqueBanks);
             }
 
-            return response()->json($banks);
+            // If Paystack API fails, use fallback
+            Log::warning('Paystack API failed, using fallback list');
+            return response()->json($this->getFallbackBanks());
 
         } catch (\Exception $e) {
             Log::error('Failed to fetch banks from Paystack, using fallback', [

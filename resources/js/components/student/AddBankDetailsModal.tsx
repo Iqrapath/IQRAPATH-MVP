@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { X, Building2, Hash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { X, Building2, Hash } from 'lucide-react';
 import { router } from '@inertiajs/react';
 import { toast } from 'sonner';
 
-interface AddBankTransferModalProps {
+interface AddBankDetailsModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSuccess: () => void;
+    onBack: () => void;
 }
 
 interface BankDetails {
@@ -26,11 +26,7 @@ interface Bank {
     country: string;
 }
 
-export default function AddBankTransferModal({
-    isOpen,
-    onClose,
-    onSuccess
-}: AddBankTransferModalProps) {
+export default function AddBankDetailsModal({ isOpen, onClose, onBack }: AddBankDetailsModalProps) {
     const [formData, setFormData] = useState<BankDetails>({
         accountName: '',
         bankName: '',
@@ -53,7 +49,7 @@ export default function AddBankTransferModal({
     const fetchBanks = async () => {
         try {
             setIsLoadingBanks(true);
-            const response = await fetch('/teacher/banks', {
+            const response = await fetch('/student/banks', {
                 headers: {
                     'Accept': 'application/json',
                 },
@@ -92,7 +88,6 @@ export default function AddBankTransferModal({
                 setFilteredBanks(filtered);
                 setShowBankSuggestions(true);
             } else {
-                // Show all banks when input is empty
                 setFilteredBanks(banks);
                 setShowBankSuggestions(true);
             }
@@ -100,7 +95,6 @@ export default function AddBankTransferModal({
     };
 
     const handleBankFocus = () => {
-        // Show all banks when field is focused
         if (banks.length > 0) {
             if (formData.bankName.trim()) {
                 const filtered = banks.filter(bank =>
@@ -119,14 +113,12 @@ export default function AddBankTransferModal({
         setFormData(prev => ({ ...prev, bankName: bank.name }));
         setShowBankSuggestions(false);
         setFilteredBanks([]);
-        // Clear any error
         if (errors.bankName) {
             setErrors(prev => ({ ...prev, bankName: undefined }));
         }
     };
 
     const handleBankBlur = () => {
-        // Delay hiding to allow click on dropdown items
         setTimeout(() => {
             setShowBankSuggestions(false);
         }, 300);
@@ -156,7 +148,6 @@ export default function AddBankTransferModal({
 
         if (!validateForm()) return;
 
-        // Find the selected bank to get its code
         const selectedBank = banks.find(bank => bank.name === formData.bankName);
 
         if (!selectedBank) {
@@ -166,11 +157,9 @@ export default function AddBankTransferModal({
 
         setIsSubmitting(true);
 
-        // Show loading toast
         const loadingToast = toast.loading('Verifying bank account...');
 
         try {
-            // Prepare data for API
             const paymentMethodData = {
                 type: 'bank_transfer',
                 name: `${selectedBank.name} - ${formData.accountNumber.slice(-4)}`,
@@ -181,20 +170,17 @@ export default function AddBankTransferModal({
                 currency: 'NGN'
             };
 
-            // Submit using Inertia
-            router.post('/teacher/payment-methods', paymentMethodData, {
+            router.post('/student/payment-methods', paymentMethodData, {
                 preserveScroll: true,
                 onSuccess: () => {
                     toast.dismiss(loadingToast);
                     toast.success('Bank account added successfully');
                     handleClose();
-                    onSuccess();
                 },
                 onError: (errors) => {
                     toast.dismiss(loadingToast);
                     console.error('Validation errors:', errors);
 
-                    // Map backend errors to form errors
                     const formErrors: Partial<BankDetails> = {};
                     if (errors.account_number) {
                         formErrors.accountNumber = errors.account_number as string;
@@ -208,7 +194,6 @@ export default function AddBankTransferModal({
 
                     setErrors(formErrors);
 
-                    // Show generic error toast if no specific field errors
                     if (Object.keys(formErrors).length === 0) {
                         toast.error(errors.error as string || 'Failed to add bank account. Please try again.');
                     } else {
@@ -242,32 +227,32 @@ export default function AddBankTransferModal({
     };
 
     return (
-        <div className="fixed inset-0 bg-transparent backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="bg-white rounded-4xl p-6 w-full max-w-xl mx-4">
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4 sm:p-6">
+            <div className="bg-white rounded-2xl w-full max-w-2xl mx-4 p-8">
                 {/* Header */}
-                <div className="flex justify-between items-start mb-6">
+                <div className="flex items-start justify-between mb-6">
                     <div>
-                        <h2 className="text-xl font-bold text-gray-900 mb-1">
-                            Add your Bank Deatils
+                        <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                            Add your Bank Details
                         </h2>
-                        <p className="text-gray-600 text-sm">
+                        <p className="text-gray-500">
                             Easily transfer your Earning balance to your bank account
                         </p>
                     </div>
                     <button
                         onClick={handleClose}
                         disabled={isSubmitting}
-                        className="text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-50"
+                        className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
                     >
-                        <X className="h-5 w-5" />
+                        <X className="w-6 h-6" />
                     </button>
                 </div>
 
                 {/* Form */}
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-6">
                     {/* Account Name */}
-                    <div className="relative w-[70%]">
-                        <Label htmlFor="accountName" className="text-sm font-medium text-gray-700">
+                    <div>
+                        <Label htmlFor="accountName" className="text-gray-700 font-medium">
                             Account Name
                         </Label>
                         <Input
@@ -276,7 +261,7 @@ export default function AddBankTransferModal({
                             value={formData.accountName}
                             onChange={(e) => handleInputChange('accountName', e.target.value)}
                             placeholder="Enter Account Name"
-                            className="mt-1 bg-gray-100 border-gray-200"
+                            className="mt-2 border-2 border-gray-200 rounded-xl focus:border-[#2C7870] h-12"
                         />
                         {errors.accountName && (
                             <p className="text-red-500 text-xs mt-1">{errors.accountName}</p>
@@ -284,25 +269,25 @@ export default function AddBankTransferModal({
                     </div>
 
                     {/* Bank Name */}
-                    <div className="relative w-[70%]">
-                        <Label htmlFor="bankName" className="text-sm font-medium text-gray-700">
+                    <div className="relative">
+                        <Label htmlFor="bankName" className="text-gray-700 font-medium">
                             Bank Name
                         </Label>
-                        <div className="relative mt-1">
-                            <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <div className="relative mt-2">
+                            <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                             <Input
                                 id="bankName"
                                 type="text"
                                 value={formData.bankName}
                                 onChange={(e) => handleInputChange('bankName', e.target.value)}
                                 placeholder="Select bank"
-                                className="pl-10 pr-10 bg-gray-100 border-gray-200"
+                                className="pl-12 pr-10 border-2 border-gray-200 rounded-xl focus:border-[#2C7870] h-12"
                                 onFocus={handleBankFocus}
                                 onBlur={handleBankBlur}
                             />
-                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                                <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <polyline points="6 9 12 15 18 9" />
                                 </svg>
                             </div>
                         </div>
@@ -310,9 +295,9 @@ export default function AddBankTransferModal({
                         {/* Bank Suggestions Dropdown */}
                         {showBankSuggestions && filteredBanks.length > 0 && (
                             <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                                {filteredBanks.map((bank) => (
+                                {filteredBanks.map((bank, index) => (
                                     <button
-                                        key={bank.code}
+                                        key={`${bank.code}-${index}`}
                                         type="button"
                                         onMouseDown={(e) => {
                                             e.preventDefault();
@@ -326,7 +311,6 @@ export default function AddBankTransferModal({
                             </div>
                         )}
 
-                        {/* Loading banks indicator */}
                         {isLoadingBanks && (
                             <p className="text-gray-500 text-xs mt-1">Loading banks...</p>
                         )}
@@ -337,12 +321,12 @@ export default function AddBankTransferModal({
                     </div>
 
                     {/* Account Number */}
-                    <div className="relative">
-                        <Label htmlFor="accountNumber" className="text-sm font-medium text-gray-700">
+                    <div>
+                        <Label htmlFor="accountNumber" className="text-gray-700 font-medium">
                             Account Number
                         </Label>
-                        <div className="relative mt-1">
-                            <Hash className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <div className="relative mt-2">
+                            <Hash className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                             <Input
                                 id="accountNumber"
                                 type="text"
@@ -350,10 +334,10 @@ export default function AddBankTransferModal({
                                 onChange={(e) => handleInputChange('accountNumber', e.target.value.replace(/\D/g, ''))}
                                 placeholder="Enter Account Number"
                                 maxLength={10}
-                                className="pl-10 bg-gray-100 border-gray-200"
+                                className="pl-12 border-2 border-gray-200 rounded-xl focus:border-[#2C7870] h-12"
                             />
                         </div>
-                        <p className="text-gray-500 text-xs mt-1">
+                        <p className="text-sm text-gray-400 mt-2">
                             Please enter valid account number with the right number of digits.
                         </p>
                         {errors.accountNumber && (
@@ -361,12 +345,12 @@ export default function AddBankTransferModal({
                         )}
                     </div>
 
-                    {/* Action Button */}
+                    {/* Submit Button */}
                     <div className="pt-4">
                         <Button
                             type="submit"
                             disabled={isSubmitting}
-                            className=" bg-[#338078] hover:bg-[#338078]/80 text-white rounded-full py-3"
+                            className="bg-[#2C7870] hover:bg-[#236158] text-white px-8 py-3 rounded-xl font-medium"
                         >
                             {isSubmitting ? (
                                 <div className="flex items-center justify-center space-x-2">

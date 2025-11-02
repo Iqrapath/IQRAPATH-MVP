@@ -105,22 +105,19 @@ Route::middleware(['auth', 'verified', 'role:student'])->prefix('student')->name
     Route::post('/wallet/fund', [App\Http\Controllers\Student\WalletController::class, 'processFunding'])->name('wallet.fund.process');
     Route::get('/wallet/balance', [App\Http\Controllers\Student\WalletController::class, 'getBalance'])->name('wallet.balance');
     Route::get('/wallet/funding-config', [App\Http\Controllers\Student\WalletController::class, 'getFundingConfig'])->name('wallet.funding-config');
-    Route::get('/wallet/payment-methods', [App\Http\Controllers\Student\WalletController::class, 'getPaymentMethods'])->name('wallet.payment-methods');
-    Route::post('/wallet/payment-methods', [App\Http\Controllers\Student\WalletController::class, 'storePaymentMethod'])->name('wallet.payment-methods.store');
-    Route::put('/wallet/payment-methods/{paymentMethod}', [App\Http\Controllers\Student\WalletController::class, 'updatePaymentMethod'])->name('wallet.payment-methods.update');
-    Route::delete('/wallet/payment-methods/{paymentMethod}', [App\Http\Controllers\Student\WalletController::class, 'deletePaymentMethod'])->name('wallet.payment-methods.delete');
-    
-    // Legacy Payment Methods routes (keep for backward compatibility)
-    Route::get('/payment-methods', [App\Http\Controllers\Student\WalletController::class, 'getPaymentMethods'])->name('payment-methods.index');
-    Route::post('/payment-methods', [App\Http\Controllers\Student\WalletController::class, 'storePaymentMethod'])->name('payment-methods.store');
-    Route::patch('/payment-methods/{paymentMethod}', [App\Http\Controllers\Student\WalletController::class, 'updatePaymentMethod'])->name('payment-methods.update');
-    Route::delete('/payment-methods/{paymentMethod}', [App\Http\Controllers\Student\WalletController::class, 'deletePaymentMethod'])->name('payment-methods.delete');
     
     // Payment routes
     Route::post('/payment/fund-wallet', [App\Http\Controllers\Student\PaymentController::class, 'fundWallet'])->name('payment.fund-wallet');
     Route::get('/payment/publishable-key', [App\Http\Controllers\Student\PaymentController::class, 'getPublishableKey'])->name('payment.publishable-key');
     Route::get('/payment/paystack-public-key', [App\Http\Controllers\Student\PaymentController::class, 'getPaystackPublicKey'])->name('payment.paystack-public-key');
     Route::post('/payment/verify-paystack', [App\Http\Controllers\Student\PaymentController::class, 'verifyPaystackPayment'])->name('payment.verify-paystack');
+    Route::get('/payment/virtual-account', [App\Http\Controllers\Student\PaymentController::class, 'getVirtualAccount'])->name('payment.virtual-account');
+    
+    // Payment method routes - Using PaymentController for consistency
+    Route::get('/banks', [App\Http\Controllers\Student\PaymentController::class, 'getBanks'])->name('banks');
+    Route::get('/wallet/payment-methods', [App\Http\Controllers\Student\PaymentController::class, 'getPaymentMethods'])->name('wallet.payment-methods');
+    Route::post('/payment-methods', [App\Http\Controllers\Student\PaymentController::class, 'storePaymentMethod'])->name('payment-methods.store');
+    Route::put('/payment-methods/{paymentMethod}', [App\Http\Controllers\Student\PaymentController::class, 'updatePaymentMethod'])->name('payment-methods.update');
     
     // Plan enrollment routes
     Route::get('/memorization-plans', [App\Http\Controllers\Student\PlanController::class, 'landing'])->name('memorization-plans');

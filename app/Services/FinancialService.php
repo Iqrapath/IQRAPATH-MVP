@@ -454,4 +454,49 @@ class FinancialService
             ]);
         });
     }
+
+    /**
+     * Add funds to user wallet (for bank transfer, virtual account credits, etc.)
+     */
+    public function addFunds(User $user, float $amount, string $description = 'Wallet funding', ?string $reference = null): Transaction
+    {
+        return DB::transaction(function () use ($user, $amount, $description, $reference) {
+            // Get user's wallet based on role
+            $wallet = match($user->role) {
+                'student' => $user->studentWallet,
+                'teacher' => $user->teacherWallet,
+                'guardian' => $user->guardianWallet,
+                default => throw new Exception('Invalid user role for wallet funding')
+            };
+
+            if (!$wallet) {
+                throw new Exception('User wallet not found');
+            }
+
+            // Credit wallet
+            $wallet->increment('balance', $amount);
+
+            // Create unified transaction record
+            $transaction = Transaction::create([
+                'user_id' => $user->id,
+                'transaction_type' => 'wallet_funding',
+                'amount' => $amount,
+                'currency' => 'NGN',
+                'description' => $description,
+                'reference' => $reference,
+                'status' => 'completed',
+                'transaction_date' => now(),
+                'balance_after' => $wallet->fresh()->balance,
+            ]);
+
+            Log::info('[Financial Service] Funds added to wallet', [
+                'user_id' => $user->id,
+                'amount' => $amount,
+                'reference' => $reference,
+                'new_balance' => $wallet->balance
+            ]);
+
+            return $transaction;
+        });
+    }
 } 

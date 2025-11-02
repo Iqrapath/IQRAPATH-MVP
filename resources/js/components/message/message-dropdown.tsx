@@ -45,32 +45,35 @@ export function MessageDropdown({ className, iconSize = 24 }: MessageDropdownPro
     timestamp: string;
   }> = {};
   
-  messages.forEach(message => {
-    const otherUserId = message.sender_id;
-    const otherUser = message.sender;
-    
-    if (!conversationsByUser[otherUserId]) {
-      conversationsByUser[otherUserId] = {
-        user: otherUser,
-        lastMessage: message.content,
-        unreadCount: message.read_at ? 0 : 1,
-        timestamp: message.created_at
-      };
-    } else {
-      // Update only if this message is newer
-      const existingDate = new Date(conversationsByUser[otherUserId].timestamp);
-      const messageDate = new Date(message.created_at);
+  // Safely handle messages array
+  if (messages && Array.isArray(messages)) {
+    messages.forEach(message => {
+      const otherUserId = message.sender_id;
+      const otherUser = message.sender;
       
-      if (messageDate > existingDate) {
-        conversationsByUser[otherUserId].lastMessage = message.content;
-        conversationsByUser[otherUserId].timestamp = message.created_at;
+      if (!conversationsByUser[otherUserId]) {
+        conversationsByUser[otherUserId] = {
+          user: otherUser,
+          lastMessage: message.content,
+          unreadCount: message.read_at ? 0 : 1,
+          timestamp: message.created_at
+        };
+      } else {
+        // Update only if this message is newer
+        const existingDate = new Date(conversationsByUser[otherUserId].timestamp);
+        const messageDate = new Date(message.created_at);
+        
+        if (messageDate > existingDate) {
+          conversationsByUser[otherUserId].lastMessage = message.content;
+          conversationsByUser[otherUserId].timestamp = message.created_at;
+        }
+        
+        if (!message.read_at) {
+          conversationsByUser[otherUserId].unreadCount += 1;
+        }
       }
-      
-      if (!message.read_at) {
-        conversationsByUser[otherUserId].unreadCount += 1;
-      }
-    }
-  });
+    });
+  }
   
   // Convert to array and sort by timestamp (newest first)
   const conversations = Object.values(conversationsByUser)

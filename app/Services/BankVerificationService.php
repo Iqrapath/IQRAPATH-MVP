@@ -64,9 +64,11 @@ class BankVerificationService
 
             return [
                 'success' => true,
-                'account_number' => $accountNumber,
-                'account_name' => $data['account_name'],
-                'bank_code' => $bankCode,
+                'data' => [
+                    'account_number' => $accountNumber,
+                    'account_name' => $data['account_name'],
+                    'bank_code' => $bankCode,
+                ],
             ];
 
         } catch (\Exception $e) {
@@ -78,6 +80,7 @@ class BankVerificationService
 
             return [
                 'success' => false,
+                'message' => $e->getMessage(),
                 'error' => $e->getMessage(),
             ];
         }

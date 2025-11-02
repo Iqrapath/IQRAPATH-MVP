@@ -1,15 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { Building2, Hash, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { X, Building2, Hash } from 'lucide-react';
 import { router } from '@inertiajs/react';
 import { toast } from 'sonner';
 
-interface AddBankTransferModalProps {
-    isOpen: boolean;
-    onClose: () => void;
+interface PaymentMethod {
+    id: number;
+    type: string;
+    name: string;
+    bank_code?: string;
+    bank_name?: string;
+    account_name?: string;
+    last_four?: string;
+    details?: {
+        bank_name?: string;
+        account_holder?: string;
+        account_number?: string;
+    } | null;
+}
+
+interface EditBankDetailsFormProps {
+    paymentMethod: PaymentMethod;
+    onCancel: () => void;
     onSuccess: () => void;
+    onAddNew?: () => void;
 }
 
 interface BankDetails {
@@ -26,14 +42,11 @@ interface Bank {
     country: string;
 }
 
-export default function AddBankTransferModal({
-    isOpen,
-    onClose,
-    onSuccess
-}: AddBankTransferModalProps) {
+export default function EditBankDetailsForm({ paymentMethod, onCancel, onSuccess, onAddNew }: EditBankDetailsFormProps) {
+    const [isEditMode, setIsEditMode] = useState(false);
     const [formData, setFormData] = useState<BankDetails>({
-        accountName: '',
-        bankName: '',
+        accountName: paymentMethod.account_name || paymentMethod.details?.account_holder || '',
+        bankName: paymentMethod.bank_name || paymentMethod.details?.bank_name || '',
         accountNumber: ''
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -43,17 +56,35 @@ export default function AddBankTransferModal({
     const [filteredBanks, setFilteredBanks] = useState<Bank[]>([]);
     const [isLoadingBanks, setIsLoadingBanks] = useState(false);
 
+    // Get display value for account number (masked or full)
+    const getAccountNumberDisplay = () => {
+        if (isEditMode) {
+            return formData.accountNumber;
+        }
+        // Show only last 4 digits when not in edit mode
+        const lastFour = paymentMethod.last_four || paymentMethod.details?.account_number?.slice(-4) || '';
+        return lastFour ? `******${lastFour}` : '';
+    };
+
+    // Update form data when paymentMethod prop changes
+    useEffect(() => {
+        setFormData({
+            accountName: paymentMethod.account_name || paymentMethod.details?.account_holder || '',
+            bankName: paymentMethod.bank_name || paymentMethod.details?.bank_name || '',
+            accountNumber: ''
+        });
+        setIsEditMode(false); // Reset edit mode when payment method changes
+    }, [paymentMethod]);
+
     // Fetch banks from API
     useEffect(() => {
-        if (isOpen && banks.length === 0) {
-            fetchBanks();
-        }
-    }, [isOpen]);
+        fetchBanks();
+    }, []);
 
     const fetchBanks = async () => {
         try {
             setIsLoadingBanks(true);
-            const response = await fetch('/teacher/banks', {
+            const response = await fetch('/student/banks', {
                 headers: {
                     'Accept': 'application/json',
                 },
@@ -64,7 +95,6 @@ export default function AddBankTransferModal({
             }
 
             const data = await response.json();
-            console.log('Fetched banks:', data.length, 'banks');
             setBanks(data);
         } catch (error) {
             console.error('Error fetching banks:', error);
@@ -74,16 +104,12 @@ export default function AddBankTransferModal({
         }
     };
 
-    if (!isOpen) return null;
-
     const handleInputChange = (field: keyof BankDetails, value: string) => {
         setFormData(prev => ({ ...prev, [field]: value }));
-        // Clear error when user starts typing
         if (errors[field]) {
             setErrors(prev => ({ ...prev, [field]: undefined }));
         }
 
-        // Handle bank name search
         if (field === 'bankName') {
             if (value.trim()) {
                 const filtered = banks.filter(bank =>
@@ -92,7 +118,6 @@ export default function AddBankTransferModal({
                 setFilteredBanks(filtered);
                 setShowBankSuggestions(true);
             } else {
-                // Show all banks when input is empty
                 setFilteredBanks(banks);
                 setShowBankSuggestions(true);
             }
@@ -100,7 +125,6 @@ export default function AddBankTransferModal({
     };
 
     const handleBankFocus = () => {
-        // Show all banks when field is focused
         if (banks.length > 0) {
             if (formData.bankName.trim()) {
                 const filtered = banks.filter(bank =>
@@ -115,18 +139,15 @@ export default function AddBankTransferModal({
     };
 
     const handleBankSelect = (bank: Bank) => {
-        console.log('Bank selected:', bank.name);
         setFormData(prev => ({ ...prev, bankName: bank.name }));
         setShowBankSuggestions(false);
         setFilteredBanks([]);
-        // Clear any error
         if (errors.bankName) {
             setErrors(prev => ({ ...prev, bankName: undefined }));
         }
     };
 
     const handleBankBlur = () => {
-        // Delay hiding to allow click on dropdown items
         setTimeout(() => {
             setShowBankSuggestions(false);
         }, 300);
@@ -156,7 +177,6 @@ export default function AddBankTransferModal({
 
         if (!validateForm()) return;
 
-        // Find the selected bank to get its code
         const selectedBank = banks.find(bank => bank.name === formData.bankName);
 
         if (!selectedBank) {
@@ -165,12 +185,9 @@ export default function AddBankTransferModal({
         }
 
         setIsSubmitting(true);
-
-        // Show loading toast
-        const loadingToast = toast.loading('Verifying bank account...');
+        const loadingToast = toast.loading('Updating bank account...');
 
         try {
-            // Prepare data for API
             const paymentMethodData = {
                 type: 'bank_transfer',
                 name: `${selectedBank.name} - ${formData.accountNumber.slice(-4)}`,
@@ -181,20 +198,19 @@ export default function AddBankTransferModal({
                 currency: 'NGN'
             };
 
-            // Submit using Inertia
-            router.post('/teacher/payment-methods', paymentMethodData, {
+            router.put(`/student/payment-methods/${paymentMethod.id}`, paymentMethodData, {
                 preserveScroll: true,
                 onSuccess: () => {
                     toast.dismiss(loadingToast);
-                    toast.success('Bank account added successfully');
-                    handleClose();
+                    toast.success('Bank account updated successfully');
+                    // Call parent's onSuccess which will refresh data and update the prop
                     onSuccess();
+                    // Edit mode and form data will be reset by useEffect when prop updates
                 },
                 onError: (errors) => {
                     toast.dismiss(loadingToast);
                     console.error('Validation errors:', errors);
 
-                    // Map backend errors to form errors
                     const formErrors: Partial<BankDetails> = {};
                     if (errors.account_number) {
                         formErrors.accountNumber = errors.account_number as string;
@@ -208,9 +224,8 @@ export default function AddBankTransferModal({
 
                     setErrors(formErrors);
 
-                    // Show generic error toast if no specific field errors
                     if (Object.keys(formErrors).length === 0) {
-                        toast.error(errors.error as string || 'Failed to add bank account. Please try again.');
+                        toast.error(errors.error as string || 'Failed to update bank account. Please try again.');
                     } else {
                         toast.error('Please check the form for errors');
                     }
@@ -222,103 +237,83 @@ export default function AddBankTransferModal({
             });
         } catch (error) {
             toast.dismiss(loadingToast);
-            console.error('Error saving bank details:', error);
+            console.error('Error updating bank details:', error);
             toast.error('An unexpected error occurred. Please try again.');
             setIsSubmitting(false);
         }
     };
 
-    const handleClose = () => {
-        if (!isSubmitting) {
-            setFormData({
-                accountName: '',
-                bankName: '',
-                accountNumber: ''
-            });
-            setErrors({});
-            setShowBankSuggestions(false);
-            onClose();
-        }
-    };
-
     return (
-        <div className="fixed inset-0 bg-transparent backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="bg-white rounded-4xl p-6 w-full max-w-xl mx-4">
-                {/* Header */}
-                <div className="flex justify-between items-start mb-6">
-                    <div>
-                        <h2 className="text-xl font-bold text-gray-900 mb-1">
-                            Add your Bank Deatils
-                        </h2>
-                        <p className="text-gray-600 text-sm">
-                            Easily transfer your Earning balance to your bank account
-                        </p>
-                    </div>
-                    <button
-                        onClick={handleClose}
-                        disabled={isSubmitting}
-                        className="text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-50"
-                    >
-                        <X className="h-5 w-5" />
-                    </button>
-                </div>
-
+        <div>
+            <div className="bg-white rounded-3xl p-10 max-w-4xl mx-auto shadow-xl">
                 {/* Form */}
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    {/* Account Name */}
-                    <div className="relative w-[70%]">
-                        <Label htmlFor="accountName" className="text-sm font-medium text-gray-700">
-                            Account Name
-                        </Label>
+                <form onSubmit={handleSubmit} className="space-y-10">
+                    {/* Account Name Section */}
+                    <div>
+                        <div className="flex items-center justify-between mb-4">
+                            <Label htmlFor="accountName" className="text-lg font-medium text-gray-600">
+                                Account Name
+                            </Label>
+                            <button
+                                type="button"
+                                onClick={() => setIsEditMode(!isEditMode)}
+                                disabled={isSubmitting}
+                                className="text-[#2C7870] hover:text-[#236158] font-medium text-base transition-colors disabled:opacity-50"
+                            >
+                                {isEditMode ? 'Cancel' : 'Edit'}
+                            </button>
+                        </div>
                         <Input
                             id="accountName"
                             type="text"
                             value={formData.accountName}
                             onChange={(e) => handleInputChange('accountName', e.target.value)}
                             placeholder="Enter Account Name"
-                            className="mt-1 bg-gray-100 border-gray-200"
+                            readOnly={!isEditMode}
+                            className="w-full bg-gray-100 border border-gray-200 rounded-2xl h-16 px-6 text-gray-700 text-base placeholder:text-gray-400"
                         />
                         {errors.accountName && (
-                            <p className="text-red-500 text-xs mt-1">{errors.accountName}</p>
+                            <p className="text-red-500 text-sm mt-2">{errors.accountName}</p>
                         )}
                     </div>
 
-                    {/* Bank Name */}
-                    <div className="relative w-[70%]">
-                        <Label htmlFor="bankName" className="text-sm font-medium text-gray-700">
+                    {/* Bank Name Section */}
+                    <div className="relative">
+                        <Label htmlFor="bankName" className="text-lg font-medium text-gray-600 mb-4 block">
                             Bank Name
                         </Label>
-                        <div className="relative mt-1">
-                            <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <div className="relative">
+                            <Building2 className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 z-10" />
                             <Input
                                 id="bankName"
                                 type="text"
                                 value={formData.bankName}
                                 onChange={(e) => handleInputChange('bankName', e.target.value)}
                                 placeholder="Select bank"
-                                className="pl-10 pr-10 bg-gray-100 border-gray-200"
+                                readOnly={!isEditMode}
+                                className="w-full bg-gray-100 border border-gray-200 rounded-2xl h-16 pl-14 pr-12 text-gray-700 text-base placeholder:text-gray-400"
                                 onFocus={handleBankFocus}
                                 onBlur={handleBankBlur}
                             />
-                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                                <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            <div className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10">
+                                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <polyline points="6 9 12 15 18 9" />
                                 </svg>
                             </div>
                         </div>
 
                         {/* Bank Suggestions Dropdown */}
-                        {showBankSuggestions && filteredBanks.length > 0 && (
-                            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                                {filteredBanks.map((bank) => (
+                        {showBankSuggestions && filteredBanks.length > 0 && isEditMode && (
+                            <div className="absolute z-50 left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                                {filteredBanks.map((bank, index) => (
                                     <button
-                                        key={bank.code}
+                                        key={`${bank.code}-${index}`}
                                         type="button"
                                         onMouseDown={(e) => {
                                             e.preventDefault();
                                             handleBankSelect(bank);
                                         }}
-                                        className="w-full px-4 py-2 text-left hover:bg-gray-50 text-sm"
+                                        className="w-full px-6 py-3 text-left hover:bg-gray-50 text-sm text-gray-700"
                                     >
                                         {bank.name}
                                     </button>
@@ -326,59 +321,72 @@ export default function AddBankTransferModal({
                             </div>
                         )}
 
-                        {/* Loading banks indicator */}
                         {isLoadingBanks && (
-                            <p className="text-gray-500 text-xs mt-1">Loading banks...</p>
+                            <p className="text-gray-400 text-sm mt-2">Loading banks...</p>
                         )}
 
                         {errors.bankName && (
-                            <p className="text-red-500 text-xs mt-1">{errors.bankName}</p>
+                            <p className="text-red-500 text-sm mt-2">{errors.bankName}</p>
                         )}
                     </div>
 
-                    {/* Account Number */}
-                    <div className="relative">
-                        <Label htmlFor="accountNumber" className="text-sm font-medium text-gray-700">
+                    {/* Account Number Section */}
+                    <div>
+                        <Label htmlFor="accountNumber" className="text-lg font-medium text-gray-600 mb-4 block">
                             Account Number
                         </Label>
-                        <div className="relative mt-1">
-                            <Hash className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <div className="relative">
+                            <Hash className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                             <Input
                                 id="accountNumber"
                                 type="text"
-                                value={formData.accountNumber}
+                                value={isEditMode ? formData.accountNumber : getAccountNumberDisplay()}
                                 onChange={(e) => handleInputChange('accountNumber', e.target.value.replace(/\D/g, ''))}
-                                placeholder="Enter Account Number"
+                                placeholder={isEditMode ? "Enter Account Number" : ""}
                                 maxLength={10}
-                                className="pl-10 bg-gray-100 border-gray-200"
+                                readOnly={!isEditMode}
+                                className="w-full bg-gray-100 border border-gray-200 rounded-2xl h-16 pl-14 text-gray-700 text-base placeholder:text-gray-400"
                             />
                         </div>
-                        <p className="text-gray-500 text-xs mt-1">
+                        <p className="text-sm text-gray-400 mt-3">
                             Please enter valid account number with the right number of digits.
                         </p>
                         {errors.accountNumber && (
-                            <p className="text-red-500 text-xs mt-1">{errors.accountNumber}</p>
+                            <p className="text-red-500 text-sm mt-2">{errors.accountNumber}</p>
                         )}
                     </div>
 
-                    {/* Action Button */}
-                    <div className="pt-4">
-                        <Button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className=" bg-[#338078] hover:bg-[#338078]/80 text-white rounded-full py-3"
-                        >
-                            {isSubmitting ? (
-                                <div className="flex items-center justify-center space-x-2">
-                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                    <span>Adding...</span>
-                                </div>
-                            ) : (
-                                'Add Your Bank'
-                            )}
-                        </Button>
-                    </div>
+                    {/* Submit Button - Only show in edit mode */}
+                    {isEditMode && (
+                        <div className="pt-6">
+                            <Button
+                                type="submit"
+                                disabled={isSubmitting}
+                                className="bg-[#2C7870] hover:bg-[#236158] text-white px-12 py-4 rounded-2xl font-medium text-base h-auto"
+                            >
+                                {isSubmitting ? (
+                                    <div className="flex items-center justify-center space-x-2">
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        <span>Saving...</span>
+                                    </div>
+                                ) : (
+                                    'Save Changes'
+                                )}
+                            </Button>
+                        </div>
+                    )}
                 </form>
+            </div>
+
+            {/* Add New Payment Button */}
+            <div className="mt-8 text-center bg-white rounded-3xl p-4 max-w-full mx-auto shadow-xl mb-8">
+                <button
+                    type="button"
+                    onClick={onAddNew || onCancel}
+                    className="text-[#2C7870] hover:text-[#236158] font-medium text-base transition-colors cursor-pointer"
+                >
+                    Add New Payment
+                </button>
             </div>
         </div>
     );
