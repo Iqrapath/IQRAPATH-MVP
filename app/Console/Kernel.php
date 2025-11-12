@@ -82,5 +82,10 @@ class Kernel extends ConsoleKernel
         $schedule->job(new \App\Jobs\UpdateUrgentActionCounts())
                 ->everyFiveMinutes()
                 ->withoutOverlapping();
+        
+        // Process subscription renewals and expirations
+        $schedule->command('subscriptions:process-renewals')
+                ->daily()
+                ->withoutOverlapping();
     }
 } 

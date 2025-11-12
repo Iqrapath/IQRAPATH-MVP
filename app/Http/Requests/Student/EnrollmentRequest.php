@@ -34,7 +34,7 @@ class EnrollmentRequest extends FormRequest
                 },
             ],
             'currency' => 'required|in:USD,NGN',
-            'payment_method' => 'required|in:wallet,card,bank_transfer',
+            'payment_method' => 'required|in:wallet,card,bank_transfer,paypal',
             'auto_renew' => 'boolean',
         ];
     }

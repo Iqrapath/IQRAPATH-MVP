@@ -97,7 +97,7 @@ class PayoutRequestSeeder extends Seeder
                 $amount = rand((int)$minAmount, (int)$maxAmount);
 
                 $payoutRequest = PayoutRequest::create([
-                    'teacher_id' => $teacher->id,
+                    'user_id' => $teacher->id,
                     'amount' => $amount,
                     'currency' => 'NGN',
                     'payment_method' => $methodType,

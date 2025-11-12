@@ -1285,7 +1285,7 @@ class TeacherManagementController extends Controller
             ->withQueryString();
 
         // Get paginated payout requests with filters
-        $payoutRequestsQuery = PayoutRequest::where('teacher_id', $teacher->id)
+        $payoutRequestsQuery = PayoutRequest::where('user_id', $teacher->id)
             ->with('processedBy');
 
         if ($request->filled('payout_status')) {

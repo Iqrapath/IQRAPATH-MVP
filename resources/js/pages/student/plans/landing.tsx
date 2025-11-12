@@ -15,12 +15,13 @@
  * 🎯 STATES: Default state with hover effects on buttons
  */
 
-import React from 'react';
-import { Head, Link } from '@inertiajs/react';
+import React, { useState } from 'react';
+import { Head, Link, router } from '@inertiajs/react';
 import StudentLayout from '@/layouts/student/student-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { User, Subscription } from '@/types';
+import MatchTeacherModal from '@/components/student/MatchTeacherModal';
 
 interface PlansLandingProps {
     user: User;
@@ -28,6 +29,7 @@ interface PlansLandingProps {
 }
 
 export default function PlansLanding({ user, activePlan }: PlansLandingProps) {
+    const [showMatchModal, setShowMatchModal] = useState(false);
     return (
         <StudentLayout pageTitle="Quran Memorization Plans">
             <Head title="Quran Memorization Plans" />
@@ -160,6 +162,7 @@ export default function PlansLanding({ user, activePlan }: PlansLandingProps) {
                             <Button 
                                 variant="outline"
                                 size="lg"
+                                onClick={() => setShowMatchModal(true)}
                                 className="border-2 border-[#2C7870] text-[#2C7870] hover:bg-[#2C7870] hover:text-white px-6 py-3 rounded-full transition-all duration-200 cursor-pointer"
                             >
                                 Match Me
@@ -170,14 +173,47 @@ export default function PlansLanding({ user, activePlan }: PlansLandingProps) {
 
                 {/* Active Subscription Notice */}
                 {activePlan && (
-                    <div className="bg-gray-50 px-6 pb-8">
+                    <div className="bg-gradient-to-br from-[#14B8A6]/5 to-[#14B8A6]/10 px-6 py-8">
                         <div className="max-w-4xl mx-auto">
-                            <Card className="bg-white border-0 shadow-lg max-w-md mx-auto">
-                                <CardContent className="p-4">
-                                    <div className="flex items-center justify-center space-x-2 text-[#2C7870]">
-                                        <span className="font-medium">
-                                            You have an active {activePlan.plan?.name} subscription
-                                        </span>
+                            <Card className="bg-white border border-[#14B8A6]/20 shadow-sm overflow-hidden">
+                                <CardContent className="p-0">
+                                    <div className="flex items-center gap-4 p-6">
+                                        {/* Icon */}
+                                        <div className="flex-shrink-0 w-12 h-12 rounded-full bg-[#14B8A6]/10 flex items-center justify-center">
+                                            <svg className="w-6 h-6 text-[#14B8A6]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                        </div>
+
+                                        {/* Content */}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <h3 className="text-base font-semibold text-[#1E293B]">
+                                                    Active Subscription
+                                                </h3>
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#14B8A6] text-white">
+                                                    {activePlan.status}
+                                                </span>
+                                            </div>
+                                            <p className="text-sm text-[#64748B]">
+                                                You're currently enrolled in <span className="font-medium text-[#14B8A6]">{activePlan.plan?.name}</span>
+                                                {activePlan.end_date && (
+                                                    <span> • Renews on {new Date(activePlan.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                                )}
+                                            </p>
+                                        </div>
+
+                                        {/* Action Button */}
+                                        <div className="flex-shrink-0">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => router.visit(route('student.plans.index'))}
+                                                className="border-[#14B8A6] text-[#14B8A6] hover:bg-[#14B8A6] hover:text-white transition-colors"
+                                            >
+                                                Manage
+                                            </Button>
+                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -185,6 +221,14 @@ export default function PlansLanding({ user, activePlan }: PlansLandingProps) {
                     </div>
                 )}
             </div>
+
+            {/* Match Teacher Modal */}
+            <MatchTeacherModal
+                isOpen={showMatchModal}
+                onClose={() => setShowMatchModal(false)}
+                isAuthenticated={!!user}
+                user={user}
+            />
         </StudentLayout>
     );
 }

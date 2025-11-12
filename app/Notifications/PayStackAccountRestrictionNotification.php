@@ -71,7 +71,7 @@ class PayStackAccountRestrictionNotification extends Notification implements Sho
             // Payout details
             'payout_request_id' => $this->payoutRequest->id,
             'request_uuid' => $this->payoutRequest->request_uuid,
-            'teacher_id' => $this->payoutRequest->teacher_id,
+            'teacher_id' => $this->payoutRequest->user_id,
             'teacher_name' => $this->payoutRequest->teacher->name,
             'teacher_email' => $this->payoutRequest->teacher->email,
             'amount' => $this->payoutRequest->amount,

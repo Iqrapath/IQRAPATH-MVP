@@ -122,7 +122,9 @@ export default function PaymentSuccessModal({
                                 <div className="flex justify-between items-center">
                                     <span className="text-[#64748B] text-sm">Transaction ID:</span>
                                     <span className="text-[#1E293B] font-mono text-xs">
-                                        {transactionId.substring(0, 12)}...
+                                        {transactionId && typeof transactionId === 'string' 
+                                            ? `${transactionId.substring(0, 12)}...` 
+                                            : transactionId || 'N/A'}
                                     </span>
                                 </div>
                             )}

@@ -38,7 +38,7 @@ class PayoutProcessedNotification extends Notification
     {
         $data = [
             'payout_request_id' => $this->payoutRequest->id,
-            'teacher_id' => $this->payoutRequest->teacher_id,
+            'teacher_id' => $this->payoutRequest->user_id,
             'teacher_name' => $this->payoutRequest->teacher->name,
             'amount' => $this->payoutRequest->amount,
             'payment_method' => $this->payoutRequest->payment_method,

@@ -29,6 +29,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { CheckCircle2, ChevronRight } from 'lucide-react';
 import { SubscriptionPlan, Subscription, User } from '@/types';
+import axios from 'axios';
+import { toast } from 'sonner';
+import SubscriptionPaymentModal from '@/components/student/SubscriptionPaymentModal';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 interface PaymentMethod {
     id: number;
@@ -37,6 +41,16 @@ interface PaymentMethod {
     details: any;
     is_default: boolean;
     is_active: boolean;
+    // Bank transfer fields
+    bank_name?: string;
+    bank_code?: string;
+    account_name?: string;
+    account_number?: string | null;
+    last_four?: string;
+    // Card fields
+    card_brand?: string;
+    exp_month?: string;
+    exp_year?: string;
 }
 
 interface PlanShowProps {
@@ -65,25 +79,31 @@ export default function PlanShow({
     defaultPaymentMethod,
     user
 }: PlanShowProps) {
-    const [selectedCurrency, setSelectedCurrency] = useState<'USD' | 'NGN'>('NGN');
+    // Use global currency context
+    const { selectedCurrency: globalCurrency } = useCurrency();
+    const selectedCurrency = (globalCurrency === 'NGN' || globalCurrency === 'USD') ? globalCurrency : 'NGN';
     
+    const [isEnrolling, setIsEnrolling] = useState(false);
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [pendingSubscription, setPendingSubscription] = useState<any>(null);
+
     // Set payment method based on user's default or fallback to wallet
     const [paymentMethod, setPaymentMethod] = useState<string>(
         defaultPaymentMethod?.type || 'wallet'
     );
     const [studentName, setStudentName] = useState(user.name || '');
-    
+
     // Get preferred learning times and format it
     let preferredTimeDisplay = '';
     const preferredTimesData = user.studentProfile?.preferred_learning_times;
-    
+
     if (preferredTimesData) {
         try {
             // Parse if it's a JSON string
-            const timesArray = typeof preferredTimesData === 'string' 
+            const timesArray = typeof preferredTimesData === 'string'
                 ? JSON.parse(preferredTimesData)
                 : preferredTimesData;
-            
+
             if (Array.isArray(timesArray) && timesArray.length > 0) {
                 preferredTimeDisplay = timesArray.join(', ');
             }
@@ -92,7 +112,7 @@ export default function PlanShow({
             preferredTimeDisplay = String(preferredTimesData);
         }
     }
-    
+
     const [preferredTime, setPreferredTime] = useState(preferredTimeDisplay);
     const [ageGroup, setAgeGroup] = useState(user.studentProfile?.age_group || user.studentProfile?.grade_level || '');
     const [notes, setNotes] = useState(user.studentProfile?.learning_goals || '');
@@ -103,10 +123,12 @@ export default function PlanShow({
         return `${symbol}${price.toLocaleString()}`;
     };
 
-    const handleEnrollNow = () => {
-        if (activePlan) {
+    const handleEnrollNow = async () => {
+        if (activePlan || isEnrolling) {
             return;
         }
+
+        setIsEnrolling(true);
 
         // Prepare enrollment data
         const enrollmentData = {
@@ -122,15 +144,42 @@ export default function PlanShow({
             }
         };
 
-        // Submit enrollment
-        router.post('/student/plans/enroll', enrollmentData, {
-            onSuccess: () => {
-                // Handle success
-            },
-            onError: (errors) => {
-                console.error('Enrollment failed:', errors);
+        try {
+            // Use axios for API call since backend returns JSON
+            const response = await axios.post('/student/plans/enroll', enrollmentData);
+
+            if (response.data.success) {
+                const subscription = response.data.data.subscription;
+                
+                // Check payment method
+                if (paymentMethod === 'wallet') {
+                    // Wallet payment successful, redirect to dashboard
+                    toast.success('Subscription activated successfully!');
+                    router.visit('/student/dashboard');
+                } else {
+                    // Non-wallet payment - show payment modal
+                    setPendingSubscription(subscription);
+                    setShowPaymentModal(true);
+                    setIsEnrolling(false);
+                }
             }
-        });
+        } catch (error: any) {
+            console.error('Enrollment failed:', error);
+
+            if (error.response?.data) {
+                const errorData = error.response.data;
+                toast.error(errorData.message || 'Enrollment failed. Please try again.');
+
+                // Handle specific error codes
+                if (errorData.code === 'INSUFFICIENT_FUNDS' && errorData.data) {
+                    toast.error(`Insufficient balance. You need ₦${Number(errorData.data.shortfall).toLocaleString()} more.`);
+                }
+            } else {
+                toast.error('An error occurred. Please try again.');
+            }
+
+            setIsEnrolling(false);
+        }
     };
 
     return (
@@ -167,49 +216,50 @@ export default function PlanShow({
                 {/* What's Included Section */}
                 <div>
                     <h2 className="text-lg font-semibold text-[#212121] mb-4">
-                        What's Included Section
+                        What's Included
                     </h2>
                     <div className="space-y-3">
-                        <div className="flex items-start space-x-3">
-                            <CheckCircle2 className="h-5 w-5 text-[#10B981] mt-0.5 flex-shrink-0" />
-                            <span className="text-[#4F4F4F]">Daily live sessions with certified teacher</span>
-                        </div>
-                        <div className="flex items-start space-x-3">
-                            <CheckCircle2 className="h-5 w-5 text-[#10B981] mt-0.5 flex-shrink-0" />
-                            <span className="text-[#4F4F4F]">Certificate of completion</span>
-                        </div>
-                        <div className="flex items-start space-x-3">
-                            <CheckCircle2 className="h-5 w-5 text-[#10B981] mt-0.5 flex-shrink-0" />
-                            <span className="text-[#4F4F4F]">Weekly tests & progress tracking</span>
-                        </div>
-                        <div className="flex items-start space-x-3">
-                            <CheckCircle2 className="h-5 w-5 text-[#10B981] mt-0.5 flex-shrink-0" />
-                            <span className="text-[#4F4F4F]">24/7 support</span>
-                        </div>
-                        <div className="flex items-start space-x-3">
-                            <CheckCircle2 className="h-5 w-5 text-[#10B981] mt-0.5 flex-shrink-0" />
-                            <span className="text-[#4F4F4F]">Flexible schedule</span>
-                        </div>
+                        {plan.features && plan.features.length > 0 ? (
+                            // Display features from database
+                            plan.features.map((feature, index) => (
+                                <div key={index} className="flex items-start space-x-3">
+                                    <CheckCircle2 className="h-5 w-5 text-[#10B981] mt-0.5 flex-shrink-0" />
+                                    <span className="text-[#4F4F4F]">{feature}</span>
+                                </div>
+                            ))
+                        ) : (
+                            // Fallback to default features if none in database
+                            <>
+                                <div className="flex items-start space-x-3">
+                                    <CheckCircle2 className="h-5 w-5 text-[#10B981] mt-0.5 flex-shrink-0" />
+                                    <span className="text-[#4F4F4F]">Daily live sessions with certified teacher</span>
+                                </div>
+                                <div className="flex items-start space-x-3">
+                                    <CheckCircle2 className="h-5 w-5 text-[#10B981] mt-0.5 flex-shrink-0" />
+                                    <span className="text-[#4F4F4F]">Certificate of completion</span>
+                                </div>
+                                <div className="flex items-start space-x-3">
+                                    <CheckCircle2 className="h-5 w-5 text-[#10B981] mt-0.5 flex-shrink-0" />
+                                    <span className="text-[#4F4F4F]">Weekly tests & progress tracking</span>
+                                </div>
+                                <div className="flex items-start space-x-3">
+                                    <CheckCircle2 className="h-5 w-5 text-[#10B981] mt-0.5 flex-shrink-0" />
+                                    <span className="text-[#4F4F4F]">24/7 support</span>
+                                </div>
+                                <div className="flex items-start space-x-3">
+                                    <CheckCircle2 className="h-5 w-5 text-[#10B981] mt-0.5 flex-shrink-0" />
+                                    <span className="text-[#4F4F4F]">Flexible schedule</span>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
 
-                {/* Choose Currency */}
-                <div>
-                    <h2 className="text-lg font-semibold text-[#212121] mb-4">
-                        Choose your currency
-                    </h2>
-                    <RadioGroup value={selectedCurrency} onValueChange={(value) => setSelectedCurrency(value as 'USD' | 'NGN')}>
-                        <div className="flex items-center space-x-6">
-                            <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="USD" id="usd" />
-                                <Label htmlFor="usd" className="text-[#4F4F4F] cursor-pointer">USD</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="NGN" id="ngn" />
-                                <Label htmlFor="ngn" className="text-[#4F4F4F] cursor-pointer">NGN</Label>
-                            </div>
-                        </div>
-                    </RadioGroup>
+                {/* Currency Info */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm text-blue-900">
+                        <strong>Currency:</strong> {selectedCurrency} - You can change your currency from the header or sidebar.
+                    </p>
                 </div>
 
                 {/* Student Details */}
@@ -269,29 +319,49 @@ export default function PlanShow({
 
                     {/* Payment Method Display - Only show if user has saved payment method */}
                     {defaultPaymentMethod && (
-                        <div className="mt-4 bg-[#F8F9FA] rounded-lg p-4">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center space-x-3">
-                                    <CheckCircle2 className="h-5 w-5 text-[#10B981]" />
-                                    <div>
+                        <div className="mt-4 bg-[#FFFFFF] rounded-[23px] p-4">
+                            <div className="flex items-start justify-between">
+                                <div className="flex items-start space-x-3">
+                                    <CheckCircle2 className="h-5 w-5 text-[#10B981] mt-0.5 flex-shrink-0" />
+                                    <div className="space-y-1">
                                         <p className="text-sm font-semibold text-[#212121]">
-                                            1. {defaultPaymentMethod.name}
+                                            1. {defaultPaymentMethod.type === 'bank_transfer' ? 'Bank Transfer' : defaultPaymentMethod.name}
                                         </p>
-                                        {defaultPaymentMethod.type === 'bank_transfer' && defaultPaymentMethod.details && (
+                                        {defaultPaymentMethod.type === 'bank_transfer' && (
                                             <>
-                                                <p className="text-sm text-[#4F4F4F]">
-                                                    {defaultPaymentMethod.details.bank_name}
+                                                <p className="text-sm font-medium text-[#212121]">
+                                                    {defaultPaymentMethod.bank_name || 'Bank Name'}
                                                 </p>
-                                                <p className="text-sm text-[#4F4F4F]">
-                                                    {defaultPaymentMethod.details.account_name} | {defaultPaymentMethod.details.account_number}
+                                                <p className="text-sm text-[#6B7280]">
+                                                    {defaultPaymentMethod.account_name || 'Account Name'} | {defaultPaymentMethod.account_number || (defaultPaymentMethod.last_four ? '****' + defaultPaymentMethod.last_four : 'Account Number')}
+                                                </p>
+                                            </>
+                                        )}
+                                        {defaultPaymentMethod.type === 'card' && (
+                                            <>
+                                                <p className="text-sm font-medium text-[#212121]">
+                                                    {defaultPaymentMethod.card_brand || 'Card'} •••• {defaultPaymentMethod.last_four || '****'}
+                                                </p>
+                                                <p className="text-sm text-[#6B7280]">
+                                                    Expires {defaultPaymentMethod.exp_month}/{defaultPaymentMethod.exp_year}
                                                 </p>
                                             </>
                                         )}
                                     </div>
                                 </div>
-                                <Button variant="ghost" size="sm" className="text-[#2C7870] p-0">
-                                    Change &gt;
-                                </Button>
+                                <button
+                                    type="button"
+                                    className="text-[#2C7870] text-sm font-medium flex items-center gap-1 hover:text-[#236158] transition-colors"
+                                    onClick={() => {
+                                        // TODO: Open payment method selector modal
+                                        console.log('Change payment method clicked');
+                                    }}
+                                >
+                                    Change
+                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M6 12L10 8L6 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+                                </button>
                             </div>
                         </div>
                     )}
@@ -312,10 +382,18 @@ export default function PlanShow({
                     <Button
                         size="lg"
                         onClick={handleEnrollNow}
-                        disabled={!!activePlan}
-                        className="px-8 bg-[#2C7870] hover:bg-[#236158] text-white rounded-full"
+                        disabled={!!activePlan || isEnrolling}
+                        className="px-8 bg-[#2C7870] hover:bg-[#236158] text-white rounded-full disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                     >
-                        {activePlan ? 'Already Enrolled' : 'Enrol Now'}
+                        {isEnrolling ? (
+                            <>
+                                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Processing...
+                            </>
+                        ) : activePlan ? 'Already Enrolled' : 'Enrol Now'}
                     </Button>
                 </div>
 
@@ -330,6 +408,28 @@ export default function PlanShow({
                     </Card>
                 )}
             </div>
+
+            {/* Subscription Payment Modal */}
+            {showPaymentModal && pendingSubscription && (
+                <SubscriptionPaymentModal
+                    isOpen={showPaymentModal}
+                    onClose={() => {
+                        setShowPaymentModal(false);
+                        setPendingSubscription(null);
+                    }}
+                    subscription={pendingSubscription}
+                    plan={plan}
+                    amount={selectedCurrency === 'USD' ? plan.price_dollar : plan.price_naira}
+                    currency={selectedCurrency}
+                    paymentMethod={paymentMethod}
+                    user={user}
+                    onSuccess={() => {
+                        setShowPaymentModal(false);
+                        toast.success('Payment successful! Subscription activated.');
+                        router.visit('/student/dashboard');
+                    }}
+                />
+            )}
         </StudentLayout>
     );
 }

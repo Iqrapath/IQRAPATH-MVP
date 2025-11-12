@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { router } from '@inertiajs/react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -6,8 +6,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { CalendarDays, MoreVertical, Search, CheckCircle, Eye, Edit, Users, MessageSquare, XCircle } from 'lucide-react';
+import { CalendarDays, MoreVertical, Search, CheckCircle, Eye, MessageSquare, XCircle, Loader2, Edit2 } from 'lucide-react';
+import { toast } from 'sonner';
+import axios from 'axios';
 import ApprovePayoutModal from './ApprovePayoutModal';
+import ViewReceiptModal from './ViewReceiptModal';
+import SendNotificationModal from './SendNotificationModal';
+import MarkAsCompletedModal from './MarkAsCompletedModal';
 
 interface PayoutRequestRow {
     id: number;
@@ -34,6 +39,18 @@ export default function TeacherPayouts({ pendingPayoutRequests }: TeacherPayouts
     const [query, setQuery] = useState<string>('');
     const [showApproveModal, setShowApproveModal] = useState(false);
     const [selectedPayout, setSelectedPayout] = useState<PayoutRequestRow | null>(null);
+
+    // Send Notification modal state
+    const [showNotificationModal, setShowNotificationModal] = useState(false);
+    const [checkingStatus, setCheckingStatus] = useState<number | null>(null);
+
+    // View Receipt modal state
+    const [showReceiptModal, setShowReceiptModal] = useState(false);
+    const [selectedReceiptPayout, setSelectedReceiptPayout] = useState<PayoutRequestRow | null>(null);
+
+    // Mark as Completed modal state
+    const [showMarkCompletedModal, setShowMarkCompletedModal] = useState(false);
+    const [selectedCompletedPayout, setSelectedCompletedPayout] = useState<PayoutRequestRow | null>(null);
 
     const filtered = useMemo(() => {
         return (pendingPayoutRequests || []).filter((r) => {
@@ -69,6 +86,7 @@ export default function TeacherPayouts({ pendingPayoutRequests }: TeacherPayouts
             'rejected': { bg: 'bg-[#FEE2E2]', text: 'text-[#EF4444]', label: 'Rejected' },
             'failed': { bg: 'bg-[#FEE2E2]', text: 'text-[#DC2626]', label: 'Failed' },
             'cancelled': { bg: 'bg-[#F3F4F6]', text: 'text-[#6B7280]', label: 'Cancelled' },
+            'requires_manual_processing': { bg: 'bg-[#FEF3C7]', text: 'text-[#D97706]', label: 'Manual Processing' },
         };
 
         const status = statusMap[s.toLowerCase()] || { bg: 'bg-gray-100', text: 'text-gray-800', label: s };
@@ -83,7 +101,125 @@ export default function TeacherPayouts({ pendingPayoutRequests }: TeacherPayouts
     const handleApproveSuccess = () => {
         // Refresh the page data without full reload (preserves toast)
         router.reload({ only: ['pendingPayoutRequests'] });
+        // Reset state
+        setShowApproveModal(false);
+        setSelectedPayout(null);
     };
+
+    const handleCloseApproveModal = () => {
+        // Use setTimeout to ensure proper cleanup
+        setTimeout(() => {
+            setShowApproveModal(false);
+            setSelectedPayout(null);
+        }, 0);
+    };
+
+    const handleCloseNotificationModal = () => {
+        // Use setTimeout to ensure proper cleanup
+        setTimeout(() => {
+            setShowNotificationModal(false);
+            setSelectedPayout(null);
+        }, 0);
+    };
+
+    const handleCloseReceiptModal = () => {
+        // Use setTimeout to ensure proper cleanup
+        setTimeout(() => {
+            setShowReceiptModal(false);
+            setSelectedReceiptPayout(null);
+        }, 0);
+    };
+
+    const handleCloseMarkCompletedModal = () => {
+        // Use setTimeout to ensure proper cleanup
+        setTimeout(() => {
+            setShowMarkCompletedModal(false);
+            setSelectedCompletedPayout(null);
+        }, 0);
+    };
+
+    const handleMarkCompletedSuccess = () => {
+        // Refresh the page data
+        router.reload({ only: ['pendingPayoutRequests'] });
+        // Reset state
+        setShowMarkCompletedModal(false);
+        setSelectedCompletedPayout(null);
+    };
+
+    const handleCheckStatus = async (payout: PayoutRequestRow) => {
+        setCheckingStatus(payout.id);
+
+        // Show immediate loading toast
+        const loadingToast = toast.loading('Checking payment status with gateway...', {
+            description: 'Please wait while we verify the payment status'
+        });
+
+        try {
+            const response = await axios.post(`/admin/financial/payout-requests/${payout.id}/check-status`);
+
+            // Dismiss loading toast
+            toast.dismiss(loadingToast);
+
+            if (response.data.success) {
+                const statusData = response.data.data;
+                const gateway = statusData.gateway || 'Payment Gateway';
+
+                // Show different messages based on the payment gateway status
+                if (statusData.status === 'completed') {
+                    toast.success('Payment Completed Successfully!', {
+                        description: `${gateway} confirmed the transfer. Transaction ID: ${statusData.transaction_id || 'N/A'}`,
+                        duration: 5000,
+                    });
+                } else if (statusData.status === 'processing') {
+                    toast.info('Payment is Being Processed', {
+                        description: `${gateway} is processing the transfer. Expected completion: ${statusData.estimated_completion || 'Soon'}`,
+                        duration: 5000,
+                    });
+                } else if (statusData.status === 'pending') {
+                    toast.warning('Payment Still Pending', {
+                        description: `${gateway} has not started processing yet. Please check again later.`,
+                        duration: 5000,
+                    });
+                } else if (statusData.status === 'failed') {
+                    toast.error('Payment Failed', {
+                        description: `${gateway} reported failure: ${statusData.failure_reason || 'Unknown reason'}. You may need to process manually.`,
+                        duration: 6000,
+                    });
+                } else {
+                    toast.info(`Payment Status: ${statusData.status}`, {
+                        description: `Current status from ${gateway}`,
+                        duration: 4000,
+                    });
+                }
+
+                // Refresh data if status changed
+                if (statusData.status_changed) {
+                    setTimeout(() => {
+                        router.reload({ only: ['pendingPayoutRequests'] });
+                    }, 1000);
+                }
+            } else {
+                toast.error('Failed to Check Status', {
+                    description: response.data.message || 'Could not retrieve payment status from gateway',
+                    duration: 4000,
+                });
+            }
+        } catch (error: any) {
+            // Dismiss loading toast
+            toast.dismiss(loadingToast);
+
+            console.error('Error checking status:', error);
+            const errorMessage = error.response?.data?.message || 'An error occurred while checking payment status';
+            toast.error('Status Check Failed', {
+                description: errorMessage,
+                duration: 4000,
+            });
+        } finally {
+            setCheckingStatus(null);
+        }
+    };
+
+
 
     return (
         <div>
@@ -219,21 +355,84 @@ export default function TeacherPayouts({ pendingPayoutRequests }: TeacherPayouts
 
                                     {/* Show status-specific actions */}
                                     {r.status === 'approved' && (
-                                        <DropdownMenuItem className="flex items-center gap-3 py-3 text-blue-600">
-                                            <MessageSquare className="w-[18px] h-[18px]" />
-                                            <span>Check Status</span>
+                                        <DropdownMenuItem
+                                            className={`flex items-center gap-3 py-3 cursor-pointer ${checkingStatus === r.id
+                                                ? 'text-[#14B8A6] bg-[#F0FDFA]'
+                                                : 'text-blue-600 hover:text-blue-700'
+                                                }`}
+                                            onClick={(e) => {
+                                                if (checkingStatus === r.id) {
+                                                    e.preventDefault();
+                                                    return;
+                                                }
+                                                handleCheckStatus(r);
+                                            }}
+                                            disabled={checkingStatus === r.id}
+                                        >
+                                            {checkingStatus === r.id ? (
+                                                <>
+                                                    <Loader2 className="w-[18px] h-[18px] animate-spin" />
+                                                    <span className="font-medium">Checking with gateway...</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <MessageSquare className="w-[18px] h-[18px]" />
+                                                    <span>Check Status</span>
+                                                </>
+                                            )}
+                                        </DropdownMenuItem>
+                                    )}
+
+                                    {/* Show Mark as Completed for manual processing */}
+                                    {r.status === 'requires_manual_processing' && (
+                                        <DropdownMenuItem
+                                            className="flex items-center gap-3 py-3 text-orange-600 cursor-pointer"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                setSelectedCompletedPayout(r);
+                                                setShowMarkCompletedModal(true);
+                                            }}
+                                            onSelect={(e) => {
+                                                e.preventDefault();
+                                            }}
+                                        >
+                                            <CheckCircle className="w-[18px] h-[18px]" />
+                                            <span>Mark as Completed</span>
                                         </DropdownMenuItem>
                                     )}
 
                                     {r.status === 'completed' && (
-                                        <DropdownMenuItem className="flex items-center gap-3 py-3 text-green-600">
+                                        <DropdownMenuItem
+                                            className="flex items-center gap-3 py-3 text-green-600 cursor-pointer"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                setSelectedReceiptPayout(r);
+                                                setShowReceiptModal(true);
+                                            }}
+                                            onSelect={(e) => {
+                                                e.preventDefault();
+                                            }}
+                                        >
                                             <CheckCircle className="w-[18px] h-[18px]" />
                                             <span>View Receipt</span>
                                         </DropdownMenuItem>
                                     )}
-                                    <DropdownMenuItem className="flex items-center gap-3 py-3">
+                                    <DropdownMenuItem
+                                        className="flex items-center gap-3 py-3 cursor-pointer"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            setSelectedPayout(r);
+                                            setShowNotificationModal(true);
+                                        }}
+                                        onSelect={(e) => {
+                                            e.preventDefault();
+                                        }}
+                                    >
                                         <MessageSquare className="w-[18px] h-[18px] text-[#64748B]" />
-                                        <span>Send Payout</span>
+                                        <span>Send Notification</span>
                                     </DropdownMenuItem>
                                     <DropdownMenuItem className="flex items-center gap-3 py-3 text-[#EF4444]">
                                         <XCircle className="w-[18px] h-[18px] text-[#EF4444]" />
@@ -249,9 +448,35 @@ export default function TeacherPayouts({ pendingPayoutRequests }: TeacherPayouts
             {/* Approve Modal */}
             <ApprovePayoutModal
                 isOpen={showApproveModal}
-                onClose={() => setShowApproveModal(false)}
+                onClose={handleCloseApproveModal}
                 onSuccess={handleApproveSuccess}
                 payout={selectedPayout}
+            />
+
+            {/* Send Notification Modal */}
+            <SendNotificationModal
+                isOpen={showNotificationModal}
+                onClose={handleCloseNotificationModal}
+                onSuccess={() => {
+                    setShowNotificationModal(false);
+                    setSelectedPayout(null);
+                }}
+                payout={selectedPayout}
+            />
+
+            {/* View Receipt Modal */}
+            <ViewReceiptModal
+                isOpen={showReceiptModal}
+                onClose={handleCloseReceiptModal}
+                payout={selectedReceiptPayout}
+            />
+
+            {/* Mark as Completed Modal */}
+            <MarkAsCompletedModal
+                isOpen={showMarkCompletedModal}
+                onClose={handleCloseMarkCompletedModal}
+                onSuccess={handleMarkCompletedSuccess}
+                payout={selectedCompletedPayout}
             />
         </div>
     );

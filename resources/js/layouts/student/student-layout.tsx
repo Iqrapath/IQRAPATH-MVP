@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import StudentLeftSidebar from './student-left-sidebar';
 import StudentRightSidebar from './student-right-sidebar';
 import { AppLoading } from '@/components/app-loading';
-import { CurrencyProvider } from '@/contexts/CurrencyContext';
 
 interface StudentLayoutProps {
     children: ReactNode;
@@ -67,7 +66,7 @@ export default function StudentLayout({
     };
 
     return (
-        <CurrencyProvider>
+        <>
             <AppLoading />
             <div className="flex flex-col h-screen w-full overflow-hidden bg-gray-50">
                 <StudentHeader 
@@ -120,6 +119,6 @@ export default function StudentLayout({
                     />
                 )}
             </div>
-        </CurrencyProvider>
+        </>
     );
 } 

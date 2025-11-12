@@ -1,8 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { HelpCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import axios from 'axios';
+
+// Ensure body scroll is restored when modal closes
+const restoreBodyScroll = () => {
+    document.body.style.overflow = '';
+    document.body.style.pointerEvents = '';
+};
 
 interface PayoutRequest {
     id: number;
@@ -35,6 +41,20 @@ export default function ApprovePayoutModal({
     payout
 }: ApprovePayoutModalProps) {
     const [loading, setLoading] = useState(false);
+
+    // Restore body scroll when modal closes
+    useEffect(() => {
+        if (!isOpen) {
+            restoreBodyScroll();
+        }
+    }, [isOpen]);
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            restoreBodyScroll();
+        };
+    }, []);
 
     if (!isOpen || !payout) return null;
 
@@ -75,6 +95,7 @@ export default function ApprovePayoutModal({
                         duration: 4000,
                     });
                 }
+                restoreBodyScroll();
                 onSuccess();
                 onClose();
             }
@@ -87,13 +108,25 @@ export default function ApprovePayoutModal({
         }
     };
 
+    const handleClose = () => {
+        restoreBodyScroll();
+        onClose();
+    };
+
     return (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-[24px] p-12 w-full max-w-[600px] relative">
+        <div 
+            className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+            onClick={handleClose}
+        >
+            <div 
+                className="bg-white rounded-[24px] p-12 w-full max-w-[600px] relative"
+                onClick={(e) => e.stopPropagation()}
+            >
                 {/* Close Button */}
                 <button
-                    onClick={onClose}
-                    className="absolute top-8 right-8 text-gray-500 hover:text-gray-700"
+                    onClick={handleClose}
+                    disabled={loading}
+                    className="absolute top-8 right-8 text-gray-500 hover:text-gray-700 disabled:opacity-50"
                 >
                     <svg xmlns="XXXXXXXXXXXXXXXXXXXXXXXXXX" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -147,7 +180,7 @@ export default function ApprovePayoutModal({
                         )}
                     </Button>
                     <Button
-                        onClick={onClose}
+                        onClick={handleClose}
                         disabled={loading}
                         variant="outline"
                         className="border-2 border-[#14B8A6] text-[#14B8A6] hover:bg-[#E0F2F1] hover:text-[#14B8A6] px-10 py-6 rounded-full text-[15px] font-medium shadow-none"

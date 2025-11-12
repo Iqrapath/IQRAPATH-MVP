@@ -31,7 +31,7 @@ import AdminLayout from "@/layouts/admin/admin-layout";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { toast } from "sonner";
 import { Toaster } from "sonner";
-import { ConfirmationModal } from "@/components/ui/confirmation-modal";
+import ConfirmationModal from "@/components/ui/confirmation-modal";
 
 interface User {
   id: number;
@@ -65,7 +65,7 @@ export default function UsersIndex({
   // Provide default values for filters and roles to prevent undefined errors
   const safeFilters = filters || {};
   const safeRoles = roles || ['super-admin', 'admin', 'teacher', 'student', 'guardian', 'unassigned'];
-  
+
   const [search, setSearch] = useState(safeFilters.search || '');
   const [status, setStatus] = useState(safeFilters.status || 'all');
   const [role, setRole] = useState(safeFilters.role || 'all');
@@ -120,12 +120,12 @@ export default function UsersIndex({
 
   const handleRoleChange = async (userId: number, newRole: string) => {
     if (updatingRole === userId) return;
-    
+
     // Get the user object to show current role
     const user = users.data.find(u => u.id === userId);
     const currentRole = user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Unassigned';
     const newRoleDisplay = newRole === 'unassigned' ? 'Unassigned' : newRole.charAt(0).toUpperCase() + newRole.slice(1);
-    
+
     // Show confirmation modal
     setConfirmationModal({
       isOpen: true,
@@ -138,11 +138,11 @@ export default function UsersIndex({
 
   const confirmRoleChange = async () => {
     const { userId, newRole } = confirmationModal;
-    
+
     setUpdatingRole(userId);
     setEditingRole(null);
     setConfirmationModal({ ...confirmationModal, isOpen: false });
-    
+
     try {
       const response = await fetch(`/admin/user-management/${userId}`, {
         method: 'PUT',
@@ -250,36 +250,36 @@ export default function UsersIndex({
                   <SelectItem value="inactive">Inactive</SelectItem>
                 </SelectContent>
               </Select>
-                             <Select
-                 value={role}
-                 onValueChange={(value) => handleFilter("role", value)}
-               >
-                 <SelectTrigger className="w-[140px] border rounded-full">
-                   <SelectValue placeholder="Select Role" />
-                 </SelectTrigger>
-                 <SelectContent>
-                   <SelectItem value="all">All Roles</SelectItem>
-                   {safeRoles
-                     .filter(r => r !== 'unassigned')
-                     .sort()
-                     .map((r) => (
-                       <SelectItem key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</SelectItem>
-                     ))}
-                   <SelectItem value="unassigned">Unassigned</SelectItem>
-                 </SelectContent>
-               </Select>
-                             <Button
-                 type="button"
-                 onClick={() => {
-                   router.get(route("admin.user-management.index"));
-                   setSearch("");
-                   setStatus("all");
-                   setRole("all");
-                 }}
-                 className="bg-teal-700 rounded-full"
-               >
-                 Search
-               </Button>
+              <Select
+                value={role}
+                onValueChange={(value) => handleFilter("role", value)}
+              >
+                <SelectTrigger className="w-[140px] border rounded-full">
+                  <SelectValue placeholder="Select Role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Roles</SelectItem>
+                  {safeRoles
+                    .filter(r => r !== 'unassigned')
+                    .sort()
+                    .map((r) => (
+                      <SelectItem key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</SelectItem>
+                    ))}
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                onClick={() => {
+                  router.get(route("admin.user-management.index"));
+                  setSearch("");
+                  setStatus("all");
+                  setRole("all");
+                }}
+                className="bg-teal-700 rounded-full"
+              >
+                Search
+              </Button>
             </div>
           </div>
         </div>
@@ -310,7 +310,7 @@ export default function UsersIndex({
                 </TableRow>
               ) : (
                 users.data.map((user) => (
-                  <TableRow 
+                  <TableRow
                     key={user.id}
                     className={updatingRole === user.id ? 'bg-blue-50' : ''}
                   >
@@ -330,25 +330,25 @@ export default function UsersIndex({
                     <TableCell>
                       {editingRole === user.id ? (
                         <div className="flex items-center space-x-2 p-2 bg-blue-50 border border-blue-200 rounded">
-                                                     <Select
-                             value={user.role || 'unassigned'}
-                             onValueChange={(value) => handleRoleChange(user.id, value)}
-                           >
-                             <SelectTrigger className="w-32 h-8 text-xs">
-                               <SelectValue placeholder="Select Role" />
-                             </SelectTrigger>
-                             <SelectContent>
-                               {safeRoles
-                                 .filter(r => r !== 'unassigned')
-                                 .sort()
-                                 .map((r) => (
-                                   <SelectItem key={r} value={r}>
-                                     {r.charAt(0).toUpperCase() + r.slice(1)}
-                                   </SelectItem>
-                                 ))}
-                               <SelectItem value="unassigned">Unassigned</SelectItem>
-                             </SelectContent>
-                           </Select>
+                          <Select
+                            value={user.role || 'unassigned'}
+                            onValueChange={(value) => handleRoleChange(user.id, value)}
+                          >
+                            <SelectTrigger className="w-32 h-8 text-xs">
+                              <SelectValue placeholder="Select Role" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {safeRoles
+                                .filter(r => r !== 'unassigned')
+                                .sort()
+                                .map((r) => (
+                                  <SelectItem key={r} value={r}>
+                                    {r.charAt(0).toUpperCase() + r.slice(1)}
+                                  </SelectItem>
+                                ))}
+                              <SelectItem value="unassigned">Unassigned</SelectItem>
+                            </SelectContent>
+                          </Select>
                           <button
                             onClick={cancelRoleEdit}
                             className="text-gray-400 hover:text-gray-600 text-xs px-2 py-1 hover:bg-gray-100 rounded"
@@ -357,10 +357,10 @@ export default function UsersIndex({
                           </button>
                         </div>
                       ) : (
-                                                 <div className="flex items-center space-x-2">
-                           <span className="capitalize font-medium">
-                             {user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Unassigned'}
-                           </span>
+                        <div className="flex items-center space-x-2">
+                          <span className="capitalize font-medium">
+                            {user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Unassigned'}
+                          </span>
                           <button
                             onClick={() => startRoleEdit(user.id)}
                             className="text-blue-600 hover:text-blue-800 text-xs underline hover:no-underline"
@@ -389,26 +389,26 @@ export default function UsersIndex({
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-56 p-0 border rounded-lg shadow-lg">
                           <DropdownMenuItem asChild className="px-0 py-0 focus:bg-transparent">
-                                                       <Link 
-                             href={route("admin.user-management.edit", user.id)}
-                             className="flex items-center px-4 py-3 hover:bg-gray-50 w-full"
-                           >
-                             <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mr-3">
-                               <Edit className="h-5 w-5 text-gray-600" />
-                             </div>
-                             <span>Edit User</span>
-                           </Link>
+                            <Link
+                              href={route("admin.user-management.edit", user.id)}
+                              className="flex items-center px-4 py-3 hover:bg-gray-50 w-full"
+                            >
+                              <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mr-3">
+                                <Edit className="h-5 w-5 text-gray-600" />
+                              </div>
+                              <span>Edit User</span>
+                            </Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem asChild className="px-0 py-0 focus:bg-transparent">
-                                                       <Link 
-                             href={route("admin.user-management.show", user.id)}
-                             className="flex items-center px-4 py-3 hover:bg-gray-50 w-full"
-                           >
-                             <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mr-3">
-                               <Eye className="h-5 w-5 text-gray-600" />
-                             </div>
-                             <span>View User</span>
-                           </Link>
+                            <Link
+                              href={route("admin.user-management.show", user.id)}
+                              className="flex items-center px-4 py-3 hover:bg-gray-50 w-full"
+                            >
+                              <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mr-3">
+                                <Eye className="h-5 w-5 text-gray-600" />
+                              </div>
+                              <span>View User</span>
+                            </Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem className="flex items-center px-4 py-3 hover:bg-gray-50 cursor-pointer">
                             <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center mr-3">
@@ -430,30 +430,30 @@ export default function UsersIndex({
             className="mt-4 flex justify-end"
             currentPage={users.current_page}
             totalPages={users.last_page}
-                         onPageChange={(page) =>
-               router.get(
-                 route("admin.user-management.index", { page }),
-                 { search, status, role },
-                 { preserveState: true }
-               )
-             }
+            onPageChange={(page) =>
+              router.get(
+                route("admin.user-management.index", { page }),
+                { search, status, role },
+                { preserveState: true }
+              )
+            }
           />
         )}
       </div>
-             <Toaster position="top-right" />
-       
-       {/* Confirmation Modal */}
-       <ConfirmationModal
-         isOpen={confirmationModal.isOpen}
-         onClose={() => setConfirmationModal({ ...confirmationModal, isOpen: false })}
-         onConfirm={confirmRoleChange}
-         title="Confirm Role Change"
-         description={`Are you sure you want to change ${confirmationModal.userName}'s role from "${confirmationModal.currentRole}" to "${confirmationModal.newRole === 'unassigned' ? 'Unassigned' : confirmationModal.newRole.charAt(0).toUpperCase() + confirmationModal.newRole.slice(1)}"? This action will create a new profile and delete the old one.`}
-         confirmText="Change Role"
-         cancelText="Cancel"
-         variant="warning"
-         isLoading={updatingRole === confirmationModal.userId}
-       />
-     </AdminLayout>
-   );
- }
+      <Toaster position="top-right" />
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={confirmationModal.isOpen}
+        onClose={() => setConfirmationModal({ ...confirmationModal, isOpen: false })}
+        onConfirm={confirmRoleChange}
+        title="Confirm Role Change"
+        message={`Are you sure you want to change ${confirmationModal.userName}'s role from "${confirmationModal.currentRole}" to "${confirmationModal.newRole === 'unassigned' ? 'Unassigned' : confirmationModal.newRole.charAt(0).toUpperCase() + confirmationModal.newRole.slice(1)}"? This action will create a new profile and delete the old one.`}
+        confirmText="Change Role"
+        cancelText="Cancel"
+        variant="warning"
+        isLoading={updatingRole === confirmationModal.userId}
+      />
+    </AdminLayout>
+  );
+}

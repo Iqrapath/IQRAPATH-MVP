@@ -108,7 +108,7 @@ class PayStackTransferService
 
                 // Log to payment_gateway_logs table
                 \App\Models\PaymentGatewayLog::create([
-                    'user_id' => $payoutRequest->teacher_id,
+                    'user_id' => $payoutRequest->user_id,
                     'gateway' => 'paystack',
                     'reference' => $responseData['data']['reference'],
                     'transaction_reference' => $payoutRequest->request_uuid,
@@ -137,7 +137,7 @@ class PayStackTransferService
             } else {
                 // Log failed attempt
                 \App\Models\PaymentGatewayLog::create([
-                    'user_id' => $payoutRequest->teacher_id,
+                    'user_id' => $payoutRequest->user_id,
                     'gateway' => 'paystack',
                     'reference' => 'FAILED-' . $payoutRequest->request_uuid . '-' . time(),
                     'transaction_reference' => $payoutRequest->request_uuid,
@@ -179,7 +179,7 @@ class PayStackTransferService
 
             // Log failed attempt to payment_gateway_logs
             \App\Models\PaymentGatewayLog::create([
-                'user_id' => $payoutRequest->teacher_id,
+                'user_id' => $payoutRequest->user_id,
                 'gateway' => 'paystack',
                 'reference' => 'ERROR-' . $payoutRequest->request_uuid . '-' . time(),
                 'transaction_reference' => $payoutRequest->request_uuid,

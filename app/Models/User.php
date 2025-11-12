@@ -619,11 +619,37 @@ class User extends Authenticatable implements MustVerifyEmail
     }
     
     /**
-     * Get the payout requests for the teacher.
+     * Get the payout requests for the user (both teachers and students).
      */
     public function payoutRequests()
     {
-        return $this->hasMany(PayoutRequest::class, 'teacher_id');
+        return $this->hasMany(PayoutRequest::class, 'user_id');
+    }
+
+    /**
+     * Get teacher-specific payout requests.
+     */
+    public function teacherPayouts()
+    {
+        return $this->hasMany(PayoutRequest::class, 'user_id')
+            ->where(function ($query) {
+                $query->whereHas('user', function ($q) {
+                    $q->where('role', 'teacher');
+                });
+            });
+    }
+
+    /**
+     * Get student-specific withdrawal requests.
+     */
+    public function studentWithdrawals()
+    {
+        return $this->hasMany(PayoutRequest::class, 'user_id')
+            ->where(function ($query) {
+                $query->whereHas('user', function ($q) {
+                    $q->where('role', 'student');
+                });
+            });
     }
 
     /**
@@ -717,6 +743,61 @@ class User extends Authenticatable implements MustVerifyEmail
     public function defaultPaymentMethod(): HasOne
     {
         return $this->hasOne(PaymentMethod::class)->where('is_default', true)->where('is_active', true);
+    }
+
+    /**
+     * Get available withdrawal balance for students.
+     * Calculates wallet balance minus pending/processing withdrawals.
+     *
+     * @return float
+     */
+    public function getAvailableWithdrawalBalanceAttribute(): float
+    {
+        // Only students can withdraw from wallet
+        if ($this->role !== 'student') {
+            return 0.0;
+        }
+
+        // Get student wallet balance
+        $walletBalance = $this->studentWallet?->balance ?? 0.0;
+
+        // Get pending withdrawal amounts (pending + processing statuses)
+        $pendingWithdrawals = $this->payoutRequests()
+            ->whereIn('status', ['pending', 'processing'])
+            ->sum('amount');
+
+        // Available balance = wallet balance - pending withdrawals
+        $availableBalance = $walletBalance - $pendingWithdrawals;
+
+        // Ensure we never return negative balance
+        return max(0.0, $availableBalance);
+    }
+
+    /**
+     * Check if user can withdraw a specific amount.
+     * Validates role, minimum amount, and available balance.
+     *
+     * @param float $amount
+     * @return bool
+     */
+    public function canWithdraw(float $amount): bool
+    {
+        // Only students can withdraw
+        if ($this->role !== 'student') {
+            return false;
+        }
+
+        // Check minimum withdrawal amount (₦500)
+        if ($amount < 500) {
+            return false;
+        }
+
+        // Check if amount doesn't exceed available balance
+        if ($amount > $this->available_withdrawal_balance) {
+            return false;
+        }
+
+        return true;
     }
 
     /**

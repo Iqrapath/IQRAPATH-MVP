@@ -1,0 +1,136 @@
+/* Print Styles for Receipt Modal */
+@media print {
+
+    /* Reset body and html for print */
+    html,
+    body {
+        height: auto !important;
+        overflow: visible !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* Hide everything except the receipt */
+    body * {
+        visibility: hidden;
+    }
+
+    #receipt-content,
+    #receipt-content * {
+        visibility: visible;
+    }
+
+    /* Position receipt content for print */
+    #receipt-content {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: auto !important;
+        overflow: visible !important;
+        background: white !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    /* Hide scrollbars completely */
+    ::-webkit-scrollbar {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+    }
+
+    * {
+        overflow: visible !important;
+        max-height: none !important;
+        scrollbar-width: none !important;
+    }
+
+    /* Hide print button and other UI elements */
+    .print\\:hidden {
+        display: none !important;
+        visibility: hidden !important;
+    }
+
+    /* Hide modal overlay and dialog elements */
+    [role="dialog"],
+    [data-radix-dialog-overlay],
+    [data-radix-dialog-content] {
+        position: static !important;
+        overflow: visible !important;
+        max-height: none !important;
+        height: auto !important;
+    }
+
+    /* Adjust page margins for professional look */
+    @page {
+        margin: 1.5cm 2cm;
+        size: A4 portrait;
+    }
+
+    /* Ensure proper page breaks */
+    #receipt-content {
+        page-break-after: avoid;
+        page-break-inside: avoid;
+    }
+
+    /* Prevent breaking inside important sections */
+    .bg-gradient-to-br,
+    .bg-gradient-to-r,
+    .grid,
+    .space-y-3,
+    .space-y-2,
+    .space-y-6,
+    .space-y-8 {
+        page-break-inside: avoid;
+    }
+
+    /* Optimize colors for print - preserve gradients and colors */
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* Ensure gradient backgrounds print correctly */
+    .bg-gradient-to-br,
+    .bg-gradient-to-r {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* Optimize text for print */
+    body {
+        font-size: 12pt;
+        line-height: 1.5;
+    }
+
+    /* Ensure borders and shadows print */
+    .border,
+    .border-t,
+    .border-b,
+    .border-2,
+    .rounded-lg,
+    .rounded-xl,
+    .rounded-full {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* Make sure the teal gradient section prints with full color */
+    .bg-gradient-to-br {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* Ensure all content is visible */
+    .overflow-hidden,
+    .overflow-y-auto,
+    .overflow-x-hidden {
+        overflow: visible !important;
+    }
+
+    /* Remove max-height constraints */
+    .max-h-screen {
+        max-height: none !important;
+    }
+}

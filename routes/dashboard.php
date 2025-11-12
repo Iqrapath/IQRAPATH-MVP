@@ -103,6 +103,12 @@ Route::middleware(['auth', 'verified', 'role:student'])->prefix('student')->name
     
     // Wallet API routes (for modals and AJAX)
     Route::post('/wallet/fund', [App\Http\Controllers\Student\WalletController::class, 'processFunding'])->name('wallet.fund.process');
+    Route::post('/wallet/fund/paypal', [App\Http\Controllers\Student\WalletController::class, 'fundWithPayPal'])->name('wallet.fund.paypal');
+    Route::get('/wallet/paypal/success', [App\Http\Controllers\Student\WalletController::class, 'paypalSuccess'])->name('wallet.paypal.success');
+    Route::get('/wallet/paypal/cancel', [App\Http\Controllers\Student\WalletController::class, 'paypalCancel'])->name('wallet.paypal.cancel');
+    Route::post('/wallet/withdraw', [App\Http\Controllers\Student\WalletController::class, 'requestWithdrawal'])->name('wallet.withdraw');
+    Route::get('/wallet/withdrawals', [App\Http\Controllers\Student\WalletController::class, 'getWithdrawals'])->name('wallet.withdrawals');
+    Route::get('/wallet/withdrawals/{id}', [App\Http\Controllers\Student\WalletController::class, 'getWithdrawalDetails'])->name('wallet.withdrawals.details');
     Route::get('/wallet/balance', [App\Http\Controllers\Student\WalletController::class, 'getBalance'])->name('wallet.balance');
     Route::get('/wallet/funding-config', [App\Http\Controllers\Student\WalletController::class, 'getFundingConfig'])->name('wallet.funding-config');
     
@@ -118,6 +124,8 @@ Route::middleware(['auth', 'verified', 'role:student'])->prefix('student')->name
     Route::get('/wallet/payment-methods', [App\Http\Controllers\Student\PaymentController::class, 'getPaymentMethods'])->name('wallet.payment-methods');
     Route::post('/payment-methods', [App\Http\Controllers\Student\PaymentController::class, 'storePaymentMethod'])->name('payment-methods.store');
     Route::put('/payment-methods/{paymentMethod}', [App\Http\Controllers\Student\PaymentController::class, 'updatePaymentMethod'])->name('payment-methods.update');
+    Route::patch('/payment-methods/{paymentMethod}/set-default', [App\Http\Controllers\Student\PaymentController::class, 'setDefaultPaymentMethod'])->name('payment-methods.set-default');
+    Route::delete('/payment-methods/{paymentMethod}', [App\Http\Controllers\Student\PaymentController::class, 'deletePaymentMethod'])->name('payment-methods.delete');
     
     // Plan enrollment routes
     Route::get('/memorization-plans', [App\Http\Controllers\Student\PlanController::class, 'landing'])->name('memorization-plans');
@@ -125,6 +133,22 @@ Route::middleware(['auth', 'verified', 'role:student'])->prefix('student')->name
     Route::get('/plans/{plan}', [App\Http\Controllers\Student\PlanController::class, 'show'])->name('plans.show');
     Route::post('/plans/enroll', [App\Http\Controllers\Student\PlanController::class, 'enroll'])->name('plans.enroll');
     Route::patch('/subscriptions/{subscriptionUuid}/auto-renewal', [App\Http\Controllers\Student\PlanController::class, 'updateAutoRenewal'])->name('subscriptions.auto-renewal');
+    Route::delete('/subscriptions/{subscriptionUuid}/cancel', [App\Http\Controllers\Student\PlanController::class, 'cancelSubscription'])->name('subscriptions.cancel');
+    
+    // Teacher matching route
+    Route::post('/match-teachers', [App\Http\Controllers\Student\PlanController::class, 'matchTeachers'])->name('match-teachers');
+    
+    // Subscription payment routes
+    Route::get('/plans/payment/{subscriptionUuid}', [App\Http\Controllers\Student\SubscriptionPaymentController::class, 'show'])->name('plans.payment');
+    Route::post('/plans/payment/stripe', [App\Http\Controllers\Student\SubscriptionPaymentController::class, 'processStripe'])->name('plans.payment.stripe');
+    Route::post('/plans/payment/paystack', [App\Http\Controllers\Student\SubscriptionPaymentController::class, 'processPaystack'])->name('plans.payment.paystack');
+    Route::post('/plans/payment/wallet', [App\Http\Controllers\Student\SubscriptionPaymentController::class, 'processWallet'])->name('plans.payment.wallet');
+    Route::post('/plans/payment/card', [App\Http\Controllers\Student\SubscriptionPaymentController::class, 'processCard'])->name('plans.payment.card');
+    Route::post('/plans/payment/paypal', [App\Http\Controllers\Student\SubscriptionPaymentController::class, 'processPayPal'])->name('plans.payment.paypal');
+    Route::get('/plans/payment/paypal/success', [App\Http\Controllers\Student\SubscriptionPaymentController::class, 'paypalSuccess'])->name('plans.payment.paypal.success');
+    Route::get('/plans/payment/paypal/cancel', [App\Http\Controllers\Student\SubscriptionPaymentController::class, 'paypalCancel'])->name('plans.payment.paypal.cancel');
+    Route::get('/plans/payment-success/{subscriptionUuid}', [App\Http\Controllers\Student\SubscriptionPaymentController::class, 'success'])->name('plans.payment-success');
+    Route::get('/plans/payment-failed/{subscriptionUuid}', [App\Http\Controllers\Student\SubscriptionPaymentController::class, 'failure'])->name('plans.payment-failed');
 });
 
 // Teacher routes
@@ -184,6 +208,9 @@ Route::middleware(['auth', 'verified', 'role:guardian'])->prefix('guardian')->na
     // Guardian payment routes
     Route::get('/payment/publishable-key', [App\Http\Controllers\Guardian\PaymentController::class, 'getPublishableKey'])->name('payment.publishable-key');
     Route::post('/payment/fund-wallet', [App\Http\Controllers\Guardian\PaymentController::class, 'fundWallet'])->name('payment.fund-wallet');
+    Route::post('/wallet/fund/paypal', [App\Http\Controllers\Guardian\PaymentController::class, 'fundWithPayPal'])->name('wallet.fund.paypal');
+    Route::get('/wallet/paypal/success', [App\Http\Controllers\Guardian\PaymentController::class, 'paypalSuccess'])->name('wallet.paypal.success');
+    Route::get('/wallet/paypal/cancel', [App\Http\Controllers\Guardian\PaymentController::class, 'paypalCancel'])->name('wallet.paypal.cancel');
     Route::get('/wallet/balance', [App\Http\Controllers\Guardian\PaymentController::class, 'getBalance'])->name('wallet.balance');
     Route::get('/wallet/funding-config', [App\Http\Controllers\Guardian\PaymentController::class, 'getFundingConfig'])->name('wallet.funding-config');
 });

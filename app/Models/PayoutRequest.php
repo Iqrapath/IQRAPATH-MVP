@@ -18,7 +18,7 @@ class PayoutRequest extends Model
      */
     protected $fillable = [
         'request_uuid',
-        'teacher_id',
+        'user_id',
         'amount',
         'payment_method',
         'payment_details',
@@ -80,33 +80,39 @@ class PayoutRequest extends Model
                 $payoutRequest->request_date = now()->format('Y-m-d');
             }
 
-            // Update teacher earnings when a payout request is created
-            $teacherEarning = TeacherEarning::firstOrCreate(
-                ['teacher_id' => $payoutRequest->teacher_id],
-                [
-                    'wallet_balance' => 0,
-                    'total_earned' => 0,
-                    'total_withdrawn' => 0,
-                    'pending_payouts' => 0,
-                ]
-            );
+            // Update teacher earnings when a payout request is created (only for teachers)
+            $user = User::find($payoutRequest->user_id);
+            if ($user && $user->role === 'teacher') {
+                $teacherEarning = TeacherEarning::firstOrCreate(
+                    ['teacher_id' => $payoutRequest->user_id],
+                    [
+                        'wallet_balance' => 0,
+                        'total_earned' => 0,
+                        'total_withdrawn' => 0,
+                        'pending_payouts' => 0,
+                    ]
+                );
 
-            $teacherEarning->addPendingPayout($payoutRequest->amount);
+                $teacherEarning->addPendingPayout($payoutRequest->amount);
+            }
         });
 
         static::updated(function ($payoutRequest) {
-            // If payout request status changed to declined, update teacher earnings
+            $user = User::find($payoutRequest->user_id);
+            
+            // If payout request status changed to declined, update teacher earnings (only for teachers)
             if ($payoutRequest->isDirty('status') && $payoutRequest->status === 'declined') {
-                $teacherEarning = TeacherEarning::where('teacher_id', $payoutRequest->teacher_id)->first();
-                if ($teacherEarning) {
-                    $teacherEarning->removePendingPayout($payoutRequest->amount);
+                if ($user && $user->role === 'teacher') {
+                    $teacherEarning = TeacherEarning::where('teacher_id', $payoutRequest->user_id)->first();
+                    if ($teacherEarning) {
+                        $teacherEarning->removePendingPayout($payoutRequest->amount);
+                    }
                 }
             }
 
             // If payout request status changed to approved, create a withdrawal transaction
             if ($payoutRequest->isDirty('status') && $payoutRequest->status === 'approved' && !$payoutRequest->transaction_id) {
-                $transaction = Transaction::create([
-                    'teacher_id' => $payoutRequest->teacher_id,
+                $transactionData = [
                     'transaction_type' => 'withdrawal',
                     'description' => 'Payout request #' . $payoutRequest->request_uuid,
                     'amount' => $payoutRequest->amount,
@@ -116,7 +122,18 @@ class PayoutRequest extends Model
                     'status' => 'completed',
                     'transaction_date' => now()->format('Y-m-d'),
                     'created_by_id' => $payoutRequest->processed_by_id,
-                ]);
+                ];
+                
+                // Set appropriate user_id field based on role
+                if ($user) {
+                    if ($user->role === 'teacher') {
+                        $transactionData['teacher_id'] = $payoutRequest->user_id;
+                    } elseif ($user->role === 'student') {
+                        $transactionData['student_id'] = $payoutRequest->user_id;
+                    }
+                }
+                
+                $transaction = Transaction::create($transactionData);
 
                 $payoutRequest->transaction_id = $transaction->id;
                 $payoutRequest->save();
@@ -125,11 +142,20 @@ class PayoutRequest extends Model
     }
 
     /**
-     * Get the teacher associated with the payout request.
+     * Get the user associated with the payout request.
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+    
+    /**
+     * Get the teacher associated with the payout request (backward compatibility).
+     * @deprecated Use user() instead
      */
     public function teacher(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'teacher_id');
+        return $this->belongsTo(User::class, 'user_id');
     }
 
     /**
@@ -218,6 +244,52 @@ class PayoutRequest extends Model
     }
 
     /**
+     * Scope a query to only include student withdrawals.
+     */
+    public function scopeStudentWithdrawals($query)
+    {
+        return $query->whereHas('user', function ($q) {
+            $q->where('role', 'student');
+        });
+    }
+
+    /**
+     * Scope a query to only include teacher payouts.
+     */
+    public function scopeTeacherPayouts($query)
+    {
+        return $query->whereHas('user', function ($q) {
+            $q->where('role', 'teacher');
+        });
+    }
+
+    /**
+     * Get formatted bank details for display.
+     * Returns masked account number for security.
+     */
+    public function getBankDetailsAttribute(): array
+    {
+        $paymentDetails = $this->payment_details ?? [];
+        
+        // Extract bank information from payment_details
+        $bankName = $paymentDetails['bank_name'] ?? 'N/A';
+        $accountName = $paymentDetails['account_name'] ?? 'N/A';
+        $accountNumber = $paymentDetails['account_number'] ?? '';
+        
+        // Mask account number (show last 4 digits only)
+        $maskedAccountNumber = $accountNumber 
+            ? '****' . substr($accountNumber, -4)
+            : 'N/A';
+        
+        return [
+            'bank_name' => $bankName,
+            'account_name' => $accountName,
+            'account_number_masked' => $maskedAccountNumber,
+            'account_number_full' => $accountNumber, // Only for admin use
+        ];
+    }
+
+    /**
      * Approve the payout request and initiate payment gateway transfer.
      */
     public function approve(User $admin, bool $autoProcessPayout = true): void
@@ -240,7 +312,7 @@ class PayoutRequest extends Model
             $lockedPayout->save();
 
             // Get teacher's wallet with lock
-            $teacherWallet = TeacherWallet::where('user_id', $lockedPayout->teacher_id)
+            $teacherWallet = TeacherWallet::where('user_id', $lockedPayout->user_id)
                 ->lockForUpdate()
                 ->first();
             
@@ -294,7 +366,7 @@ class PayoutRequest extends Model
 
             \Illuminate\Support\Facades\Log::info('Payout approved and processed', [
                 'payout_request_id' => $lockedPayout->id,
-                'teacher_id' => $lockedPayout->teacher_id,
+                'user_id' => $lockedPayout->user_id,
                 'amount' => $lockedPayout->amount,
                 'admin_id' => $admin->id,
                 'transaction_id' => $transaction->id,
@@ -395,7 +467,7 @@ class PayoutRequest extends Model
             $lockedPayout->save();
 
             // Get teacher's wallet with lock
-            $teacherWallet = TeacherWallet::where('user_id', $lockedPayout->teacher_id)
+            $teacherWallet = TeacherWallet::where('user_id', $lockedPayout->user_id)
                 ->lockForUpdate()
                 ->first();
             
@@ -423,7 +495,7 @@ class PayoutRequest extends Model
 
             \Illuminate\Support\Facades\Log::info('Payout rejected and balance restored', [
                 'payout_request_id' => $lockedPayout->id,
-                'teacher_id' => $lockedPayout->teacher_id,
+                'user_id' => $lockedPayout->user_id,
                 'amount' => $lockedPayout->amount,
                 'admin_id' => $admin->id,
                 'reason' => $reason,

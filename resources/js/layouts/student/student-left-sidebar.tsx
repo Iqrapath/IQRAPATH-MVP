@@ -88,11 +88,11 @@ export default function StudentLeftSidebar({ className, isMobile = false, onClos
             href: '/student/my-bookings',
             icon: MessageUserIcon,
         },
-        {
-            title: 'Memorization Plans',
-            href: '/student/memorization-plans',
-            icon: MessageUserIcon,
-        },
+        // {
+        //     title: 'Memorization Plans',
+        //     href: '/student/memorization-plans',
+        //     icon: MessageUserIcon,
+        // },
         {
             title: 'Payment',
             href: '/student/wallet',
@@ -257,6 +257,10 @@ export default function StudentLeftSidebar({ className, isMobile = false, onClos
                             <Button
                                 className="bg-teal-600 text-white hover:bg-teal-700 font-medium py-2 px-3 rounded-full text-xs"
                                 onClick={() => router.visit('/student/memorization-plans')}
+                                // onClick={(e) => {
+                                //     e.preventDefault();
+                                //     handleMissingPage('Memorization Plans');
+                                // }}
                             >
                                 Enroll Now!
                             </Button>

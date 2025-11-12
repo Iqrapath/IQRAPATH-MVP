@@ -226,7 +226,7 @@ class FinancialService
         $totalWithdrawn = $totalWithdrawnNGN;
 
         // Calculate pending payouts from pending payout requests
-        $pendingPayouts = PayoutRequest::where('teacher_id', $teacher->id)
+        $pendingPayouts = PayoutRequest::where('user_id', $teacher->id)
             ->whereIn('status', ['pending', 'processing', 'approved'])
             ->sum('amount');
 
@@ -258,7 +258,7 @@ class FinancialService
             });
 
         // Get pending payout requests
-        $pendingPayoutRequests = PayoutRequest::where('teacher_id', $teacher->id)
+        $pendingPayoutRequests = PayoutRequest::where('user_id', $teacher->id)
             ->whereIn('status', ['pending', 'processing'])
             ->orderBy('created_at', 'desc')
             ->get()
@@ -321,7 +321,7 @@ class FinancialService
             ->sum('amount');
 
         // Pending payouts count
-        $pendingPayoutsCount = PayoutRequest::where('teacher_id', $teacher->id)
+        $pendingPayoutsCount = PayoutRequest::where('user_id', $teacher->id)
             ->whereIn('status', ['pending', 'processing'])
             ->count();
 

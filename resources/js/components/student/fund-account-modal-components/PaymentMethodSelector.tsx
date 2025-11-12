@@ -1,5 +1,4 @@
 import { ArrowLeftRight, CreditCard as CardIcon } from 'lucide-react';
-import { toast } from 'sonner';
 import { PaymentMethod } from './PaymentConfig';
 import { PaypalIcon } from '@/components/icons/paypal-icon';
 
@@ -35,11 +34,7 @@ export default function PaymentMethodSelector({
 
     const handleSelect = (methodType: 'credit_card' | 'bank_transfer' | 'paypal') => {
         onSelect(methodType);
-
-        // Show toast only for PayPal (unavailable)
-        if (methodType === 'paypal') {
-            toast.error('PayPal payment method is not available yet. Please use Credit/Debit Card or Bank Transfer.');
-        }
+        // PayPal is now available - no toast needed
     };
 
     return (

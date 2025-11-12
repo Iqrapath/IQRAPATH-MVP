@@ -173,7 +173,7 @@ class TeacherVerificationController extends Controller
             $earningsData = $financialService->getTeacherEarningsRealTime($teacher);
             
             // Ensure we have the required fields
-            $earningsData['pending_payout_requests'] = PayoutRequest::where('teacher_id', $teacher->id)
+            $earningsData['pending_payout_requests'] = PayoutRequest::where('user_id', $teacher->id)
                 ->where('status', 'pending')
                 ->orderBy('created_at', 'desc')
                 ->get();
@@ -183,7 +183,7 @@ class TeacherVerificationController extends Controller
         }
         
         // Get payout requests for this teacher
-        $pendingPayoutRequests = PayoutRequest::where('teacher_id', $teacher->id)
+        $pendingPayoutRequests = PayoutRequest::where('user_id', $teacher->id)
             ->where('status', 'pending')
             ->orderBy('created_at', 'desc')
             ->get();

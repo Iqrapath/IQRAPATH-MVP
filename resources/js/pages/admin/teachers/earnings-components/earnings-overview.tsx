@@ -263,7 +263,7 @@ export default function EarningsOverview({ teacher, profile, earnings, verificat
                   <div className="text-right">
                     <Button
                       variant="link"
-                      className="text-sm p-0 h-auto text-teal-600 hover:text-teal-700"
+                      className="text-sm p-0 h-auto text-teal-600 hover:text-teal-700 cursor-pointer"
                       onClick={() => window.location.href = route('admin.teachers.show', teacher.id)}
                     >
                       Go to profile

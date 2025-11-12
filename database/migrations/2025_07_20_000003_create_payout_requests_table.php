@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('payout_requests', function (Blueprint $table) {
             $table->id();
             $table->string('request_uuid')->unique();
-            $table->foreignId('teacher_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->decimal('amount', 10, 2);
             $table->enum('payment_method', ['bank_transfer', 'paypal', 'stripe', 'mobile_money', 'other']);
             $table->json('payment_details');
@@ -59,7 +59,9 @@ return new class extends Migration
             
             // Indexes for better query performance
             $table->index('status');
-            $table->index('teacher_id');
+            $table->index('user_id');
+            $table->index(['user_id', 'status']); // Composite index for filtering by user and status
+            $table->index('created_at'); // Index for date range queries
             $table->index('external_reference');
             $table->index('external_transfer_code');
         });

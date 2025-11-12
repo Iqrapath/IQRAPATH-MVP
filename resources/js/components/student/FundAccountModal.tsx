@@ -179,6 +179,15 @@ export default function FundAccountModal({
       }
     }
 
+    // For PayPal, validate amount
+    if (selectedPaymentMethod === 'paypal') {
+      const amount = parseFloat(fundingAmount);
+      if (!fundingAmount || isNaN(amount) || amount < 1) {
+        toast.error('Please enter a valid amount (minimum $1 USD)');
+        return;
+      }
+    }
+
     // For bank transfer, just show confirmation
     // (user has already made the transfer)
     setShowConfirmation(true);
@@ -207,6 +216,35 @@ export default function FundAccountModal({
         amount: fundingAmount
       });
       setShowSuccessModal(true);
+    } else if (selectedPaymentMethod === 'paypal') {
+      // Redirect to PayPal with loading state
+      try {
+        // Show loading toast
+        toast.loading('Initializing PayPal payment...', { id: 'paypal-init' });
+
+        const isGuardian = window.location.pathname.includes('/guardian/');
+        const endpoint = isGuardian ? '/guardian/wallet/fund/paypal' : '/student/wallet/fund/paypal';
+
+        const response = await window.axios.post(endpoint, {
+          amount: parseFloat(fundingAmount),
+          currency: 'USD' // PayPal uses USD
+        });
+
+        if (response.data.success && response.data.data.approval_url) {
+          // Success - show redirecting message
+          toast.success('Redirecting to PayPal...', { id: 'paypal-init' });
+          
+          // Small delay to show the success message
+          setTimeout(() => {
+            window.location.href = response.data.data.approval_url;
+          }, 500);
+        } else {
+          toast.error('Failed to initialize PayPal payment', { id: 'paypal-init' });
+        }
+      } catch (error: any) {
+        console.error('PayPal payment error:', error);
+        toast.error(error.response?.data?.message || 'Failed to initialize PayPal payment. Please try again.', { id: 'paypal-init' });
+      }
     }
   };
 
@@ -300,14 +338,61 @@ export default function FundAccountModal({
                 ) : (
                   <>
                     <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-3 sm:mb-4">
-                      PayPal Payment Details
+                      PayPal Payment
                     </h3>
                     <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-6 shadow-sm">
-                      <UnavailablePaymentMethod
-                        method={selectedPaymentMethod}
-                        onUseCreditCard={() => setSelectedPaymentMethod('credit_card')}
-                        onCancel={onClose}
-                      />
+                      {/* Amount Input for PayPal */}
+                      <div className="mb-6">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Amount to Fund (USD)
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">$</span>
+                          <input
+                            type="number"
+                            min="1"
+                            step="0.01"
+                            value={fundingAmount}
+                            onChange={(e) => handleAmountChange(e.target.value)}
+                            placeholder="0.00"
+                            disabled={isLoading}
+                            className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2C7870] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                          />
+                        </div>
+                        {validationError && (
+                          <p className="text-sm text-red-600 mt-2">{validationError}</p>
+                        )}
+                      </div>
+
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                        <p className="text-sm text-blue-900">
+                          You will be redirected to PayPal to complete your payment securely. PayPal only supports USD currency.
+                        </p>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex items-center gap-4">
+                        <button
+                          onClick={handleConfirmPayment}
+                          disabled={isLoading || !fundingAmount || parseFloat(fundingAmount) < 1}
+                          className="bg-[#2C7870] hover:bg-[#236158] disabled:bg-[#CBD5E1] disabled:cursor-not-allowed text-white py-4 px-10 rounded-full font-semibold transition-all text-base shadow-sm hover:shadow-md disabled:shadow-none flex items-center justify-center gap-2"
+                        >
+                          {isLoading && (
+                            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                          )}
+                          {isLoading ? 'Redirecting to PayPal...' : `Pay $${fundingAmount || '0.00'} with PayPal`}
+                        </button>
+                        <button
+                          onClick={onClose}
+                          disabled={isLoading}
+                          className="bg-white border-2 border-[#2C7870] text-[#2C7870] hover:bg-[#F0F9FF] py-4 px-10 rounded-full font-semibold transition-all text-base disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     </div>
                   </>
                 )}

@@ -4,3 +4,4 @@ export { default as WalletBalance } from './WalletBalance';
 export { default as PaymentInfo } from './PaymentInfo';
 export { default as PaymentMethod } from './PaymentMethod';
 export { default as AddPaymentMethodModal } from './AddPaymentMethodModal';
+export { default as WithdrawalHistory } from './WithdrawalHistory';

@@ -168,14 +168,14 @@ export default function TeacherActionButtons({
 
   return (
     <>
-      <div className="flex items-start justify-start gap-6">
+      <div className="flex items-start justify-start gap-6 ">
         {/* Approve Button - Disabled until conditions met */}
         <Button 
           onClick={handleApprove}
           disabled={!canApprove || isLoading}
           className={`px-6 py-2 rounded-full ${
             canApprove 
-              ? 'bg-teal-600 hover:bg-teal-700 text-white' 
+              ? 'bg-teal-600 hover:bg-teal-700 text-white cursor-pointer' 
               : verificationStatus.docs_status === 'rejected' || verificationStatus.video_status === 'failed'
               ? 'bg-red-100 text-red-600 border border-red-300 cursor-not-allowed'
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
@@ -190,7 +190,7 @@ export default function TeacherActionButtons({
           onClick={onSendMessage}
           disabled={isLoading}
           variant="outline"
-          className="border-teal-600 text-teal-600 hover:bg-teal-50 px-6 py-2 rounded-full"
+          className="border-teal-600 text-teal-600 hover:bg-teal-50 px-6 py-2 rounded-full cursor-pointer"
         >
           Send Message
         </Button>
@@ -199,7 +199,7 @@ export default function TeacherActionButtons({
         <button 
           onClick={() => setShowRejectModal(true)}
           disabled={isLoading}
-          className="text-gray-700 hover:text-gray-900 font-medium disabled:opacity-50"
+          className="text-gray-700 hover:text-gray-900 font-medium disabled:opacity-50 cursor-pointer"
         >
           Reject
         </button>
@@ -208,7 +208,7 @@ export default function TeacherActionButtons({
         <button 
           onClick={handleDeleteAccount}
           disabled={isLoading}
-          className="text-red-600 hover:text-red-700 font-medium disabled:opacity-50"
+          className="text-red-600 hover:text-red-700 font-medium disabled:opacity-50 cursor-pointer"
         >
           Delete Account
         </button>

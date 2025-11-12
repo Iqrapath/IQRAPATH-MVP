@@ -8,6 +8,9 @@ import { toast } from 'sonner';
 import { FileText } from 'lucide-react';
 import axios from 'axios';
 import FundAccountModal from '../../../../components/student/FundAccountModal';
+import WithdrawFundModal from '../../../../components/student/WithdrawFundModal';
+import WithdrawalHistory from './WithdrawalHistory';
+
 interface WalletData {
     balance: number;
     totalSpent: number;
@@ -64,6 +67,7 @@ export default function WalletBalance() {
 
     const [saving, setSaving] = useState(false);
     const [showFundModal, setShowFundModal] = useState(false);
+    const [showWithdrawModal, setShowWithdrawModal] = useState(false);
     const [emailingReport, setEmailingReport] = useState(false);
 
     // Update data when props change
@@ -112,6 +116,16 @@ export default function WalletBalance() {
 
     const handleTopUpClick = () => {
         setShowFundModal(true);
+    };
+
+    const handleWithdrawClick = () => {
+        setShowWithdrawModal(true);
+    };
+
+    const handleWithdrawalSuccess = () => {
+        setShowWithdrawModal(false);
+        // Refresh wallet balance and page data
+        router.reload({ only: ['walletBalance', 'availableWithdrawalBalance', 'upcomingPayments', 'paymentHistory'] });
     };
 
     const handleEmailReport = async () => {
@@ -231,13 +245,13 @@ export default function WalletBalance() {
                             >
                                 Top Up Balance
                             </Button>
-                            <Button
+                            {/* <Button
+                                onClick={handleWithdrawClick}
                                 variant="ghost"
                                 className="text-gray-700 hover:bg-gray-50 cursor-pointer"
-                                disabled
                             >
                                 Withdraw Fund
-                            </Button>
+                            </Button> */}
                         </div>
                     </div>
                 </CardContent>
@@ -355,6 +369,9 @@ export default function WalletBalance() {
                 </CardContent>
             </Card>
 
+            {/* Withdrawal History */}
+            <WithdrawalHistory />
+
             {/* Fund Account Modal */}
             {showFundModal && (
                 <FundAccountModal
@@ -364,6 +381,19 @@ export default function WalletBalance() {
                         setShowFundModal(false);
                         router.reload();
                     }}
+                />
+            )}
+
+            {/* Withdraw Fund Modal */}
+            {showWithdrawModal && (
+                <WithdrawFundModal
+                    isOpen={showWithdrawModal}
+                    onClose={() => setShowWithdrawModal(false)}
+                    onSuccess={handleWithdrawalSuccess}
+                    walletBalance={walletData.balance}
+                    availableWithdrawalBalance={pageProps.availableWithdrawalBalance || walletData.balance}
+                    currency={getCurrencySymbol(walletData.preferredCurrency)}
+                    user={user}
                 />
             )}
         </div>

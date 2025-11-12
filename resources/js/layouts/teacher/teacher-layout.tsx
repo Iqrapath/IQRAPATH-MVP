@@ -4,6 +4,7 @@ import TeacherLeftSidebar from './teacher-left-sidebar';
 import TeacherRightSidebar from './teacher-right-sidebar';
 import { useState, useEffect } from 'react';
 import { AppLoading } from '@/components/app-loading';
+import { CurrencyProvider } from '@/contexts/CurrencyContext';
 
 interface TeacherLayoutProps {
     children: ReactNode;
@@ -12,8 +13,8 @@ interface TeacherLayoutProps {
     rightSidebarContent?: ReactNode;
 }
 
-export default function TeacherLayout({ 
-    children, 
+export default function TeacherLayout({
+    children,
     pageTitle,
     showRightSidebar = true,
     rightSidebarContent
@@ -33,13 +34,13 @@ export default function TeacherLayout({
                 setShowRightSidebarMobile(false);
             }
         };
-        
+
         // Set initial state
         handleResize();
-        
+
         // Add event listener
         window.addEventListener('resize', handleResize);
-        
+
         // Cleanup
         return () => {
             window.removeEventListener('resize', handleResize);
@@ -66,11 +67,11 @@ export default function TeacherLayout({
     };
 
     return (
-        <>
+        <CurrencyProvider>
             <AppLoading />
             <div className="flex flex-col h-screen w-full overflow-hidden bg-gray-50">
-                <TeacherHeader 
-                    pageTitle={pageTitle} 
+                <TeacherHeader
+                    pageTitle={pageTitle}
                     toggleLeftSidebar={toggleLeftSidebar}
                     toggleRightSidebar={toggleRightSidebar}
                     isMobile={isMobile}
@@ -78,19 +79,19 @@ export default function TeacherLayout({
                 <div className="flex flex-1 relative overflow-hidden">
                     {/* Left Sidebar - Hidden on mobile by default, shown when toggled */}
                     <div className={`${isMobile ? 'absolute z-30 h-full' : 'pl-25 pt-2'} ${isMobile && !showLeftSidebar ? 'hidden' : 'block'}`}>
-                        <TeacherLeftSidebar 
+                        <TeacherLeftSidebar
                             isMobile={isMobile}
-                            // onClose={closeLeftSidebar}
-                            // className="h-full overflow-y-auto"
+                        // onClose={closeLeftSidebar}
+                        // className="h-full overflow-y-auto"
                         />
                     </div>
 
                     {/* Main Content */}
                     <main className="flex-1 p-6 overflow-y-auto scrollbar-hide scrollbar-thin scrollbar-thumb-teal-600"
-                    style={{
-                        scrollbarWidth: 'none', /* Firefox */
-                        msOverflowStyle: 'none', /* IE and Edge */
-                    }}>
+                        style={{
+                            scrollbarWidth: 'none', /* Firefox */
+                            msOverflowStyle: 'none', /* IE and Edge */
+                        }}>
                         {children}
                     </main>
 
@@ -110,7 +111,7 @@ export default function TeacherLayout({
 
                 {/* Mobile overlay when sidebar is open */}
                 {isMobile && (showLeftSidebar || showRightSidebarMobile) && (
-                    <div 
+                    <div
                         className="fixed inset-0 bg-white/10 backdrop-blur-sm z-20"
                         onClick={() => {
                             setShowLeftSidebar(false);
@@ -119,6 +120,6 @@ export default function TeacherLayout({
                     />
                 )}
             </div>
-        </>
+        </CurrencyProvider>
     );
 } 

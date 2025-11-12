@@ -8,6 +8,7 @@ import { Toaster } from 'sonner';
 import { initializeTheme } from './hooks/use-appearance';
 import { configureEcho } from '@laravel/echo-react';
 import { LoadingProvider } from './contexts/loading-context';
+import { CurrencyProvider } from './contexts/CurrencyContext';
 
 configureEcho({
     broadcaster: 'reverb',
@@ -22,10 +23,12 @@ createInertiaApp({
         const root = createRoot(el);
 
         root.render(
-            <LoadingProvider>
-                <App {...props} />
-                <Toaster position="top-right" richColors />
-            </LoadingProvider>
+            <CurrencyProvider>
+                <LoadingProvider>
+                    <App {...props} />
+                    <Toaster position="top-right" richColors />
+                </LoadingProvider>
+            </CurrencyProvider>
         );
     },
     progress: {

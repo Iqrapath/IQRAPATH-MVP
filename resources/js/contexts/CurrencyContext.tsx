@@ -4,18 +4,12 @@ import { toast } from 'sonner';
 // Currency conversion rates (example rates - in production, these would come from an API)
 const currencyRates = {
     NGN: 1, // Base currency
-    USD: 0.0007, // 1 NGN = 0.0007 USD (approximate)
-    EUR: 0.0006, // 1 NGN = 0.0006 EUR (approximate)
-    GBP: 0.0005, // 1 NGN = 0.0005 GBP (approximate)
-    CAD: 0.0009, // 1 NGN = 0.0009 CAD (approximate)
+    USD: 0.0007, // 1 NGN = 0.0007 USD (approximate rate: ~1,400 NGN = 1 USD)
 };
 
 const currencySymbols = {
     NGN: '₦',
     USD: '$',
-    EUR: '€',
-    GBP: '£',
-    CAD: 'C$',
 };
 
 interface CurrencyContextType {
@@ -51,7 +45,7 @@ export function CurrencyProvider({ children }: CurrencyProviderProps) {
     const formatBalance = (balanceNGN: number): string => {
         const convertedBalance = convertBalance(balanceNGN);
         const symbol = currencySymbols[selectedCurrency as keyof typeof currencySymbols];
-        
+
         return `${symbol}${convertedBalance.toLocaleString(undefined, {
             minimumFractionDigits: selectedCurrency === 'NGN' ? 0 : 2,
             maximumFractionDigits: selectedCurrency === 'NGN' ? 0 : 2

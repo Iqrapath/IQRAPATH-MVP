@@ -125,6 +125,7 @@ class PaymentController extends Controller
 
         return Inertia::render('student/wallet/index', [
             'walletBalance' => (float) $wallet->balance,
+            'availableWithdrawalBalance' => (float) $user->available_withdrawal_balance,
             'totalSpent' => (float) $wallet->total_spent,
             'totalRefunded' => (float) $wallet->total_refunded,
             'walletSettings' => $walletSettings,
@@ -714,6 +715,13 @@ class PaymentController extends Controller
                 $validated['is_default'] = true;
             }
 
+            // Cards are automatically verified by Stripe, so mark them as verified
+            if ($validated['type'] === 'card') {
+                $validated['is_verified'] = true;
+                $validated['verification_status'] = 'verified';
+                $validated['verified_at'] = now();
+            }
+
             // Create payment method with secure storage
             $paymentMethod = $user->paymentMethods()->create([
                 'type' => $validated['type'],
@@ -902,6 +910,10 @@ class PaymentController extends Controller
                 $updateData['exp_year'] = $validated['exp_year'] ?? null;
                 $updateData['stripe_payment_method_id'] = $validated['stripe_payment_method_id'] ?? null;
                 $updateData['account_name'] = $validated['account_name'] ?? null;
+                // Cards are automatically verified by Stripe
+                $updateData['is_verified'] = true;
+                $updateData['verification_status'] = 'verified';
+                $updateData['verified_at'] = now();
             }
 
             \Log::info('Updating payment method', [
@@ -936,6 +948,83 @@ class PaymentController extends Controller
 
             return back()->withErrors([
                 'error' => 'Failed to update payment method. Please try again.'
+            ]);
+        }
+    }
+
+    /**
+     * Set a payment method as default
+     */
+    public function setDefaultPaymentMethod($paymentMethodId)
+    {
+        try {
+            $user = Auth::user();
+            
+            // Find the payment method and ensure it belongs to the user
+            $paymentMethod = $user->paymentMethods()->findOrFail($paymentMethodId);
+
+            // Unset all other defaults
+            $user->paymentMethods()->where('id', '!=', $paymentMethodId)->update(['is_default' => false]);
+
+            // Set this one as default
+            $paymentMethod->update(['is_default' => true]);
+
+            \Log::info('Payment method set as default', [
+                'user_id' => $user->id,
+                'payment_method_id' => $paymentMethod->id
+            ]);
+
+            return back()->with('success', 'Default payment method updated successfully');
+
+        } catch (\Exception $e) {
+            \Log::error('Error setting default payment method', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id(),
+                'payment_method_id' => $paymentMethodId
+            ]);
+
+            return back()->withErrors([
+                'error' => 'Failed to set default payment method. Please try again.'
+            ]);
+        }
+    }
+
+    /**
+     * Delete a payment method
+     */
+    public function deletePaymentMethod($paymentMethodId)
+    {
+        try {
+            $user = Auth::user();
+            
+            // Find the payment method and ensure it belongs to the user
+            $paymentMethod = $user->paymentMethods()->findOrFail($paymentMethodId);
+
+            // Don't allow deleting the default payment method if there are others
+            if ($paymentMethod->is_default && $user->paymentMethods()->where('id', '!=', $paymentMethodId)->count() > 0) {
+                return back()->withErrors([
+                    'error' => 'Cannot delete the default payment method. Please set another payment method as default first.'
+                ]);
+            }
+
+            $paymentMethod->delete();
+
+            \Log::info('Payment method deleted', [
+                'user_id' => $user->id,
+                'payment_method_id' => $paymentMethodId
+            ]);
+
+            return back()->with('success', 'Payment method deleted successfully');
+
+        } catch (\Exception $e) {
+            \Log::error('Error deleting payment method', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id(),
+                'payment_method_id' => $paymentMethodId
+            ]);
+
+            return back()->withErrors([
+                'error' => 'Failed to delete payment method. Please try again.'
             ]);
         }
     }

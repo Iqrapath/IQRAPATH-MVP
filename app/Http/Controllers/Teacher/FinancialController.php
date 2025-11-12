@@ -351,7 +351,7 @@ class FinancialController extends Controller
             return redirect()->route('dashboard')->with('error', 'You do not have access to this section.');
         }
         
-        $query = PayoutRequest::where('teacher_id', $teacher->id);
+        $query = PayoutRequest::where('user_id', $teacher->id);
         
         // Apply filters
         if ($request->has('status')) {
@@ -458,7 +458,7 @@ class FinancialController extends Controller
         }
         
         // Verify that the payout request belongs to the teacher
-        if ($payoutRequest->teacher_id !== $teacher->id) {
+        if ($payoutRequest->user_id !== $teacher->id) {
             return redirect()->back()->with('error', 'You do not have permission to cancel this payout request.');
         }
         
@@ -516,7 +516,7 @@ class FinancialController extends Controller
         }
         
         // Verify that the payout request belongs to the teacher
-        if ($payoutRequest->teacher_id !== $teacher->id) {
+        if ($payoutRequest->user_id !== $teacher->id) {
             return redirect()->back()->with('error', 'You do not have permission to view this payout request.');
         }
         
@@ -671,7 +671,7 @@ class FinancialController extends Controller
             ]);
 
             // Check for existing pending payout requests
-            $existingPendingCount = PayoutRequest::where('teacher_id', $teacher->id)
+            $existingPendingCount = PayoutRequest::where('user_id', $teacher->id)
                 ->where('status', 'pending')
                 ->count();
 

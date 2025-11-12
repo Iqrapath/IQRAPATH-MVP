@@ -18,12 +18,21 @@ class PaymentGatewayService
     private StripeClient $stripe;
     private string $paystackSecretKey;
     private string $paystackBaseUrl;
+    private ?string $paypalClientId;
+    private ?string $paypalClientSecret;
+    private string $paypalBaseUrl;
 
     public function __construct()
     {
         $this->stripe = new StripeClient(config('services.stripe.secret_key'));
         $this->paystackSecretKey = config('services.paystack.secret_key');
         $this->paystackBaseUrl = config('services.paystack.base_url', 'https://api.paystack.co');
+        $this->paypalClientId = config('services.paypal.client_id');
+        $this->paypalClientSecret = config('services.paypal.client_secret');
+        $paypalMode = config('services.paypal.mode', 'sandbox');
+        $this->paypalBaseUrl = $paypalMode === 'live' 
+            ? 'https://api-m.paypal.com' 
+            : 'https://api-m.sandbox.paypal.com';
     }
 
     /**
@@ -514,5 +523,283 @@ class PaymentGatewayService
             'mobile_money' => ($details['provider'] ?? 'Mobile Money') . ' - ' . ($details['phone_number'] ?? ''),
             default => ucfirst($type) . ' Payment Method',
         };
+    }
+
+    /**
+     * Create PayPal payment order
+     *
+     * @param array $paymentData
+     * @return array
+     */
+    public function createPayPalPayment(array $paymentData): array
+    {
+        try {
+            if (!$this->paypalClientId || !$this->paypalClientSecret) {
+                return [
+                    'success' => false,
+                    'message' => 'PayPal is not configured'
+                ];
+            }
+
+            // Get PayPal access token
+            $accessToken = $this->getPayPalAccessToken();
+            if (!$accessToken) {
+                throw new \Exception('Failed to get PayPal access token');
+            }
+
+            // Ensure amount is a float and format it properly
+            $amount = (float) ($paymentData['amount'] ?? 0);
+            $formattedAmount = number_format($amount, 2, '.', '');
+            
+            // Create PayPal order
+            $response = Http::withHeaders([
+                'Content-Type' => 'application/json',
+                'Authorization' => 'Bearer ' . $accessToken,
+            ])->post("{$this->paypalBaseUrl}/v2/checkout/orders", [
+                'intent' => 'CAPTURE',
+                'purchase_units' => [[
+                    'amount' => [
+                        'currency_code' => $paymentData['currency'] ?? 'USD',
+                        'value' => $formattedAmount,
+                    ],
+                    'description' => $paymentData['description'] ?? 'Payment',
+                ]],
+                'application_context' => [
+                    'return_url' => $paymentData['return_url'],
+                    'cancel_url' => $paymentData['cancel_url'],
+                    'brand_name' => config('app.name'),
+                    'user_action' => 'PAY_NOW',
+                ],
+            ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                
+                // Find approval URL
+                $approvalUrl = collect($data['links'] ?? [])
+                    ->firstWhere('rel', 'approve')['href'] ?? null;
+
+                Log::info('PayPal payment created', [
+                    'order_id' => $data['id'],
+                    'amount' => $paymentData['amount'],
+                ]);
+
+                return [
+                    'success' => true,
+                    'payment_id' => $data['id'],
+                    'approval_url' => $approvalUrl,
+                    'status' => $data['status'],
+                ];
+            }
+
+            throw new \Exception('Failed to create PayPal order');
+
+        } catch (\Exception $e) {
+            Log::error('PayPal payment creation failed', [
+                'error' => $e->getMessage(),
+                'amount' => $paymentData['amount'] ?? null,
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Failed to create PayPal payment: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Capture PayPal payment
+     *
+     * @param string $orderId
+     * @return array
+     */
+    public function capturePayPalPayment(string $orderId): array
+    {
+        try {
+            $accessToken = $this->getPayPalAccessToken();
+            if (!$accessToken) {
+                throw new \Exception('Failed to get PayPal access token');
+            }
+
+            $response = Http::withHeaders([
+                'Content-Type' => 'application/json',
+                'Authorization' => 'Bearer ' . $accessToken,
+            ])->post("{$this->paypalBaseUrl}/v2/checkout/orders/{$orderId}/capture");
+
+            if ($response->successful()) {
+                $data = $response->json();
+
+                Log::info('PayPal payment captured', [
+                    'order_id' => $orderId,
+                    'status' => $data['status'],
+                ]);
+
+                return [
+                    'success' => true,
+                    'order_id' => $data['id'],
+                    'status' => $data['status'],
+                    'payer' => $data['payer'] ?? null,
+                    'purchase_units' => $data['purchase_units'] ?? [],
+                ];
+            }
+
+            throw new \Exception('Failed to capture PayPal payment');
+
+        } catch (\Exception $e) {
+            Log::error('PayPal payment capture failed', [
+                'order_id' => $orderId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Failed to capture PayPal payment: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Get PayPal access token
+     *
+     * @return string|null
+     */
+    private function getPayPalAccessToken(): ?string
+    {
+        try {
+            $response = Http::withBasicAuth($this->paypalClientId, $this->paypalClientSecret)
+                ->asForm()
+                ->post("{$this->paypalBaseUrl}/v1/oauth2/token", [
+                    'grant_type' => 'client_credentials',
+                ]);
+
+            if ($response->successful()) {
+                return $response->json('access_token');
+            }
+
+            Log::error('Failed to get PayPal access token', [
+                'response' => $response->json(),
+            ]);
+
+            return null;
+
+        } catch (\Exception $e) {
+            Log::error('PayPal access token error', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
+     * Process payment through specified gateway
+     *
+     * @param array $paymentData
+     * @return array
+     */
+    public function processPayment(array $paymentData): array
+    {
+        $gateway = $paymentData['gateway'] ?? 'stripe';
+
+        try {
+            return match($gateway) {
+                'stripe' => $this->processStripePayment($paymentData),
+                'paystack' => $this->processPaystackPayment($paymentData),
+                'paypal' => $this->createPayPalPayment($paymentData),
+                default => [
+                    'success' => false,
+                    'message' => 'Unsupported payment gateway'
+                ],
+            };
+        } catch (\Exception $e) {
+            Log::error('Payment processing failed', [
+                'gateway' => $gateway,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Payment processing failed: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Process Stripe payment
+     */
+    private function processStripePayment(array $paymentData): array
+    {
+        try {
+            $intentParams = [
+                'amount' => $paymentData['amount'] * 100,
+                'currency' => strtolower($paymentData['currency']),
+                'payment_method' => $paymentData['payment_method_id'],
+                'confirm' => true,
+                'description' => $paymentData['description'] ?? 'Payment',
+                'metadata' => $paymentData['metadata'] ?? [],
+                'return_url' => $paymentData['return_url'] ?? route('student.dashboard'),
+            ];
+
+            // Add automatic payment methods if needed
+            if (isset($paymentData['automatic_payment_methods'])) {
+                $intentParams['automatic_payment_methods'] = $paymentData['automatic_payment_methods'];
+            }
+
+            $paymentIntent = $this->stripe->paymentIntents->create($intentParams);
+
+            return [
+                'success' => $paymentIntent->status === 'succeeded',
+                'transaction_id' => $paymentIntent->id,
+                'reference' => $paymentIntent->id,
+                'status' => $paymentIntent->status,
+            ];
+
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Process Paystack payment
+     */
+    private function processPaystackPayment(array $paymentData): array
+    {
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $this->paystackSecretKey,
+                'Content-Type' => 'application/json',
+            ])->post("{$this->paystackBaseUrl}/transaction/charge_authorization", [
+                'authorization_code' => $paymentData['authorization_code'],
+                'email' => $paymentData['customer_email'],
+                'amount' => $paymentData['amount'] * 100,
+                'currency' => $paymentData['currency'],
+                'metadata' => $paymentData['metadata'] ?? [],
+            ]);
+
+            if ($response->successful()) {
+                $data = $response->json('data');
+                
+                return [
+                    'success' => $data['status'] === 'success',
+                    'transaction_id' => $data['id'],
+                    'reference' => $data['reference'],
+                    'status' => $data['status'],
+                ];
+            }
+
+            return [
+                'success' => false,
+                'message' => 'Paystack payment failed',
+            ];
+
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => $e->getMessage(),
+            ];
+        }
     }
 }

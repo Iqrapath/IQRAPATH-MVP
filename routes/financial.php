@@ -33,6 +33,8 @@ Route::middleware(['auth', 'role:super-admin'])->prefix('admin/financial')->name
     Route::get('/payout-requests/{payoutRequest}', [App\Http\Controllers\Admin\FinancialManagementController::class, 'showPayoutRequest'])->name('payout-requests.show');
     Route::post('/payout-requests/{payoutRequest}/approve', [App\Http\Controllers\Admin\FinancialManagementController::class, 'approvePayoutRequest'])->name('payout-requests.approve');
     Route::post('/payout-requests/{payoutRequest}/reject', [App\Http\Controllers\Admin\FinancialManagementController::class, 'rejectPayoutRequest'])->name('payout-requests.reject');
+    Route::post('/payout-requests/{payoutRequest}/mark-completed', [App\Http\Controllers\Admin\FinancialManagementController::class, 'markAsCompleted'])->name('payout-requests.mark-completed');
+    Route::patch('/payout-requests/{payoutRequest}/payment-method', [App\Http\Controllers\Admin\FinancialManagementController::class, 'updatePaymentMethod'])->name('payout-requests.update-payment-method');
     Route::post('/payout-requests/{payoutRequest}/decline', [App\Http\Controllers\Admin\FinancialManagementController::class, 'declinePayoutRequest'])->name('payout-requests.decline');
     Route::post('/payout-requests/{payoutRequest}/mark-paid', [App\Http\Controllers\Admin\FinancialManagementController::class, 'markPayoutRequestAsPaid'])->name('payout-requests.mark-paid');
     Route::get('/system-adjustments/create', [App\Http\Controllers\Admin\FinancialManagementController::class, 'createSystemAdjustment'])->name('system-adjustments.create');
@@ -40,4 +42,10 @@ Route::middleware(['auth', 'role:super-admin'])->prefix('admin/financial')->name
     Route::get('/refunds/{transaction}/create', [App\Http\Controllers\Admin\FinancialManagementController::class, 'createRefund'])->name('refunds.create');
     Route::post('/refunds/{transaction}', [App\Http\Controllers\Admin\FinancialManagementController::class, 'storeRefund'])->name('refunds.store');
     Route::get('/teacher-earnings', [App\Http\Controllers\Admin\FinancialManagementController::class, 'teacherEarnings'])->name('teacher-earnings');
+    Route::get('/student-withdrawals', [App\Http\Controllers\Admin\FinancialManagementController::class, 'getStudentWithdrawals'])->name('student-withdrawals');
+    Route::get('/student-withdrawals/{payoutRequest}', [App\Http\Controllers\Admin\FinancialManagementController::class, 'showStudentWithdrawal'])->name('student-withdrawals.show');
+    Route::post('/student-withdrawals/{payoutRequest}/approve', [App\Http\Controllers\Admin\FinancialManagementController::class, 'approveStudentWithdrawal'])->name('student-withdrawals.approve');
+    Route::post('/student-withdrawals/{payoutRequest}/reject', [App\Http\Controllers\Admin\FinancialManagementController::class, 'rejectStudentWithdrawal'])->name('student-withdrawals.reject');
+    Route::post('/payout-requests/{payoutRequest}/check-status', [App\Http\Controllers\Admin\FinancialManagementController::class, 'checkPayoutStatus'])->name('payout-requests.check-status');
+    Route::post('/payout-requests/{payoutRequest}/send-notification', [App\Http\Controllers\Admin\FinancialManagementController::class, 'sendPayoutNotification'])->name('payout-requests.send-notification');
 }); 

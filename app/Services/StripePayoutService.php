@@ -91,7 +91,7 @@ class StripePayoutService
                     'description' => 'Teacher withdrawal - ' . $payoutRequest->teacher->name,
                     'metadata' => [
                         'payout_request_id' => $payoutRequest->id,
-                        'teacher_id' => $payoutRequest->teacher_id,
+                        'teacher_id' => $payoutRequest->user_id,
                     ]
                 ]);
 
@@ -148,7 +148,7 @@ class StripePayoutService
                     'description' => 'Teacher withdrawal - ' . $payoutRequest->teacher->name,
                     'metadata' => [
                         'payout_request_id' => $payoutRequest->id,
-                        'teacher_id' => $payoutRequest->teacher_id,
+                        'teacher_id' => $payoutRequest->user_id,
                         'account_number' => $paymentDetails['account_number'] ?? '',
                         'routing_number' => $paymentDetails['routing_number'] ?? '',
                     ]

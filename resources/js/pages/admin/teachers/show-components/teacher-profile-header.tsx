@@ -264,7 +264,7 @@ export default function TeacherProfileHeader({ teacher, profile, earnings, verif
                     <div className="text-center lg:text-right">
                       <Button 
                         variant="link" 
-                        className="text-sm p-0 h-auto text-teal-600 hover:text-teal-700"
+                        className="text-sm p-0 h-auto text-teal-600 hover:text-teal-700 cursor-pointer"
                         onClick={() => window.location.href = route('admin.teachers.earnings', teacher.id)}
                       >
                         View Teacher Earnings

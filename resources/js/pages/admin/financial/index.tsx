@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import TeacherPayouts from './components/TeacherPayouts';
+import StudentWithdrawals from './components/StudentWithdrawals';
+import StudentPayments from './components/StudentPayments';
 
 /**
  * 🎨 FIGMA DESIGN REFERENCE
@@ -46,24 +48,61 @@ interface PayoutRequestRow {
     status: 'pending' | 'approved' | 'rejected' | 'paid' | string;
 }
 
+interface StudentWithdrawalRow {
+    id: number;
+    student_name?: string;
+    email?: string;
+    user?: {
+        name: string;
+        email: string;
+    };
+    amount: number;
+    request_date: string;
+    bank_name?: string;
+    account_number?: string;
+    account_name?: string;
+    payment_method?: {
+        bank_name?: string;
+        account_number?: string;
+        account_name?: string;
+    };
+    status: 'pending' | 'approved' | 'rejected' | 'processing' | 'completed' | string;
+}
+
+interface StudentPaymentRow {
+    id: number;
+    date: string;
+    student_name: string;
+    student_email?: string;
+    plan: string;
+    amount: number;
+    currency?: string;
+    payment_method: string;
+    status: string;
+}
+
 interface Props {
     totalTeachers?: number;
     totalEarnings?: number;
     pendingPayouts?: number;
     pendingPayoutsAmount?: number;
     pendingPayoutRequests?: PayoutRequestRow[];
+    studentWithdrawalRequests?: StudentWithdrawalRow[];
+    studentPayments?: StudentPaymentRow[];
     error?: string;
 }
 
 export default function FinancialIndex({
     pendingPayoutRequests = [],
+    studentWithdrawalRequests = [],
+    studentPayments = [],
     totalTeachers = 0,
     totalEarnings = 0,
     pendingPayouts = 0,
     pendingPayoutsAmount = 0,
     error
 }: Props) {
-    const [activeTab, setActiveTab] = useState<'teacher-payouts' | 'student-payments' | 'transactions' | 'settings'>('teacher-payouts');
+    const [activeTab, setActiveTab] = useState<'teacher-payouts' | 'student-withdrawals' | 'student-payments' | 'transactions' | 'settings'>('teacher-payouts');
     const [hasError, setHasError] = useState<string | null>(null);
 
     // Handle error from backend
@@ -73,7 +112,7 @@ export default function FinancialIndex({
         }
     }, [error]);
 
-    const goTo = (tab: 'teacher-payouts' | 'student-payments' | 'transactions' | 'settings') => {
+    const goTo = (tab: 'teacher-payouts' | 'student-withdrawals' | 'student-payments' | 'transactions' | 'settings') => {
         try {
             setActiveTab(tab);
 
@@ -93,6 +132,14 @@ export default function FinancialIndex({
     // Safe data with fallbacks
     const safePayoutRequests = Array.isArray(pendingPayoutRequests)
         ? pendingPayoutRequests
+        : [];
+
+    const safeWithdrawalRequests = Array.isArray(studentWithdrawalRequests)
+        ? studentWithdrawalRequests
+        : [];
+
+    const safeStudentPayments = Array.isArray(studentPayments)
+        ? studentPayments
         : [];
 
     // Stats available for future use
@@ -140,6 +187,15 @@ export default function FinancialIndex({
                     >
                         Teacher Payouts
                     </Button>
+                    {/* <Button
+                        onClick={() => goTo('student-withdrawals')}
+                        className={`rounded-[28px] h-[44px] px-[22px] ${activeTab === 'student-withdrawals'
+                            ? 'bg-[#14B8A6] hover:bg-[#129c8e] text-white'
+                            : 'bg-transparent text-[#334155] hover:bg-[#F1F5F9]'
+                            }`}
+                    >
+                        Student Withdrawals
+                    </Button> */}
                     <Button
                         onClick={() => goTo('student-payments')}
                         className={`rounded-[28px] h-[44px] px-[22px] ${activeTab === 'student-payments'
@@ -183,10 +239,29 @@ export default function FinancialIndex({
                     </div>
                 )}
 
+                {activeTab === 'student-withdrawals' && (
+                    <div>
+                        {safeWithdrawalRequests.length === 0 && !hasError ? (
+                            <div className="mt-[28px] bg-white rounded-lg border border-gray-200 p-12 text-center">
+                                <p className="text-gray-500 text-lg">No student withdrawal requests at the moment.</p>
+                                <p className="text-gray-400 text-sm mt-2">New requests will appear here.</p>
+                            </div>
+                        ) : (
+                            <StudentWithdrawals withdrawalRequests={safeWithdrawalRequests} />
+                        )}
+                    </div>
+                )}
+
                 {activeTab === 'student-payments' && (
-                    <div className="mt-[28px] bg-white rounded-lg border border-gray-200 p-12 text-center">
-                        <p className="text-gray-500 text-lg font-medium">Student Payments</p>
-                        <p className="text-gray-400 text-sm mt-2">This feature is coming soon.</p>
+                    <div>
+                        {safeStudentPayments.length === 0 && !hasError ? (
+                            <div className="mt-[28px] bg-white rounded-lg border border-gray-200 p-12 text-center">
+                                <p className="text-gray-500 text-lg">No student payments at the moment.</p>
+                                <p className="text-gray-400 text-sm mt-2">New payments will appear here.</p>
+                            </div>
+                        ) : (
+                            <StudentPayments payments={safeStudentPayments} />
+                        )}
                     </div>
                 )}
 
