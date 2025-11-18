@@ -60,6 +60,8 @@ class HandleInertiaRequests extends Middleware
                     'status_type' => $request->user()->status_type,
                     'status_message' => $request->user()->status_message,
                     'last_active_at' => $request->user()->last_active_at,
+                    'provider' => $request->user()->provider,
+                    'provider_id' => $request->user()->provider_id,
                     'wallet_balance' => $this->getUserWalletBalance($request->user()),
                     'wallet' => $this->getUserWallet($request->user()),
                 ] : null,

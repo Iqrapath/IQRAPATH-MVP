@@ -60,32 +60,12 @@ class Kernel extends ConsoleKernel
 
     /**
      * Define the application's command schedule.
+     * 
+     * Note: In Laravel 12, scheduling is now done in bootstrap/app.php
+     * This method is kept for backward compatibility but is not used.
      */
     protected function schedule(Schedule $schedule): void
     {
-        // Process scheduled responses
-        $schedule->command('app:process-scheduled-responses')
-                ->everyFiveMinutes()
-                ->withoutOverlapping();
-        
-        // Send session reminders
-        $schedule->command('app:send-session-reminders')
-                ->dailyAt('08:00')
-                ->withoutOverlapping();
-        
-        // Ensure Reverb WebSocket server is running
-        $schedule->command('app:start-reverb --background')
-                ->everyFiveMinutes()
-                ->withoutOverlapping();
-        
-        // Update urgent action counts
-        $schedule->job(new \App\Jobs\UpdateUrgentActionCounts())
-                ->everyFiveMinutes()
-                ->withoutOverlapping();
-        
-        // Process subscription renewals and expirations
-        $schedule->command('subscriptions:process-renewals')
-                ->daily()
-                ->withoutOverlapping();
+        // Scheduling moved to bootstrap/app.php in Laravel 12
     }
 } 

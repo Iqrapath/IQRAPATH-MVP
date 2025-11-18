@@ -398,8 +398,16 @@ class FinancialController extends Controller
         
         $availableBalance = $earnings->wallet_balance;
         
+        // Get withdrawal settings
+        $minimumWithdrawal = (float) \App\Models\FinancialSetting::get('minimum_withdrawal_amount', 10000);
+        $withdrawalNote = \App\Models\FinancialSetting::get('withdrawal_note', 'Withdrawals are processed within 1-3 business days.');
+        $bankVerificationEnabled = \App\Models\FinancialSetting::get('bank_verification_enabled', 'true') === 'true';
+        
         return Inertia::render('Teacher/Financial/CreatePayoutRequest', [
             'availableBalance' => $availableBalance,
+            'minimumWithdrawal' => $minimumWithdrawal,
+            'withdrawalNote' => $withdrawalNote,
+            'bankVerificationEnabled' => $bankVerificationEnabled,
             'paymentMethods' => [
                 'bank_transfer' => 'Bank Transfer',
                 'paypal' => 'PayPal',

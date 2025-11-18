@@ -57,6 +57,12 @@ return new class extends Migration
             $table->integer('notifications_sent_count')->default(0);
             $table->json('notification_history')->nullable();
             
+            // Financial tracking - Commission and earnings
+            $table->decimal('gross_amount', 10, 2)->nullable()->comment('Total session amount before commission');
+            $table->decimal('platform_commission', 10, 2)->nullable()->comment('Platform commission amount');
+            $table->decimal('teacher_earnings', 10, 2)->nullable()->comment('Net amount teacher receives after commission');
+            $table->decimal('commission_rate', 5, 2)->nullable()->comment('Commission rate applied (percentage)');
+            
             $table->timestamps();
         });
     }

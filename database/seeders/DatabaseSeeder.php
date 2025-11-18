@@ -37,6 +37,7 @@ class DatabaseSeeder extends Seeder
             UrgentActionSeeder::class,
             ScheduledNotificationSeeder::class,
             PayoutRequestSeeder::class, // Create test payout requests
+            FinancialSettingsSeeder::class, //Create finacial settings
         ]);
     }
 }

@@ -7,6 +7,7 @@ use App\Models\PayoutRequest;
 use App\Models\TeacherEarning;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Models\FinancialSetting;
 use App\Services\FinancialService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -124,6 +125,142 @@ class FinancialManagementController extends Controller
                     ];
                 });
 
+            // Get comprehensive transaction logs (ALL financial activities)
+            $transactionLogs = collect();
+
+            // 1. Teacher payout requests
+            $payoutLogs = PayoutRequest::teacherPayouts()
+                ->with(['teacher'])
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($payout) {
+                    return [
+                        'id' => 'payout_' . $payout->id,
+                        'date' => $payout->created_at->toDateTimeString(),
+                        'user_name' => $payout->teacher->name ?? 'N/A',
+                        'user_email' => $payout->teacher->email ?? 'N/A',
+                        'description' => 'Teacher Payout Request',
+                        'amount' => $payout->amount ?? 0,
+                        'currency' => 'NGN',
+                        'status' => $payout->status === 'paid' ? 'completed' : $payout->status,
+                        'transaction_type' => 'payout',
+                        'created_at' => $payout->created_at,
+                    ];
+                });
+
+            // 2. Student withdrawal requests
+            $withdrawalLogs = PayoutRequest::studentWithdrawals()
+                ->with(['user'])
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($withdrawal) {
+                    return [
+                        'id' => 'withdrawal_' . $withdrawal->id,
+                        'date' => $withdrawal->created_at->toDateTimeString(),
+                        'user_name' => $withdrawal->user->name ?? 'N/A',
+                        'user_email' => $withdrawal->user->email ?? 'N/A',
+                        'description' => 'Student Withdrawal Request',
+                        'amount' => $withdrawal->amount ?? 0,
+                        'currency' => 'NGN',
+                        'status' => $withdrawal->status === 'completed' ? 'completed' : $withdrawal->status,
+                        'transaction_type' => 'withdrawal',
+                        'created_at' => $withdrawal->created_at,
+                    ];
+                });
+
+            // 3. Student subscription payments
+            $subscriptionLogs = \App\Models\SubscriptionTransaction::with(['user'])
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($transaction) {
+                    return [
+                        'id' => 'subscription_' . $transaction->id,
+                        'date' => $transaction->created_at->toDateTimeString(),
+                        'user_name' => $transaction->user->name ?? 'N/A',
+                        'user_email' => $transaction->user->email ?? 'N/A',
+                        'description' => 'Subscription Payment',
+                        'amount' => $transaction->amount ?? 0,
+                        'currency' => $transaction->currency ?? 'NGN',
+                        'status' => $transaction->status === 'completed' ? 'platform_earned' : $transaction->status,
+                        'transaction_type' => 'subscription',
+                        'created_at' => $transaction->created_at,
+                    ];
+                });
+
+            // 4. Wallet transactions (skip for now due to polymorphic wallet relationships)
+            $walletLogs = collect([]);
+
+            // Merge all logs and sort by date
+            $allTransactions = $transactionLogs
+                ->concat($payoutLogs)
+                ->concat($withdrawalLogs)
+                ->concat($subscriptionLogs)
+                ->concat($walletLogs)
+                ->sortByDesc('created_at')
+                ->values();
+
+            // Manual pagination
+            $perPage = 10;
+            $currentPage = (int) request()->input('page', 1);
+            $offset = ($currentPage - 1) * $perPage;
+            
+            $paginatedItems = $allTransactions->slice($offset, $perPage)->values()->toArray();
+            
+            $transactionLogs = [
+                'data' => $paginatedItems,
+                'current_page' => $currentPage,
+                'last_page' => (int) ceil($allTransactions->count() / $perPage),
+                'per_page' => $perPage,
+                'total' => $allTransactions->count(),
+                'from' => $offset + 1,
+                'to' => min($offset + $perPage, $allTransactions->count()),
+            ];
+
+            // Get payment settings
+            $paymentSettings = [
+                'commission_rate' => (float) FinancialSetting::get('commission_rate', 10),
+                'commission_type' => FinancialSetting::get('commission_type', 'fixed_percentage'),
+                'auto_payout_threshold' => (float) FinancialSetting::get('auto_payout_threshold', 50000),
+                'minimum_withdrawal_amount' => (float) FinancialSetting::get('minimum_withdrawal_amount', 10000),
+                'bank_verification_enabled' => FinancialSetting::get('bank_verification_enabled', 'true') === 'true',
+                'withdrawal_note' => FinancialSetting::get('withdrawal_note', 'Withdrawals are processed within 1-3 business days.'),
+            ];
+
+            // Get withdrawal limits
+            $withdrawalLimits = [
+                'daily_withdrawal_limit' => (float) FinancialSetting::get('daily_withdrawal_limit', 500000),
+                'monthly_withdrawal_limit' => (float) FinancialSetting::get('monthly_withdrawal_limit', 5000000),
+                'instant_payouts_enabled' => FinancialSetting::get('instant_payouts_enabled', 'true') === 'true',
+            ];
+
+            // Get payment methods settings
+            $paymentMethods = [
+                'bank_transfer_fee_type' => FinancialSetting::get('bank_transfer_fee_type', 'flat'),
+                'bank_transfer_fee_amount' => (float) FinancialSetting::get('bank_transfer_fee_amount', 100),
+                'bank_transfer_processing_time' => FinancialSetting::get('bank_transfer_processing_time', '1-3 business days'),
+                'mobile_money_fee_type' => FinancialSetting::get('mobile_money_fee_type', 'percentage'),
+                'mobile_money_fee_amount' => (float) FinancialSetting::get('mobile_money_fee_amount', 2.5),
+                'mobile_money_processing_time' => FinancialSetting::get('mobile_money_processing_time', 'Instant'),
+                'paypal_fee_type' => FinancialSetting::get('paypal_fee_type', 'percentage'),
+                'paypal_fee_amount' => (float) FinancialSetting::get('paypal_fee_amount', 3.5),
+                'paypal_processing_time' => FinancialSetting::get('paypal_processing_time', 'Instant'),
+                'flutterwave_fee_type' => FinancialSetting::get('flutterwave_fee_type', 'flat'),
+                'flutterwave_fee_amount' => (float) FinancialSetting::get('flutterwave_fee_amount', 50),
+                'flutterwave_processing_time' => FinancialSetting::get('flutterwave_processing_time', '1-2 business days'),
+                'paystack_fee_type' => FinancialSetting::get('paystack_fee_type', 'flat'),
+                'paystack_fee_amount' => (float) FinancialSetting::get('paystack_fee_amount', 100),
+                'paystack_processing_time' => FinancialSetting::get('paystack_processing_time', '1-2 business days'),
+                'stripe_fee_type' => FinancialSetting::get('stripe_fee_type', 'percentage'),
+                'stripe_fee_amount' => (float) FinancialSetting::get('stripe_fee_amount', 2.9),
+                'stripe_processing_time' => FinancialSetting::get('stripe_processing_time', '1-2 business days'),
+            ];
+
+            // Get currency settings
+            $currencySettings = [
+                'platform_currency' => FinancialSetting::get('platform_currency', 'NGN'),
+                'multi_currency_mode' => FinancialSetting::get('multi_currency_mode', 'true') === 'true',
+            ];
+
             return Inertia::render('admin/financial/index', [
                 'totalTeachers' => $totalTeachers,
                 'totalEarnings' => $totalEarnings,
@@ -133,6 +270,11 @@ class FinancialManagementController extends Controller
                 'pendingPayoutRequests' => $pendingPayoutRequests,
                 'studentWithdrawalRequests' => $studentWithdrawalRequests,
                 'studentPayments' => $studentPayments,
+                'transactions' => $transactionLogs,
+                'paymentSettings' => $paymentSettings,
+                'withdrawalLimits' => $withdrawalLimits,
+                'paymentMethods' => $paymentMethods,
+                'currencySettings' => $currencySettings,
             ]);
             
         } catch (\Exception $e) {
@@ -1664,6 +1806,273 @@ class FinancialManagementController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while sending the notification. Please try again.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Update payment settings.
+     */
+    public function updatePaymentSettings(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'commission_rate' => 'required|numeric|min:0|max:100',
+                'commission_type' => 'required|in:fixed_percentage,tiered',
+                'auto_payout_threshold' => 'required|numeric|min:0',
+                'minimum_withdrawal_amount' => 'required|numeric|min:0',
+                'bank_verification_enabled' => 'required|boolean',
+                'withdrawal_note' => 'nullable|string|max:500',
+                'apply_time' => 'required|in:now,scheduled',
+                'scheduled_date' => 'required_if:apply_time,scheduled|nullable|date|after:now',
+            ]);
+
+            $admin = Auth::user();
+
+            if (!$admin) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access.'
+                ], 401);
+            }
+
+            // Update settings
+            FinancialSetting::set('commission_rate', $validated['commission_rate']);
+            FinancialSetting::set('commission_type', $validated['commission_type']);
+            FinancialSetting::set('auto_payout_threshold', $validated['auto_payout_threshold']);
+            FinancialSetting::set('minimum_withdrawal_amount', $validated['minimum_withdrawal_amount']);
+            FinancialSetting::set('bank_verification_enabled', $validated['bank_verification_enabled'] ? 'true' : 'false');
+            FinancialSetting::set('withdrawal_note', $validated['withdrawal_note'] ?? '');
+
+            // Log the change
+            \Log::info('Payment settings updated', [
+                'admin_id' => $admin->id,
+                'admin_name' => $admin->name,
+                'settings' => $validated,
+                'timestamp' => now()->toIso8601String(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Payment settings updated successfully!',
+                'data' => [
+                    'commission_rate' => (float) $validated['commission_rate'],
+                    'commission_type' => $validated['commission_type'],
+                    'auto_payout_threshold' => (float) $validated['auto_payout_threshold'],
+                    'minimum_withdrawal_amount' => (float) $validated['minimum_withdrawal_amount'],
+                    'bank_verification_enabled' => $validated['bank_verification_enabled'],
+                    'withdrawal_note' => $validated['withdrawal_note'] ?? '',
+                ]
+            ], 200);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors' => $e->errors()
+            ], 422);
+
+        } catch (\Exception $e) {
+            \Log::error('Error updating payment settings: ' . $e->getMessage(), [
+                'admin_id' => Auth::id(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while updating payment settings. Please try again.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Update withdrawal limits settings.
+     */
+    public function updateWithdrawalLimits(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'daily_withdrawal_limit' => 'required|numeric|min:0',
+                'monthly_withdrawal_limit' => 'required|numeric|min:0',
+                'instant_payouts_enabled' => 'required|boolean',
+            ]);
+
+            $admin = Auth::user();
+
+            if (!$admin) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access.'
+                ], 401);
+            }
+
+            // Update settings
+            FinancialSetting::set('daily_withdrawal_limit', $validated['daily_withdrawal_limit']);
+            FinancialSetting::set('monthly_withdrawal_limit', $validated['monthly_withdrawal_limit']);
+            FinancialSetting::set('instant_payouts_enabled', $validated['instant_payouts_enabled'] ? 'true' : 'false');
+
+            // Log the change
+            \Log::info('Withdrawal limits updated', [
+                'admin_id' => $admin->id,
+                'admin_name' => $admin->name,
+                'settings' => $validated,
+                'timestamp' => now()->toIso8601String(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Withdrawal limits updated successfully!',
+                'data' => $validated
+            ], 200);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors' => $e->errors()
+            ], 422);
+
+        } catch (\Exception $e) {
+            \Log::error('Error updating withdrawal limits: ' . $e->getMessage(), [
+                'admin_id' => Auth::id(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while updating withdrawal limits. Please try again.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Update payment methods settings.
+     */
+    public function updatePaymentMethods(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'bank_transfer_fee_type' => 'required|in:flat,percentage',
+                'bank_transfer_fee_amount' => 'required|numeric|min:0',
+                'bank_transfer_processing_time' => 'required|string',
+                'mobile_money_fee_type' => 'required|in:flat,percentage',
+                'mobile_money_fee_amount' => 'required|numeric|min:0',
+                'mobile_money_processing_time' => 'required|string',
+                'paypal_fee_type' => 'required|in:flat,percentage',
+                'paypal_fee_amount' => 'required|numeric|min:0',
+                'paypal_processing_time' => 'required|string',
+                'flutterwave_fee_type' => 'required|in:flat,percentage',
+                'flutterwave_fee_amount' => 'required|numeric|min:0',
+                'flutterwave_processing_time' => 'required|string',
+                'paystack_fee_type' => 'required|in:flat,percentage',
+                'paystack_fee_amount' => 'required|numeric|min:0',
+                'paystack_processing_time' => 'required|string',
+                'stripe_fee_type' => 'required|in:flat,percentage',
+                'stripe_fee_amount' => 'required|numeric|min:0',
+                'stripe_processing_time' => 'required|string',
+            ]);
+
+            $admin = Auth::user();
+
+            if (!$admin) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access.'
+                ], 401);
+            }
+
+            // Update all payment method settings
+            foreach ($validated as $key => $value) {
+                FinancialSetting::set($key, $value);
+            }
+
+            // Log the change
+            \Log::info('Payment methods updated', [
+                'admin_id' => $admin->id,
+                'admin_name' => $admin->name,
+                'timestamp' => now()->toIso8601String(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Payment methods updated successfully!',
+                'data' => $validated
+            ], 200);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors' => $e->errors()
+            ], 422);
+
+        } catch (\Exception $e) {
+            \Log::error('Error updating payment methods: ' . $e->getMessage(), [
+                'admin_id' => Auth::id(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while updating payment methods. Please try again.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Update currency settings.
+     */
+    public function updateCurrencySettings(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'platform_currency' => 'required|string|in:NGN,USD,EUR,GBP',
+                'multi_currency_mode' => 'required|boolean',
+            ]);
+
+            $admin = Auth::user();
+
+            if (!$admin) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access.'
+                ], 401);
+            }
+
+            // Update settings
+            FinancialSetting::set('platform_currency', $validated['platform_currency']);
+            FinancialSetting::set('multi_currency_mode', $validated['multi_currency_mode'] ? 'true' : 'false');
+
+            // Log the change
+            \Log::info('Currency settings updated', [
+                'admin_id' => $admin->id,
+                'admin_name' => $admin->name,
+                'settings' => $validated,
+                'timestamp' => now()->toIso8601String(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Currency settings updated successfully!',
+                'data' => $validated
+            ], 200);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors' => $e->errors()
+            ], 422);
+
+        } catch (\Exception $e) {
+            \Log::error('Error updating currency settings: ' . $e->getMessage(), [
+                'admin_id' => Auth::id(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while updating currency settings. Please try again.'
             ], 500);
         }
     }

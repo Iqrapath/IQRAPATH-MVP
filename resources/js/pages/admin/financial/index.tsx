@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Head, router } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import AdminLayout from '@/layouts/admin/admin-layout';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,11 @@ import { AlertCircle } from 'lucide-react';
 import TeacherPayouts from './components/TeacherPayouts';
 import StudentWithdrawals from './components/StudentWithdrawals';
 import StudentPayments from './components/StudentPayments';
+import TransactionLogs from './components/TransactionLogs';
+import PaymentSettings from './components/PaymentSettings';
+import WithdrawalLimits from './components/WithdrawalLimits';
+import PaymentMethodsSettings from './components/PaymentMethodsSettings';
+import CurrencySettings from './components/CurrencySettings';
 
 /**
  * 🎨 FIGMA DESIGN REFERENCE
@@ -81,6 +86,59 @@ interface StudentPaymentRow {
     status: string;
 }
 
+interface TransactionRow {
+    id: number;
+    date: string;
+    user_name: string;
+    user_email?: string;
+    description: string;
+    amount: number;
+    currency?: string;
+    status: 'completed' | 'pending' | 'platform_earned' | 'failed' | string;
+    transaction_type?: string;
+}
+
+interface PaymentSettingsData {
+    commission_rate: number;
+    commission_type: 'fixed_percentage' | 'tiered';
+    auto_payout_threshold: number;
+    minimum_withdrawal_amount: number;
+    bank_verification_enabled: boolean;
+    withdrawal_note: string;
+}
+
+interface WithdrawalLimitsData {
+    daily_withdrawal_limit: number;
+    monthly_withdrawal_limit: number;
+    instant_payouts_enabled: boolean;
+}
+
+interface PaymentMethodsData {
+    bank_transfer_fee_type: string;
+    bank_transfer_fee_amount: number;
+    bank_transfer_processing_time: string;
+    mobile_money_fee_type: string;
+    mobile_money_fee_amount: number;
+    mobile_money_processing_time: string;
+    paypal_fee_type: string;
+    paypal_fee_amount: number;
+    paypal_processing_time: string;
+    flutterwave_fee_type: string;
+    flutterwave_fee_amount: number;
+    flutterwave_processing_time: string;
+    paystack_fee_type: string;
+    paystack_fee_amount: number;
+    paystack_processing_time: string;
+    stripe_fee_type: string;
+    stripe_fee_amount: number;
+    stripe_processing_time: string;
+}
+
+interface CurrencySettingsData {
+    platform_currency: string;
+    multi_currency_mode: boolean;
+}
+
 interface Props {
     totalTeachers?: number;
     totalEarnings?: number;
@@ -89,6 +147,11 @@ interface Props {
     pendingPayoutRequests?: PayoutRequestRow[];
     studentWithdrawalRequests?: StudentWithdrawalRow[];
     studentPayments?: StudentPaymentRow[];
+    transactions?: TransactionRow[];
+    paymentSettings?: PaymentSettingsData;
+    withdrawalLimits?: WithdrawalLimitsData;
+    paymentMethods?: PaymentMethodsData;
+    currencySettings?: CurrencySettingsData;
     error?: string;
 }
 
@@ -96,13 +159,26 @@ export default function FinancialIndex({
     pendingPayoutRequests = [],
     studentWithdrawalRequests = [],
     studentPayments = [],
-    totalTeachers = 0,
-    totalEarnings = 0,
-    pendingPayouts = 0,
-    pendingPayoutsAmount = 0,
+    transactions = [],
+    paymentSettings,
+    withdrawalLimits,
+    paymentMethods,
+    currencySettings,
     error
 }: Props) {
-    const [activeTab, setActiveTab] = useState<'teacher-payouts' | 'student-withdrawals' | 'student-payments' | 'transactions' | 'settings'>('teacher-payouts');
+    // Get initial tab from URL params
+    const getInitialTab = () => {
+        const params = new URLSearchParams(window.location.search);
+        const tabParam = params.get('tab');
+        const validTabs = ['teacher-payouts', 'student-withdrawals', 'student-payments', 'transactions', 'settings', 'withdrawal-limits', 'payment-methods', 'currency'];
+        if (tabParam && validTabs.includes(tabParam)) {
+            return tabParam;
+        }
+        return 'teacher-payouts';
+    };
+
+    type TabType = 'teacher-payouts' | 'student-withdrawals' | 'student-payments' | 'transactions' | 'settings' | 'withdrawal-limits' | 'payment-methods' | 'currency';
+    const [activeTab, setActiveTab] = useState<TabType>(getInitialTab() as TabType);
     const [hasError, setHasError] = useState<string | null>(null);
 
     // Handle error from backend
@@ -112,17 +188,14 @@ export default function FinancialIndex({
         }
     }, [error]);
 
-    const goTo = (tab: 'teacher-payouts' | 'student-withdrawals' | 'student-payments' | 'transactions' | 'settings') => {
+    const goTo = (tab: TabType) => {
         try {
             setActiveTab(tab);
-
-            // Navigate to different routes based on tab
-            if (tab === 'transactions') {
-                router.visit(route('admin.financial.transactions'));
-            } else if (tab === 'teacher-payouts') {
-                router.visit(route('admin.financial.dashboard'));
-            }
-            // Other tabs stay on same page for now
+            // Update URL with tab parameter
+            const url = new URL(window.location.href);
+            url.searchParams.set('tab', tab);
+            url.searchParams.delete('page'); // Reset page when switching tabs
+            window.history.pushState({}, '', url);
         } catch (err) {
             console.error('Navigation error:', err);
             setHasError('Failed to navigate. Please try again.');
@@ -142,13 +215,12 @@ export default function FinancialIndex({
         ? studentPayments
         : [];
 
-    // Stats available for future use
-    // const stats = {
-    //     totalTeachers: totalTeachers ?? 0,
-    //     totalEarnings: totalEarnings ?? 0,
-    //     pendingPayouts: pendingPayouts ?? 0,
-    //     pendingPayoutsAmount: pendingPayoutsAmount ?? 0,
-    // };
+    // Handle both paginated and array transactions
+    const safeTransactions = transactions && typeof transactions === 'object' && 'data' in transactions
+        ? transactions
+        : Array.isArray(transactions)
+            ? transactions
+            : [];
 
     return (
         <AdminLayout pageTitle="Payment and wallet System" showRightSidebar={false}>
@@ -221,7 +293,34 @@ export default function FinancialIndex({
                             : 'bg-transparent text-[#334155] hover:bg-[#F1F5F9]'
                             }`}
                     >
-                        Payment Settings
+                        Commission
+                    </Button>
+                    <Button
+                        onClick={() => goTo('withdrawal-limits')}
+                        className={`rounded-[28px] h-[44px] px-[22px] ${activeTab === 'withdrawal-limits'
+                            ? 'bg-[#14B8A6] hover:bg-[#129c8e] text-white'
+                            : 'bg-transparent text-[#334155] hover:bg-[#F1F5F9]'
+                            }`}
+                    >
+                        Limits
+                    </Button>
+                    <Button
+                        onClick={() => goTo('payment-methods')}
+                        className={`rounded-[28px] h-[44px] px-[22px] ${activeTab === 'payment-methods'
+                            ? 'bg-[#14B8A6] hover:bg-[#129c8e] text-white'
+                            : 'bg-transparent text-[#334155] hover:bg-[#F1F5F9]'
+                            }`}
+                    >
+                        Methods
+                    </Button>
+                    <Button
+                        onClick={() => goTo('currency')}
+                        className={`rounded-[28px] h-[44px] px-[22px] ${activeTab === 'currency'
+                            ? 'bg-[#14B8A6] hover:bg-[#129c8e] text-white'
+                            : 'bg-transparent text-[#334155] hover:bg-[#F1F5F9]'
+                            }`}
+                    >
+                        Currency
                     </Button>
                 </div>
 
@@ -266,17 +365,33 @@ export default function FinancialIndex({
                 )}
 
                 {activeTab === 'transactions' && (
-                    <div className="mt-[28px] bg-white rounded-lg border border-gray-200 p-12 text-center">
-                        <p className="text-gray-500 text-lg font-medium">Transaction Logs</p>
-                        <p className="text-gray-400 text-sm mt-2">This feature is coming soon.</p>
+                    <div>
+                        {((Array.isArray(safeTransactions) && safeTransactions.length === 0) || 
+                          (typeof safeTransactions === 'object' && 'data' in safeTransactions && Array.isArray((safeTransactions as any).data) && (safeTransactions as any).data.length === 0)) && !hasError ? (
+                            <div className="mt-[28px] bg-white rounded-lg border border-gray-200 p-12 text-center">
+                                <p className="text-gray-500 text-lg">No transactions at the moment.</p>
+                                <p className="text-gray-400 text-sm mt-2">New transactions will appear here.</p>
+                            </div>
+                        ) : (
+                            <TransactionLogs transactions={safeTransactions as any} />
+                        )}
                     </div>
                 )}
 
                 {activeTab === 'settings' && (
-                    <div className="mt-[28px] bg-white rounded-lg border border-gray-200 p-12 text-center">
-                        <p className="text-gray-500 text-lg font-medium">Payment Settings</p>
-                        <p className="text-gray-400 text-sm mt-2">This feature is coming soon.</p>
-                    </div>
+                    <PaymentSettings settings={paymentSettings} />
+                )}
+
+                {activeTab === 'withdrawal-limits' && (
+                    <WithdrawalLimits settings={withdrawalLimits} />
+                )}
+
+                {activeTab === 'payment-methods' && (
+                    <PaymentMethodsSettings settings={paymentMethods} />
+                )}
+
+                {activeTab === 'currency' && (
+                    <CurrencySettings settings={currencySettings} />
                 )}
             </div>
         </AdminLayout>

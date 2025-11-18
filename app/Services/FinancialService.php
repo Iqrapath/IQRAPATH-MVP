@@ -64,6 +64,7 @@ class FinancialService
 
     /**
      * Calculate payment amount for a session using locked rates from booking.
+     * Applies platform commission based on financial settings.
      */
     protected function calculateSessionPayment(TeachingSession $session): float
     {
@@ -81,7 +82,7 @@ class FinancialService
                 ? $booking->hourly_rate_ngn 
                 : $booking->hourly_rate_usd;
             
-            $amount = $durationHours * $hourlyRate;
+            $grossAmount = $durationHours * $hourlyRate;
         } else {
             // Fallback to current teacher rates if no locked rate
             $teacher = $session->teacher;
@@ -91,11 +92,66 @@ class FinancialService
                 ? $teacherProfile->hourly_rate_ngn 
                 : $teacherProfile->hourly_rate_usd;
             
-            $amount = $durationHours * $hourlyRate;
+            $grossAmount = $durationHours * $hourlyRate;
         }
 
+        // Apply platform commission
+        $netAmount = $this->applyCommission($grossAmount, $session);
+
+        // Get commission rate for storage
+        $commissionRate = (float) \App\Models\FinancialSetting::get('commission_rate', 10);
+        
+        // Store commission details in session for transparency
+        $session->update([
+            'gross_amount' => round($grossAmount, 2),
+            'teacher_earnings' => round($netAmount, 2),
+            'platform_commission' => round($grossAmount - $netAmount, 2),
+            'commission_rate' => $commissionRate,
+        ]);
+
         // Round to 2 decimal places
-        return round($amount, 2);
+        return round($netAmount, 2);
+    }
+
+    /**
+     * Apply platform commission to gross amount.
+     */
+    protected function applyCommission(float $grossAmount, TeachingSession $session): float
+    {
+        $commissionRate = (float) \App\Models\FinancialSetting::get('commission_rate', 10);
+        $commissionType = \App\Models\FinancialSetting::get('commission_type', 'fixed_percentage');
+
+        if ($commissionType === 'tiered') {
+            // Tiered commission based on teacher's total earnings
+            $teacher = $session->teacher;
+            $totalEarned = \App\Models\Transaction::where('teacher_id', $teacher->id)
+                ->whereIn('transaction_type', ['session_payment', 'referral_bonus'])
+                ->where('status', 'completed')
+                ->sum('amount');
+
+            // Define tiers (can be moved to settings later)
+            if ($totalEarned < 50000) {
+                $commissionRate = 15; // 15% for new teachers
+            } elseif ($totalEarned < 200000) {
+                $commissionRate = 10; // 10% for intermediate
+            } else {
+                $commissionRate = 5; // 5% for experienced teachers
+            }
+        }
+
+        $commission = ($grossAmount * $commissionRate) / 100;
+        $netAmount = $grossAmount - $commission;
+
+        Log::info('[Financial Service] Commission applied', [
+            'session_id' => $session->id,
+            'gross_amount' => $grossAmount,
+            'commission_rate' => $commissionRate,
+            'commission_amount' => $commission,
+            'net_amount' => $netAmount,
+            'commission_type' => $commissionType,
+        ]);
+
+        return $netAmount;
     }
 
     /**

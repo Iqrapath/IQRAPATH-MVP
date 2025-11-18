@@ -16,10 +16,18 @@ class SuperAdminSeeder extends Seeder
     public function run(): void
     {
         // Create a super-admin user
+        // $user = User::create([
+        //     'name' => 'Super Admin',
+        //     'email' => 'admin@sch.com',
+        //     'password' => Hash::make('123password'),
+        //     'role' => 'super-admin',
+        //     'email_verified_at' => now(),
+        // ]);
+        // Create a super-admin user
         $user = User::create([
             'name' => 'Super Admin',
-            'email' => 'admin@sch.com',
-            'password' => Hash::make('123password'),
+            'email' => 'officialiqraquest@gmail.com',
+            'password' => Hash::make('iqraquest2025'),
             'role' => 'super-admin',
             'email_verified_at' => now(),
         ]);

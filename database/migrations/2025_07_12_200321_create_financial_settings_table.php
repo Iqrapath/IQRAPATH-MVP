@@ -42,6 +42,8 @@ return new class extends Migration
             ['commission_type', 'fixed_percentage'],
             ['auto_payout_threshold', '50000'],
             ['minimum_withdrawal_amount', '10000'],
+            ['bank_verification_enabled', 'true'],
+            ['withdrawal_note', 'Withdrawals are processed within 1-3 business days.'],
             ['instant_payouts_enabled', 'true'],
             ['multi_currency_mode', 'true'],
             

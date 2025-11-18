@@ -49,6 +49,19 @@ class WithdrawalService
     {
         $errors = [];
         
+        // Check bank verification if enabled
+        $bankVerificationEnabled = FinancialSetting::get('bank_verification_enabled', 'true') === 'true';
+        if ($bankVerificationEnabled) {
+            $hasVerifiedBank = \App\Models\PaymentMethod::where('user_id', $teacher->id)
+                ->where('type', 'bank_transfer')
+                ->where('is_verified', true)
+                ->exists();
+            
+            if (!$hasVerifiedBank) {
+                $errors[] = "Please verify your bank account before requesting withdrawal";
+            }
+        }
+        
         // Check minimum withdrawal amount
         $minimumAmount = FinancialSetting::getMinimumWithdrawalAmount();
         if ($amount < $minimumAmount) {

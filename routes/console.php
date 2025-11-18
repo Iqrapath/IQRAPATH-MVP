@@ -22,6 +22,47 @@ use Illuminate\Support\Facades\Log;
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+/*
+|--------------------------------------------------------------------------
+| Scheduled Tasks
+|--------------------------------------------------------------------------
+|
+| Define scheduled tasks using the Schedule facade.
+|
+*/
+
+use Illuminate\Console\Scheduling\Schedule;
+
+app(Schedule::class)->command('app:process-scheduled-responses')
+    ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->description('Process scheduled support ticket responses');
+
+app(Schedule::class)->command('app:send-session-reminders')
+    ->dailyAt('08:00')
+    ->withoutOverlapping()
+    ->description('Send session reminders to teachers and students');
+
+app(Schedule::class)->command('app:start-reverb --background')
+    ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->description('Ensure Reverb WebSocket server is running');
+
+app(Schedule::class)->job(new \App\Jobs\UpdateUrgentActionCounts())
+    ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->description('Update urgent action counts for admin dashboard');
+
+app(Schedule::class)->command('subscriptions:process-renewals')
+    ->daily()
+    ->withoutOverlapping()
+    ->description('Process subscription renewals and expirations');
+
+app(Schedule::class)->command('payouts:process-auto')
+    ->dailyAt('10:00')
+    ->withoutOverlapping()
+    ->description('Process automatic payouts for teachers who reached threshold');
 Artisan::command('notification:create-test-scheduled', function () {
     $this->info('Creating a test scheduled notification...');
     

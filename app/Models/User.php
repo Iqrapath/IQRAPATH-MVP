@@ -79,12 +79,35 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Get the avatar URL with proper path.
+     * Get the avatar URL attribute
+     * Converts storage path to public URL
      */
     protected function avatar(): Attribute
     {
         return Attribute::make(
-            get: fn ($value) => $value ? (str_starts_with($value, '/storage/') ? asset($value) : asset('storage/' . $value)) : null,
+            get: function (?string $value) {
+                if (!$value) {
+                    return null;
+                }
+
+                // If it's already a full URL, return as is
+                if (str_starts_with($value, 'http://') || str_starts_with($value, 'https://')) {
+                    return $value;
+                }
+
+                // If it's a storage path (oauth/...), convert to public URL
+                if (str_starts_with($value, 'oauth/')) {
+                    return asset('storage/' . $value);
+                }
+
+                // If it starts with /storage/, convert to full URL
+                if (str_starts_with($value, '/storage/')) {
+                    return asset($value);
+                }
+
+                // Otherwise assume it's in storage and prepend
+                return asset('storage/' . $value);
+            }
         );
     }
 

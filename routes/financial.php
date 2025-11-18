@@ -48,4 +48,8 @@ Route::middleware(['auth', 'role:super-admin'])->prefix('admin/financial')->name
     Route::post('/student-withdrawals/{payoutRequest}/reject', [App\Http\Controllers\Admin\FinancialManagementController::class, 'rejectStudentWithdrawal'])->name('student-withdrawals.reject');
     Route::post('/payout-requests/{payoutRequest}/check-status', [App\Http\Controllers\Admin\FinancialManagementController::class, 'checkPayoutStatus'])->name('payout-requests.check-status');
     Route::post('/payout-requests/{payoutRequest}/send-notification', [App\Http\Controllers\Admin\FinancialManagementController::class, 'sendPayoutNotification'])->name('payout-requests.send-notification');
+    Route::post('/settings/payment', [App\Http\Controllers\Admin\FinancialManagementController::class, 'updatePaymentSettings'])->name('settings.payment.update');
+    Route::post('/settings/withdrawal-limits', [App\Http\Controllers\Admin\FinancialManagementController::class, 'updateWithdrawalLimits'])->name('settings.withdrawal-limits.update');
+    Route::post('/settings/payment-methods', [App\Http\Controllers\Admin\FinancialManagementController::class, 'updatePaymentMethods'])->name('settings.payment-methods.update');
+    Route::post('/settings/currency', [App\Http\Controllers\Admin\FinancialManagementController::class, 'updateCurrencySettings'])->name('settings.currency.update');
 }); 

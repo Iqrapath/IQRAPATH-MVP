@@ -13,42 +13,48 @@ beforeEach(function () {
     $this->oauthService = app(OAuthService::class);
 });
 
+// Helper function to create mock social user
+function createMockSocialUser(?string $email, ?string $id, ?string $name, ?string $avatar = null): object
+{
+    return new class($email, $id, $name, $avatar) {
+        public function __construct(
+            private ?string $email,
+            private ?string $id,
+            private ?string $name,
+            private ?string $avatar
+        ) {}
+        
+        public function getEmail(): ?string { return $this->email; }
+        public function getId(): ?string { return $this->id; }
+        public function getName(): ?string { return $this->name; }
+        public function getAvatar(): ?string { return $this->avatar; }
+    };
+}
+
 describe('OAuthService - Provider Data Validation', function () {
     it('validates provider data correctly', function () {
-        $invalidUser = new stdClass();
-        $invalidUser->email = null;
-        $invalidUser->id = '12345';
-        $invalidUser->name = 'Test User';
+        $invalidUser = createMockSocialUser(null, '12345', 'Test User');
         
         expect(fn() => $this->oauthService->processAuthentication($invalidUser, 'google', 'teacher'))
             ->toThrow(ValidationException::class);
     });
     
     it('rejects invalid email format', function () {
-        $invalidUser = new stdClass();
-        $invalidUser->email = 'not-an-email';
-        $invalidUser->id = '12345';
-        $invalidUser->name = 'Test User';
+        $invalidUser = createMockSocialUser('not-an-email', '12345', 'Test User');
         
         expect(fn() => $this->oauthService->processAuthentication($invalidUser, 'google', 'teacher'))
             ->toThrow(ValidationException::class);
     });
     
     it('rejects missing provider ID', function () {
-        $invalidUser = new stdClass();
-        $invalidUser->email = 'test@example.com';
-        $invalidUser->id = null;
-        $invalidUser->name = 'Test User';
+        $invalidUser = createMockSocialUser('test@example.com', null, 'Test User');
         
         expect(fn() => $this->oauthService->processAuthentication($invalidUser, 'google', 'teacher'))
             ->toThrow(ValidationException::class);
     });
     
     it('rejects missing name', function () {
-        $invalidUser = new stdClass();
-        $invalidUser->email = 'test@example.com';
-        $invalidUser->id = '12345';
-        $invalidUser->name = null;
+        $invalidUser = createMockSocialUser('test@example.com', '12345', null);
         
         expect(fn() => $this->oauthService->processAuthentication($invalidUser, 'google', 'teacher'))
             ->toThrow(ValidationException::class);
@@ -63,11 +69,7 @@ describe('OAuthService - Email Collision Handling', function () {
             'provider_id' => '12345'
         ]);
         
-        $socialUser = new stdClass();
-        $socialUser->email = 'test@example.com';
-        $socialUser->id = '67890';
-        $socialUser->name = 'Test User';
-        $socialUser->avatar = null;
+        $socialUser = createMockSocialUser('test@example.com', '67890', 'Test User');
         
         expect(fn() => $this->oauthService->processAuthentication($socialUser, 'facebook', 'student'))
             ->toThrow(OAuthException::class);
@@ -87,11 +89,7 @@ describe('OAuthService - Email Collision Handling', function () {
             'email_verified_at' => null,
         ]);
         
-        $socialUser = new stdClass();
-        $socialUser->email = 'test@example.com';
-        $socialUser->id = '12345';
-        $socialUser->name = 'Test User';
-        $socialUser->avatar = null;
+        $socialUser = createMockSocialUser('test@example.com', '12345', 'Test User');
         
         $user = $this->oauthService->processAuthentication($socialUser, 'google', 'student');
         
@@ -113,11 +111,7 @@ describe('OAuthService - Email Collision Handling', function () {
             'role' => 'student',
         ]);
         
-        $socialUser = new stdClass();
-        $socialUser->email = 'test@example.com';
-        $socialUser->id = '12345';
-        $socialUser->name = 'Test User';
-        $socialUser->avatar = null;
+        $socialUser = createMockSocialUser('test@example.com', '12345', 'Test User');
         
         $user = $this->oauthService->processAuthentication($socialUser, 'google', 'student');
         
@@ -128,11 +122,7 @@ describe('OAuthService - Email Collision Handling', function () {
 
 describe('OAuthService - User Creation', function () {
     it('creates new user with teacher role', function () {
-        $socialUser = new stdClass();
-        $socialUser->email = 'newteacher@example.com';
-        $socialUser->id = '12345';
-        $socialUser->name = 'New Teacher';
-        $socialUser->avatar = null;
+        $socialUser = createMockSocialUser('newteacher@example.com', '12345', 'New Teacher');
         
         $user = $this->oauthService->processAuthentication($socialUser, 'google', 'teacher');
         
@@ -151,11 +141,7 @@ describe('OAuthService - User Creation', function () {
     });
     
     it('creates new user with unassigned role for student-guardian', function () {
-        $socialUser = new stdClass();
-        $socialUser->email = 'newstudent@example.com';
-        $socialUser->id = '67890';
-        $socialUser->name = 'New Student';
-        $socialUser->avatar = null;
+        $socialUser = createMockSocialUser('newstudent@example.com', '67890', 'New Student');
         
         $user = $this->oauthService->processAuthentication($socialUser, 'google', 'student-guardian');
         
@@ -164,11 +150,7 @@ describe('OAuthService - User Creation', function () {
     });
     
     it('creates new user with unassigned role for any', function () {
-        $socialUser = new stdClass();
-        $socialUser->email = 'anyuser@example.com';
-        $socialUser->id = '11111';
-        $socialUser->name = 'Any User';
-        $socialUser->avatar = null;
+        $socialUser = createMockSocialUser('anyuser@example.com', '11111', 'Any User');
         
         $user = $this->oauthService->processAuthentication($socialUser, 'google', 'any');
         
@@ -184,11 +166,7 @@ describe('OAuthService - Transaction Atomicity', function () {
                 ->andThrow(new \Exception('Profile creation failed'));
         });
         
-        $socialUser = new stdClass();
-        $socialUser->email = 'failtest@example.com';
-        $socialUser->id = '99999';
-        $socialUser->name = 'Fail Test';
-        $socialUser->avatar = null;
+        $socialUser = createMockSocialUser('failtest@example.com', '99999', 'Fail Test');
         
         try {
             $this->oauthService->processAuthentication($socialUser, 'google', 'teacher');
@@ -210,11 +188,7 @@ describe('OAuthService - Transaction Atomicity', function () {
 
 describe('OAuthService - Audit Logging', function () {
     it('logs OAuth initiation', function () {
-        $socialUser = new stdClass();
-        $socialUser->email = 'audit@example.com';
-        $socialUser->id = '55555';
-        $socialUser->name = 'Audit Test';
-        $socialUser->avatar = null;
+        $socialUser = createMockSocialUser('audit@example.com', '55555', 'Audit Test');
         
         $this->oauthService->processAuthentication($socialUser, 'google', 'teacher');
         
@@ -228,11 +202,7 @@ describe('OAuthService - Audit Logging', function () {
     });
     
     it('logs successful callback', function () {
-        $socialUser = new stdClass();
-        $socialUser->email = 'success@example.com';
-        $socialUser->id = '66666';
-        $socialUser->name = 'Success Test';
-        $socialUser->avatar = null;
+        $socialUser = createMockSocialUser('success@example.com', '66666', 'Success Test');
         
         $user = $this->oauthService->processAuthentication($socialUser, 'google', 'teacher');
         
@@ -290,3 +260,4 @@ describe('OAuthService - Redirect Logic', function () {
         expect($route)->toBe('onboarding.role-selection');
     });
 });
+
