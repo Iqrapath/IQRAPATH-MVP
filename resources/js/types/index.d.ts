@@ -55,7 +55,7 @@ export interface User {
     avatar?: string | null;
     location?: string | null;
     role?: 'super-admin' | 'teacher' | 'student' | 'guardian' | null;
-    status_type?: string;
+    status_type?: StatusType | string;
     status_message?: string | null;
     last_active_at?: string | null;
     email_verified_at?: string | null;

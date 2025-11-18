@@ -111,12 +111,12 @@ export default function CompletedClassCard({ booking }: CompletedClassCardProps)
                             View Summary
                         </button>
 
-                        <button 
+                        {/* <button 
                             onClick={handleRebook}
                             className="border border-teal-600 text-teal-600 hover:bg-teal-50 px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200 cursor-pointer"
                         >
                             Rebook
-                        </button>
+                        </button> */}
 
                         <button 
                             onClick={handleRateTeacher}

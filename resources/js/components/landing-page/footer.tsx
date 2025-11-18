@@ -63,7 +63,7 @@ export default function Footer() {
           <div>
             <h3 className="text-lg font-semibold mb-5 text-[#F3E5C3]">Features</h3>
             <ul className="space-y-3">
-              <li><Link href="/top-rated-teachers" className="text-gray-200 hover:text-white text-sm">Top-Rated Quran Teachers</Link></li>
+              <li><Link href="/find-teacher" className="text-gray-200 hover:text-white text-sm">Top-Rated Quran Teachers</Link></li>
             </ul>
           </div>
 

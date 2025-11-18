@@ -119,13 +119,13 @@ export default function GuardianLeftSidebar({ className, isMobile = false, onClo
         },
         {
             title: 'Payment',
-            href: '/guardian/payment',
+            href: '/guardian/wallet',
             icon: WalletIcon,
-            isComingSoon: true,
-            onClick: (e) => {
-                e.preventDefault();
-                handleMissingPage('Payment');
-            },
+            // isComingSoon: true,
+            // onClick: (e) => {
+            //     e.preventDefault();
+            //     handleMissingPage('Payment');
+            // },
         },
         {
             title: 'Messages',

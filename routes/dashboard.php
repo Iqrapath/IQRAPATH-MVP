@@ -97,9 +97,9 @@ Route::middleware(['auth', 'verified', 'role:student'])->prefix('student')->name
     
     // Wallet Page Routes (NEW - Full wallet management)
     Route::get('/wallet', [App\Http\Controllers\Student\PaymentController::class, 'index'])->name('wallet.index');
-    Route::get('/wallet/history', [App\Http\Controllers\Student\PaymentController::class, 'history'])->name('wallet.history');
+    Route::get('/wallet/history', [App\Http\Controllers\Student\WalletController::class, 'history'])->name('wallet.history');
     Route::post('/wallet/settings', [App\Http\Controllers\Student\PaymentController::class, 'saveSettings'])->name('wallet.settings');
-    Route::post('/wallet/email-report', [App\Http\Controllers\Student\PaymentController::class, 'emailReport'])->name('wallet.email-report');
+    Route::post('/wallet/email-report', [App\Http\Controllers\Student\WalletController::class, 'emailReport'])->name('wallet.email-report');
     
     // Wallet API routes (for modals and AJAX)
     Route::post('/wallet/fund', [App\Http\Controllers\Student\WalletController::class, 'processFunding'])->name('wallet.fund.process');
@@ -205,9 +205,28 @@ Route::middleware(['auth', 'verified', 'role:guardian'])->prefix('guardian')->na
     Route::get('/teachers/{teacher}', [App\Http\Controllers\Guardian\TeacherController::class, 'show'])->name('teachers.show');
     Route::get('/teachers/{teacher}/profile-data', [App\Http\Controllers\Guardian\TeacherController::class, 'profileData'])->name('teachers.profile-data');
     
+    // Guardian wallet routes
+    Route::get('/wallet', [App\Http\Controllers\Guardian\PaymentController::class, 'index'])->name('wallet.index');
+    Route::get('/wallet/history', [App\Http\Controllers\Guardian\PaymentController::class, 'history'])->name('wallet.history');
+    Route::post('/wallet/settings', [App\Http\Controllers\Guardian\PaymentController::class, 'saveSettings'])->name('wallet.settings');
+    Route::post('/wallet/email-report', [App\Http\Controllers\Guardian\PaymentController::class, 'emailReport'])->name('wallet.email-report');
+    
     // Guardian payment routes
     Route::get('/payment/publishable-key', [App\Http\Controllers\Guardian\PaymentController::class, 'getPublishableKey'])->name('payment.publishable-key');
+    Route::get('/payment/paystack-public-key', [App\Http\Controllers\Guardian\PaymentController::class, 'getPaystackPublicKey'])->name('payment.paystack-public-key');
     Route::post('/payment/fund-wallet', [App\Http\Controllers\Guardian\PaymentController::class, 'fundWallet'])->name('payment.fund-wallet');
+    Route::post('/payment/verify-paystack', [App\Http\Controllers\Guardian\PaymentController::class, 'verifyPaystackPayment'])->name('payment.verify-paystack');
+    Route::get('/payment/virtual-account', [App\Http\Controllers\Guardian\PaymentController::class, 'getVirtualAccount'])->name('payment.virtual-account');
+    Route::get('/payment/banks', [App\Http\Controllers\Guardian\PaymentController::class, 'getBanks'])->name('payment.banks');
+    
+    // Guardian payment methods routes
+    Route::get('/payment/methods', [App\Http\Controllers\Guardian\PaymentController::class, 'getPaymentMethods'])->name('payment.methods');
+    Route::post('/payment/methods', [App\Http\Controllers\Guardian\PaymentController::class, 'storePaymentMethod'])->name('payment.methods.store');
+    Route::put('/payment/methods/{paymentMethod}', [App\Http\Controllers\Guardian\PaymentController::class, 'updatePaymentMethod'])->name('payment.methods.update');
+    Route::post('/payment/methods/{paymentMethod}/default', [App\Http\Controllers\Guardian\PaymentController::class, 'setDefaultPaymentMethod'])->name('payment.methods.set-default');
+    Route::delete('/payment/methods/{paymentMethod}', [App\Http\Controllers\Guardian\PaymentController::class, 'deletePaymentMethod'])->name('payment.methods.delete');
+    
+    // Legacy routes (keep for backward compatibility)
     Route::post('/wallet/fund/paypal', [App\Http\Controllers\Guardian\PaymentController::class, 'fundWithPayPal'])->name('wallet.fund.paypal');
     Route::get('/wallet/paypal/success', [App\Http\Controllers\Guardian\PaymentController::class, 'paypalSuccess'])->name('wallet.paypal.success');
     Route::get('/wallet/paypal/cancel', [App\Http\Controllers\Guardian\PaymentController::class, 'paypalCancel'])->name('wallet.paypal.cancel');

@@ -7,25 +7,26 @@ import { usePage, router } from '@inertiajs/react';
 import { toast } from 'sonner';
 import { FileText } from 'lucide-react';
 import axios from 'axios';
-import FundAccountModal from '../../../../components/student/FundAccountModal';
-import WithdrawFundModal from '../../../../components/student/WithdrawFundModal';
-import WithdrawalHistory from './WithdrawalHistory';
+import FundAccountModal from '../../../../components/guardian/FundAccountModal';
 import { useCurrency } from '@/contexts/CurrencyContext';
 
 interface WalletData {
     balance: number;
-    totalSpent: number;
+    totalSpentOnChildren: number;
     totalRefunded: number;
     preferredCurrency: string;
 }
 
 interface UpcomingPayment {
     id: number;
+    childName?: string;
+    childId?: number;
     amount: number;
     amountSecondary: number;
     currency: string;
     secondaryCurrency: string;
     teacherName: string;
+    subjectName?: string;
     dueDate: string;
     status: 'pending' | 'completed' | 'cancelled';
 }
@@ -33,21 +34,25 @@ interface UpcomingPayment {
 interface PaymentHistory {
     id: number;
     date: string;
-    subject: string;
-    teacherName: string;
+    description: string;
+    type: string;
     amount: number;
     currency?: string;
     status: 'completed' | 'pending' | 'cancelled';
 }
 
-export default function WalletBalance() {
+interface WalletBalanceProps {
+    onViewHistory?: () => void;
+}
+
+export default function WalletBalance({ onViewHistory }: WalletBalanceProps = {}) {
     const pageProps = usePage().props as any;
     const user = pageProps.auth?.user || pageProps.user;
     const { formatBalance: formatBalanceFromContext, selectedCurrency, setSelectedCurrency } = useCurrency();
 
     // Get data from props (passed from controller)
     const walletBalance = pageProps.walletBalance || 0;
-    const totalSpent = pageProps.totalSpent || 0;
+    const totalSpentOnChildren = pageProps.totalSpentOnChildren || 0;
     const totalRefunded = pageProps.totalRefunded || 0;
     const upcomingPaymentsData = pageProps.upcomingPayments || [];
     const paymentHistoryData = pageProps.paymentHistory || [];
@@ -59,7 +64,7 @@ export default function WalletBalance() {
 
     const [walletData, setWalletData] = useState<WalletData>({
         balance: walletBalance,
-        totalSpent: totalSpent,
+        totalSpentOnChildren: totalSpentOnChildren,
         totalRefunded: totalRefunded,
         preferredCurrency: walletSettings.preferredCurrency,
     });
@@ -69,20 +74,19 @@ export default function WalletBalance() {
 
     const [saving, setSaving] = useState(false);
     const [showFundModal, setShowFundModal] = useState(false);
-    const [showWithdrawModal, setShowWithdrawModal] = useState(false);
     const [emailingReport, setEmailingReport] = useState(false);
 
     // Update data when props change
     useEffect(() => {
         setWalletData({
             balance: walletBalance,
-            totalSpent: totalSpent,
+            totalSpentOnChildren: totalSpentOnChildren,
             totalRefunded: totalRefunded,
             preferredCurrency: walletSettings.preferredCurrency,
         });
         setUpcomingPayments(upcomingPaymentsData);
         setPaymentHistory(paymentHistoryData);
-    }, [walletBalance, totalSpent, totalRefunded, walletSettings, upcomingPaymentsData, paymentHistoryData]);
+    }, [walletBalance, totalSpentOnChildren, totalRefunded, walletSettings, upcomingPaymentsData, paymentHistoryData]);
 
     const handleSaveChanges = async () => {
         if (!user?.id) {
@@ -96,7 +100,7 @@ export default function WalletBalance() {
                 preferred_currency: walletData.preferredCurrency,
             };
 
-            await axios.post(`/student/wallet/settings`, settingsData, {
+            await axios.post(`/guardian/wallet/settings`, settingsData, {
                 withCredentials: true
             });
 
@@ -120,20 +124,10 @@ export default function WalletBalance() {
         setShowFundModal(true);
     };
 
-    const handleWithdrawClick = () => {
-        setShowWithdrawModal(true);
-    };
-
-    const handleWithdrawalSuccess = () => {
-        setShowWithdrawModal(false);
-        // Refresh wallet balance and page data
-        router.reload({ only: ['walletBalance', 'availableWithdrawalBalance', 'upcomingPayments', 'paymentHistory'] });
-    };
-
     const handleEmailReport = async () => {
         setEmailingReport(true);
         try {
-            await axios.post('/student/wallet/email-report', {}, {
+            await axios.post('/guardian/wallet/email-report', {}, {
                 withCredentials: true
             });
 
@@ -152,13 +146,10 @@ export default function WalletBalance() {
         }
     };
 
-    const handlePayNow = (bookingId: number) => {
-        // Navigate to booking details page where payment can be processed
-        router.visit(`/student/my-bookings/${bookingId}`);
-    };
-
     const handleCheckHistory = () => {
-        router.visit('/student/wallet/history');
+        if (onViewHistory) {
+            onViewHistory();
+        }
     };
 
     // Get currency symbol
@@ -250,15 +241,28 @@ export default function WalletBalance() {
                             >
                                 Top Up Balance
                             </Button>
-                            {/* <Button
-                                onClick={handleWithdrawClick}
-                                variant="ghost"
-                                className="text-gray-700 hover:bg-gray-50 cursor-pointer"
-                            >
-                                Withdraw Fund
-                            </Button> */}
                         </div>
                     </div>
+
+                    {/* Family Spending Summary */}
+                    {totalSpentOnChildren > 0 && (
+                        <div className="mt-6 pt-6 border-t border-gray-200">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <span className="text-sm text-gray-600">Total Spent on Children</span>
+                                    <div className="text-lg font-semibold text-gray-900">
+                                        {formatBalanceFromContext(totalSpentOnChildren)}
+                                    </div>
+                                </div>
+                                <div>
+                                    <span className="text-sm text-gray-600">Total Refunded</span>
+                                    <div className="text-lg font-semibold text-gray-900">
+                                        {formatBalanceFromContext(totalRefunded)}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 
@@ -284,6 +288,11 @@ export default function WalletBalance() {
                                             <div className="text-lg font-semibold text-gray-900">
                                                 {formatAmount(payment.amount, payment.currency)} / {formatAmount(payment.amountSecondary, payment.secondaryCurrency)}
                                             </div>
+                                            {payment.childName && (
+                                                <div className="text-xs text-gray-500 mt-1">
+                                                    For: {payment.childName}
+                                                </div>
+                                            )}
                                         </div>
                                         <div>
                                             <div className="text-sm text-gray-600">Teacher</div>
@@ -300,12 +309,6 @@ export default function WalletBalance() {
                                             </Badge>
                                         </div>
                                     </div>
-                                    <Button
-                                        onClick={() => handlePayNow(payment.id)}
-                                        className="bg-[#2C7870] hover:bg-[#235f59] text-white"
-                                    >
-                                        Pay Now
-                                    </Button>
                                 </div>
                             ))}
                         </div>
@@ -338,8 +341,8 @@ export default function WalletBalance() {
                                 <thead>
                                     <tr className="border-b border-gray-200">
                                         <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Date</th>
-                                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Subject</th>
-                                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Name</th>
+                                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Description</th>
+                                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Type</th>
                                         <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Amount</th>
                                         <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Status</th>
                                     </tr>
@@ -355,8 +358,8 @@ export default function WalletBalance() {
                                                     {new Date(transaction.date).toLocaleDateString('en-US', { month: 'short' })}
                                                 </div>
                                             </td>
-                                            <td className="py-4 px-4 text-sm text-gray-900">{transaction.subject}</td>
-                                            <td className="py-4 px-4 text-sm text-gray-900">{transaction.teacherName}</td>
+                                            <td className="py-4 px-4 text-sm text-gray-900">{transaction.description}</td>
+                                            <td className="py-4 px-4 text-sm text-gray-900 capitalize">{transaction.type.replace('_', ' ')}</td>
                                             <td className="py-4 px-4 text-sm font-semibold text-gray-900">
                                                 {formatAmount(transaction.amount, transaction.currency)}
                                             </td>
@@ -388,19 +391,7 @@ export default function WalletBalance() {
                     }}
                 />
             )}
-
-            {/* Withdraw Fund Modal */}
-            {showWithdrawModal && (
-                <WithdrawFundModal
-                    isOpen={showWithdrawModal}
-                    onClose={() => setShowWithdrawModal(false)}
-                    onSuccess={handleWithdrawalSuccess}
-                    walletBalance={walletData.balance}
-                    availableWithdrawalBalance={pageProps.availableWithdrawalBalance || walletData.balance}
-                    currency={getCurrencySymbol(walletData.preferredCurrency)}
-                    user={user}
-                />
-            )}
         </div>
     );
 }
+

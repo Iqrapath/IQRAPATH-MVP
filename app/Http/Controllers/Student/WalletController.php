@@ -727,4 +727,125 @@ class WalletController extends Controller
             'data' => $details,
         ]);
     }
+
+    /**
+     * Transaction history page or API
+     */
+    public function history(Request $request)
+    {
+        $user = Auth::user();
+        $wallet = $user->studentWallet;
+
+        if (!$wallet) {
+            $wallet = $user->studentWallet()->create([
+                'balance' => 0,
+                'total_spent' => 0,
+                'total_refunded' => 0,
+            ]);
+        }
+
+        $transactions = $wallet->transactions()
+            ->latest('transaction_date')
+            ->paginate(20);
+
+        $formattedTransactions = $transactions->through(function ($transaction) {
+            return [
+                'id' => $transaction->id,
+                'date' => $transaction->transaction_date,
+                'type' => $transaction->transaction_type,
+                'description' => $transaction->description ?? ucfirst($transaction->transaction_type) . ' transaction',
+                'amount' => (float) $transaction->amount,
+                'currency' => $transaction->currency ?? 'NGN',
+                'status' => $transaction->status ?? 'completed',
+            ];
+        });
+
+        // Return JSON for AJAX requests
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'data' => $formattedTransactions->items(),
+                'pagination' => [
+                    'current_page' => $formattedTransactions->currentPage(),
+                    'per_page' => $formattedTransactions->perPage(),
+                    'total' => $formattedTransactions->total(),
+                    'last_page' => $formattedTransactions->lastPage(),
+                    'from' => $formattedTransactions->firstItem(),
+                    'to' => $formattedTransactions->lastItem(),
+                ],
+            ]);
+        }
+
+        // Return Inertia page for direct navigation
+        return Inertia::render('student/wallet/history', [
+            'transactions' => $formattedTransactions,
+            'walletBalance' => (float) $wallet->balance,
+        ]);
+    }
+
+    /**
+     * Email activity report
+     */
+    public function emailReport(Request $request): \Illuminate\Http\JsonResponse
+    {
+        try {
+            $student = $request->user();
+            $wallet = $student->studentWallet;
+            
+            if (!$wallet) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Wallet not found'
+                ], 404);
+            }
+            
+            // Get recent transactions (last 30 days)
+            $recentTransactions = $wallet->transactions()
+                ->where('transaction_date', '>=', now()->subDays(30))
+                ->orderBy('transaction_date', 'desc')
+                ->get()
+                ->map(function ($transaction) {
+                    return [
+                        'date' => $transaction->transaction_date->format('M d, Y'),
+                        'description' => $transaction->description ?? ucfirst($transaction->transaction_type) . ' transaction',
+                        'amount' => $transaction->amount,
+                        'type' => $transaction->transaction_type,
+                        'status' => $transaction->status ?? 'completed',
+                    ];
+                });
+
+            // Get wallet summary
+            $summary = [
+                'current_balance' => $wallet->balance ?? 0,
+                'total_spent' => $wallet->total_spent ?? 0,
+                'total_refunded' => $wallet->total_refunded ?? 0,
+            ];
+
+            // Send email (create mail class if needed)
+            \Illuminate\Support\Facades\Mail::to($student->email)->send(
+                new \App\Mail\Student\WalletActivityReport($student, $summary, $recentTransactions->toArray())
+            );
+
+            \Illuminate\Support\Facades\Log::info('Student wallet activity report emailed', [
+                'student_id' => $student->id,
+                'email' => $student->email,
+                'transactions_count' => $recentTransactions->count()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Activity report sent to your email',
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to send student wallet activity report', [
+                'error' => $e->getMessage(),
+                'student_id' => $request->user()->id
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send activity report. Please try again.',
+            ], 500);
+        }
+    }
 }

@@ -1,24 +1,28 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { toast } from 'sonner';
+import axios from 'axios';
 
-// Currency conversion rates (example rates - in production, these would come from an API)
-const currencyRates = {
-    NGN: 1, // Base currency
-    USD: 0.0007, // 1 NGN = 0.0007 USD (approximate rate: ~1,400 NGN = 1 USD)
-};
-
+// Default currency symbols
 const currencySymbols = {
     NGN: '₦',
     USD: '$',
 };
 
+interface CurrencyRates {
+    NGN: number;
+    USD: number;
+    [key: string]: number;
+}
+
 interface CurrencyContextType {
     selectedCurrency: string;
-    currencyRates: typeof currencyRates;
+    currencyRates: CurrencyRates;
     currencySymbols: typeof currencySymbols;
     setSelectedCurrency: (currency: string) => void;
     convertBalance: (balanceNGN: number) => number;
     formatBalance: (balanceNGN: number) => string;
+    isLoadingRates: boolean;
+    lastUpdated: Date | null;
 }
 
 const CurrencyContext = createContext<CurrencyContextType | undefined>(undefined);
@@ -29,12 +33,25 @@ interface CurrencyProviderProps {
 
 export function CurrencyProvider({ children }: CurrencyProviderProps) {
     const [selectedCurrency, setSelectedCurrency] = useState('NGN');
+    const [currencyRates, setCurrencyRates] = useState<CurrencyRates>({
+        NGN: 1, // Base currency
+        USD: 0.00069, // Static rate: ~1,450 NGN = 1 USD
+    });
+    const [isLoadingRates, setIsLoadingRates] = useState(false);
+    const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+    // Note: Exchange rate fetching disabled to avoid CORS issues
+    // Using static fallback rates instead
+    // To enable live rates, implement a backend API endpoint that fetches rates server-side
 
     const handleCurrencyChange = (currency: string) => {
         setSelectedCurrency(currency);
+        const rate = currencyRates[currency];
+        const rateDisplay = currency === 'USD' ? `1 NGN = $${rate.toFixed(6)}` : '';
+        
         toast.success(`Currency changed to ${currency}`, {
             duration: 2000,
-            description: `Balance now displayed in ${currency}`
+            description: rateDisplay || `Balance now displayed in ${currency}`
         });
     };
 
@@ -46,6 +63,7 @@ export function CurrencyProvider({ children }: CurrencyProviderProps) {
         const convertedBalance = convertBalance(balanceNGN);
         const symbol = currencySymbols[selectedCurrency as keyof typeof currencySymbols];
 
+        // NGN: No decimals, USD: 2 decimals
         return `${symbol}${convertedBalance.toLocaleString(undefined, {
             minimumFractionDigits: selectedCurrency === 'NGN' ? 0 : 2,
             maximumFractionDigits: selectedCurrency === 'NGN' ? 0 : 2
@@ -59,6 +77,8 @@ export function CurrencyProvider({ children }: CurrencyProviderProps) {
         setSelectedCurrency: handleCurrencyChange,
         convertBalance,
         formatBalance,
+        isLoadingRates,
+        lastUpdated,
     };
 
     return (

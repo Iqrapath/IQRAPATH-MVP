@@ -56,7 +56,7 @@ export default function TeacherHeader({
             
             {/* Logo at left with spacing */}
             <div className={`flex items-center ${isMobile ? 'w-auto' : 'w-64 pl-30'}`}>
-                <Link href="/dashboard" className="flex items-center">
+                <Link href="/" className="flex items-center">
                     <AppLogoIcon className={`${isMobile ? 'w-24' : 'w-32'} h-auto`} />
                 </Link>
             </div>

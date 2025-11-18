@@ -3,6 +3,5 @@ export { default as TabNavigation } from './TabNavigation';
 export { default as WalletBalance } from './WalletBalance';
 export { default as PaymentInfo } from './PaymentInfo';
 export { default as PaymentMethod } from './PaymentMethod';
-export { default as AddPaymentMethodModal } from './AddPaymentMethodModal';
-export { default as WithdrawalHistory } from './WithdrawalHistory';
 export { default as PaymentHistory } from './PaymentHistory';
+

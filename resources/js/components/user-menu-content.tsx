@@ -5,7 +5,9 @@ import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
 import { type StatusType, type User } from '@/types';
 import { Link, router } from '@inertiajs/react';
 import { Clock, LogOut, MessageSquare, Settings } from 'lucide-react';
+import React from 'react';
 import { useState } from 'react';
+import LogoutButton from './logout-button';
 
 interface UserMenuContentProps {
     user: User;
@@ -109,10 +111,15 @@ export function UserMenuContent({ user }: UserMenuContentProps) {
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-                <Link className="block w-full" method="post" href={route('logout')} as="button" onClick={handleLogout}>
+                {/* <Link className="block w-full" method="post" href={route('logout')} as="button" onClick={handleLogout}>
                     <LogOut className="mr-2" />
                     Log out
-                </Link>
+                </Link> */}
+                <LogoutButton
+                    className="flex items-center w-full px-3 py-1.5 text-sm font-medium rounded-md transition-colors justify-start cursor-pointer"
+                    // variant="ghost"
+                    size="default"
+                />
             </DropdownMenuItem>
         </>
     );

@@ -13,7 +13,7 @@ export function UserInfo({
     showStatus?: boolean;
 }) {
     const getInitials = useInitials();
-    const status: StatusType = user.status_type || 'offline';
+    const status: StatusType = (user.status_type as StatusType) || 'offline';
 
     return (
         <>

@@ -340,7 +340,7 @@ class GuardianWallet extends Model
      */
     public function getFamilySpendingSummary(): array
     {
-        $children = $this->children()->with(['user', 'wallet'])->get();
+        $children = $this->children()->with(['user', 'user.studentWallet'])->get();
         
         $summary = [
             'guardian_balance' => $this->balance,
@@ -350,7 +350,7 @@ class GuardianWallet extends Model
         ];
 
         foreach ($children as $child) {
-            $childWallet = $child->wallet;
+            $childWallet = $child->user->studentWallet ?? null;
             $childBalance = $childWallet ? $childWallet->balance : 0;
             
             $summary['children'][] = [

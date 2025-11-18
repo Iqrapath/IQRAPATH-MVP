@@ -231,7 +231,7 @@ export default function StudentLeftSidebar({ className, isMobile = false, onClos
                         {/* Logout Button - Part of the navigation list */}
                         <div className="mx-1">
                             <LogoutButton
-                                className="flex items-center w-full px-3 py-1.5 text-sm font-medium rounded-md transition-colors text-white/90 hover:bg-[rgba(255,255,255,0.08)] hover:text-white justify-start"
+                                className="flex items-center w-full px-3 py-1.5 text-sm font-medium rounded-md transition-colors text-white/90 hover:bg-[rgba(255,255,255,0.08)] hover:text-white justify-start cursor-pointer"
                                 variant="ghost"
                                 size="default"
                             />
@@ -256,11 +256,11 @@ export default function StudentLeftSidebar({ className, isMobile = false, onClos
                             </div>
                             <Button
                                 className="bg-teal-600 text-white hover:bg-teal-700 font-medium py-2 px-3 rounded-full text-xs"
-                                onClick={() => router.visit('/student/memorization-plans')}
-                                // onClick={(e) => {
-                                //     e.preventDefault();
-                                //     handleMissingPage('Memorization Plans');
-                                // }}
+                                // onClick={() => router.visit('/student/memorization-plans')}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    handleMissingPage('Memorization Plans');
+                                }}
                             >
                                 Enroll Now!
                             </Button>

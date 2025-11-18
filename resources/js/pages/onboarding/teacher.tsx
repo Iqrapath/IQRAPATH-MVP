@@ -359,12 +359,10 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
     // Get flash messages from Inertia
     const { flash } = usePage().props as any;
     
-    // Fallback currency data if not provided
-    const currencies = availableCurrencies.length > 0 ? availableCurrencies : [
+    // Fallback currency data if not provided - Only NGN and USD allowed
+    const currencies = availableCurrencies.length > 0 ? availableCurrencies.filter(c => ['NGN', 'USD'].includes(c.value)) : [
         { value: 'NGN', label: 'Nigerian Naira (NGN)', symbol: '₦', is_default: true },
-        { value: 'USD', label: 'US Dollar (USD)', symbol: '$', is_default: false },
-        { value: 'EUR', label: 'Euro (EUR)', symbol: '€', is_default: false },
-        { value: 'GBP', label: 'British Pound (GBP)', symbol: '£', is_default: false }
+        { value: 'USD', label: 'US Dollar (USD)', symbol: '$', is_default: false }
     ];
     
     // Handle flash messages
@@ -469,16 +467,16 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
     // Hourly Rate Limits
     const RATE_LIMITS = {
         ngn: {
-            recommended_max: 5000,      // Soft cap - show warning above this
-            flexible_max: 10000,        // Allow up to this with strong warning
-            absolute_max: 50000,        // Hard cap - cannot exceed
-            minimum: 1000,              // Minimum viable rate
+            recommended_max: 5000,      // Maximum allowed rate
+            flexible_max: 5000,         // Same as recommended (no flexibility)
+            absolute_max: 5000,         // Hard cap - cannot exceed
+            minimum: 3000,              // Minimum required rate
         },
         usd: {
-            recommended_max: 3.42,      // ~₦5,000
-            flexible_max: 6.84,         // ~₦10,000
-            absolute_max: 34.20,        // ~₦50,000
-            minimum: 0.68,              // ~₦1,000
+            recommended_max: 3.45,      // ~₦5,000 (at 1,450 rate)
+            flexible_max: 3.45,         // Same as recommended
+            absolute_max: 3.45,         // Hard cap
+            minimum: 2.07,              // ~₦3,000 (at 1,450 rate)
         }
     };
 
@@ -1166,48 +1164,36 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
     const handleAvailabilityChange = (day: string, field: string, value: any) => {
         const currentSchedule = data.availability[day as keyof typeof data.availability];
 
-        // Business logic validation
-        if (field === 'from' && currentSchedule.to) {
-            // Ensure 'from' time is before 'to' time
-            if (value >= currentSchedule.to) {
-                // Auto-adjust 'to' time to be 1 hour after 'from'
-                const fromTime = new Date(`2000-01-01T${value}`);
-                const toTime = new Date(fromTime.getTime() + 60 * 60 * 1000); // Add 1 hour
-                const adjustedToTime = toTime.toTimeString().slice(0, 5);
+        // For start time changes, automatically set end time to 1 hour later
+        if (field === 'from') {
+            const fromTime = new Date(`2000-01-01T${value}`);
+            const toTime = new Date(fromTime.getTime() + 60 * 60 * 1000); // Add exactly 1 hour
+            const adjustedToTime = toTime.toTimeString().slice(0, 5);
 
-        setData('availability', {
-            ...data.availability,
-            [day]: {
-                        ...currentSchedule,
-                        from: value,
-                        to: adjustedToTime
-                    }
-                });
-                return;
-            }
+            setData('availability', {
+                ...data.availability,
+                [day]: {
+                    ...currentSchedule,
+                    from: value,
+                    to: adjustedToTime
+                }
+            });
+            return;
         }
 
-        if (field === 'to' && currentSchedule.from) {
-            // Ensure 'to' time is after 'from' time
-            if (value <= currentSchedule.from) {
-                // Auto-adjust 'from' time to be 1 hour before 'to'
-                const toTime = new Date(`2000-01-01T${value}`);
-                const fromTime = new Date(toTime.getTime() - 60 * 60 * 1000); // Subtract 1 hour
-                const adjustedFromTime = fromTime.toTimeString().slice(0, 5);
-
-                setData('availability', {
-                    ...data.availability,
-                    [day]: {
-                        ...currentSchedule,
-                        from: adjustedFromTime,
-                        to: value
-                    }
-                });
-                return;
-            }
+        // For enabled/disabled toggle
+        if (field === 'enabled') {
+            setData('availability', {
+                ...data.availability,
+                [day]: {
+                    ...currentSchedule,
+                    enabled: value
+                }
+            });
+            return;
         }
 
-        // Normal update
+        // Normal update for other fields
         setData('availability', {
             ...data.availability,
             [day]: {
@@ -1217,31 +1203,31 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
         });
     };
 
-    // Smart defaults based on teaching mode
+    // Smart defaults based on teaching mode (1-hour sessions)
     const handleTeachingModeChange = (mode: string) => {
         setData('teaching_mode', mode);
 
         if (mode === 'full-time') {
-            // Suggest professional full-time schedule
+            // Suggest professional full-time schedule (1-hour sessions)
             setData('availability', {
-                monday: { enabled: true, from: '09:00', to: '17:00' },
-                tuesday: { enabled: true, from: '09:00', to: '17:00' },
-                wednesday: { enabled: true, from: '09:00', to: '17:00' },
-                thursday: { enabled: true, from: '09:00', to: '17:00' },
-                friday: { enabled: true, from: '09:00', to: '17:00' },
+                monday: { enabled: true, from: '09:00', to: '10:00' },
+                tuesday: { enabled: true, from: '09:00', to: '10:00' },
+                wednesday: { enabled: true, from: '09:00', to: '10:00' },
+                thursday: { enabled: true, from: '09:00', to: '10:00' },
+                friday: { enabled: true, from: '09:00', to: '10:00' },
                 saturday: { enabled: false, from: '', to: '' },
                 sunday: { enabled: false, from: '', to: '' }
             });
         } else if (mode === 'part-time') {
-            // Suggest flexible part-time schedule
+            // Suggest flexible part-time schedule (1-hour sessions)
             setData('availability', {
-                monday: { enabled: true, from: '18:00', to: '21:00' },
-                tuesday: { enabled: true, from: '18:00', to: '21:00' },
+                monday: { enabled: true, from: '18:00', to: '19:00' },
+                tuesday: { enabled: true, from: '18:00', to: '19:00' },
                 wednesday: { enabled: false, from: '', to: '' },
-                thursday: { enabled: true, from: '18:00', to: '21:00' },
+                thursday: { enabled: true, from: '18:00', to: '19:00' },
                 friday: { enabled: false, from: '', to: '' },
-                saturday: { enabled: true, from: '10:00', to: '16:00' },
-                sunday: { enabled: true, from: '10:00', to: '16:00' }
+                saturday: { enabled: true, from: '10:00', to: '11:00' },
+                sunday: { enabled: true, from: '10:00', to: '11:00' }
             });
         }
     };
@@ -1916,7 +1902,7 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
             <div>
                     <Label className="text-sm sm:text-base">Select Your Availability</Label>
                     <p className="text-xs sm:text-sm text-gray-600 mb-2">
-                        Set your weekly teaching schedule
+                        Set your weekly teaching schedule. Each session is exactly 1 hour long.
                     </p>
 
 
@@ -1957,22 +1943,20 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
                                             value={schedule.from} 
                                                 onChange={(e) => handleAvailabilityChange(day, 'from', e.target.value)}
                                                 className="w-full sm:w-32"
-                                                step="900" // 15-minute intervals
+                                                step="3600" // 1-hour intervals
                                                 min="06:00"
-                                                max="23:00"
+                                                max="22:00"
                                             />
                                     </div>
                                     
                                     <div>
-                                            <Label htmlFor={`${day}-to`} className="text-xs sm:text-sm">End Time</Label>
+                                            <Label htmlFor={`${day}-to`} className="text-xs sm:text-sm">End Time (Auto: +1 hour)</Label>
                                             <Input
                                                 type="time"
                                             value={schedule.to} 
-                                                onChange={(e) => handleAvailabilityChange(day, 'to', e.target.value)}
-                                                className="w-full sm:w-32"
-                                                step="900" // 15-minute intervals
-                                                min={schedule.from || "06:00"}
-                                                max="23:59"
+                                                readOnly
+                                                disabled
+                                                className="w-full sm:w-32 bg-gray-50 cursor-not-allowed"
                                             />
                                     </div>
                                 </div>
@@ -2081,7 +2065,9 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
                             }`}
                         />
                         <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                            Recommended: ₦{RATE_LIMITS.ngn.minimum.toLocaleString()} - ₦{RATE_LIMITS.ngn.recommended_max.toLocaleString()} • Auto-converts to USD: ${data.hourly_rate_usd || '0.00'}
+                            Recommended: ₦{RATE_LIMITS.ngn.minimum.toLocaleString()} - ₦{RATE_LIMITS.ngn.recommended_max.toLocaleString()} 
+                            <br />
+                             • Auto-converts to USD: ${data.hourly_rate_usd || '0.00'}
                         </p>
                         {rateValidation.message && (
                             <p className={`text-xs sm:text-sm mt-1 font-medium ${
@@ -2127,7 +2113,9 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
                             className="mt-1"
                         />
                         <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                            Recommended: ${RATE_LIMITS.usd.minimum} - ${RATE_LIMITS.usd.recommended_max} • Auto-converts to NGN: ₦{data.hourly_rate_ngn || '0'}
+                            Recommended: ${RATE_LIMITS.usd.minimum} - ${RATE_LIMITS.usd.recommended_max} 
+                            <br />
+                            • Auto-converts to NGN: ₦{data.hourly_rate_ngn || '0'}
                         </p>
                         {errors.hourly_rate_usd && <p className="text-red-500 text-sm mt-1">{errors.hourly_rate_usd}</p>}
                     </div>
@@ -2140,10 +2128,11 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                                <SelectItem value="mobile_money">Mobile Money</SelectItem>
-                                <SelectItem value="paypal">PayPal</SelectItem>
                             </SelectContent>
                         </Select>
+                        <p className="text-xs text-gray-500 mt-1">
+                            Currently, only bank transfer withdrawals are supported. Mobile money and PayPal coming soon.
+                        </p>
                         {errors.withdrawal_method && <p className="text-red-500 text-sm mt-1">{errors.withdrawal_method}</p>}
                     </div>
                 </div>
@@ -2217,63 +2206,7 @@ export default function TeacherOnboarding({ user, subjects, availableCurrencies 
                     </div>
                 )}
 
-                {/* Mobile Money Details */}
-                {data.withdrawal_method === 'mobile_money' && (
-                    <div className="space-y-4 p-3 sm:p-4 bg-gray-50 rounded-lg">
-                        <h4 className="font-medium text-sm sm:text-base">Mobile Money Details</h4>
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                            <div>
-                                <Label htmlFor="mobile_provider" className="text-sm sm:text-base">Mobile Provider</Label>
-                                <Select value={data.mobile_provider} onValueChange={(value) => setData('mobile_provider', value)}>
-                                    <SelectTrigger id="mobile_provider" className="mt-1">
-                                        <SelectValue placeholder="Select provider" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="mtn">MTN</SelectItem>
-                                        <SelectItem value="airtel">Airtel</SelectItem>
-                                        <SelectItem value="9mobile">9mobile</SelectItem>
-                                        <SelectItem value="glo">Glo</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                {errors.mobile_provider && <p className="text-red-500 text-sm mt-1">{errors.mobile_provider}</p>}
-                            </div>
 
-                            <div>
-                                <Label htmlFor="mobile_number" className="text-sm sm:text-base">Mobile Number</Label>
-                                <Input
-                                    id="mobile_number"
-                                    type="text"
-                                    value={data.mobile_number || ''}
-                                    onChange={(e) => setData('mobile_number', e.target.value)}
-                                    className="mt-1"
-                                    placeholder="Enter mobile number"
-                                />
-                                {errors.mobile_number && <p className="text-red-500 text-sm mt-1">{errors.mobile_number}</p>}
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* PayPal Details */}
-                {data.withdrawal_method === 'paypal' && (
-                    <div className="space-y-4 p-3 sm:p-4 bg-gray-50 rounded-lg">
-                        <h4 className="font-medium text-sm sm:text-base">PayPal Details</h4>
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                            <div>
-                                <Label htmlFor="paypal_email" className="text-sm sm:text-base">PayPal Email</Label>
-                                <Input
-                                    id="paypal_email"
-                                    type="email"
-                                    value={data.paypal_email || ''}
-                                    onChange={(e) => setData('paypal_email', e.target.value)}
-                                    className="mt-1"
-                                    placeholder="Enter PayPal email"
-                                />
-                                {errors.paypal_email && <p className="text-red-500 text-sm mt-1">{errors.paypal_email}</p>}
-                            </div>
-                        </div>
-                    </div>
-                )}
             </div>
         </div>
     );

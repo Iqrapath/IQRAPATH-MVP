@@ -192,7 +192,7 @@ function TeacherDetailsCard({ teacher }: { teacher: Props['teacher'] }) {
                                 verified: teacher.verified || false,
                             }}
                             trigger={
-                                <button className="text-[#2c7870] hover:text-[#236158] font-medium">
+                                <button className="text-[#2c7870] hover:text-[#236158] font-medium cursor-pointer">
                                     View Profile
                                 </button>
                             }
@@ -271,7 +271,7 @@ export default function ClassDetails({ auth, booking, teacher }: Props) {
                     {/* Reschedule Button */}
                     <button
                         onClick={handleRescheduleBooking}
-                        className="bg-[#2c7870] hover:bg-[#236158] text-white rounded-full px-8 py-3 font-medium transition-colors"
+                        className="bg-[#2c7870] hover:bg-[#236158] text-white rounded-full px-8 py-3 font-medium transition-colors cursor-pointer"
                     >
                         Reschedule
                     </button>
@@ -279,7 +279,7 @@ export default function ClassDetails({ auth, booking, teacher }: Props) {
                     {/* Cancel Booking Button */}
                     <button
                         onClick={handleCancelBooking}
-                        className="border border-[#2c7870] text-[#2c7870] hover:bg-[#2c7870] hover:text-white rounded-full px-8 py-3 font-medium transition-colors"
+                        className="border border-[#2c7870] text-[#2c7870] hover:bg-[#2c7870] hover:text-white rounded-full px-8 py-3 font-medium transition-colors cursor-pointer"
                     >
                         Cancel Booking
                     </button>
