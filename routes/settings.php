@@ -18,4 +18,10 @@ Route::middleware('auth')->group(function () {
     Route::get('settings/appearance', function () {
         return Inertia::render('settings/appearance');
     })->name('appearance');
+
+    // OAuth account unlinking
+    Route::post('settings/oauth/unlink', function () {
+        // TODO: Implement OAuth unlinking
+        return back()->with('success', 'OAuth provider unlinked successfully');
+    })->name('settings.oauth.unlink');
 });

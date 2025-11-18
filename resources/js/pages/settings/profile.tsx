@@ -1,11 +1,12 @@
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Transition } from '@headlessui/react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { FormEventHandler, useState } from 'react';
+import { FormEventHandler, useState, useEffect } from 'react';
 
 import DeleteUser from '@/components/delete-user';
 import HeadingSmall from '@/components/heading-small';
 import InputError from '@/components/input-error';
+import OAuthProviders from '@/components/settings/oauth-providers';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,10 +14,12 @@ import { Label } from '@/components/ui/label';
 import { useInitials } from '@/hooks/use-initials';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
-import { Camera, X } from 'lucide-react';
+import { Camera, X, CheckCircle, XCircle } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { UserStatus } from '@/components/user-status';
 import { type StatusType } from '@/types';
+import { toast } from 'sonner';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -36,17 +39,61 @@ type ProfileForm = {
 };
 
 export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: boolean; status?: string }) {
-    const { auth } = usePage<SharedData>().props;
+    const { auth, flash } = usePage<SharedData>().props;
     const getInitials = useInitials();
     const [avatarPreview, setAvatarPreview] = useState<string | null>(auth.user.avatar || null);
+    const [showFlashAlert, setShowFlashAlert] = useState(false);
+
+    // Handle flash messages for OAuth operations
+    useEffect(() => {
+        // Check for OAuth messages in query parameters
+        const params = new URLSearchParams(window.location.search);
+        const oauthSuccess = params.get('oauth_success');
+        const oauthError = params.get('oauth_error');
+        
+        if (oauthSuccess || oauthError || flash?.success || flash?.error) {
+            setShowFlashAlert(true);
+            
+            const message = oauthError || flash?.error || oauthSuccess || flash?.success;
+            const isError = !!(oauthError || flash?.error);
+            
+            // Delay toast to ensure Toaster is mounted
+            const toastTimer = setTimeout(() => {
+                if (isError) {
+                    toast.error(message, { 
+                        duration: 5000,
+                        position: 'top-center',
+                    });
+                } else {
+                    toast.success(message, { 
+                        duration: 5000,
+                        position: 'top-center',
+                    });
+                }
+            }, 100);
+            
+            // Clean up URL if OAuth params exist
+            if (oauthSuccess || oauthError) {
+                window.history.replaceState({}, '', window.location.pathname);
+            }
+            
+            // Auto-hide alert banner after 10 seconds
+            const hideTimer = setTimeout(() => setShowFlashAlert(false), 5000);
+            
+            return () => {
+                clearTimeout(toastTimer);
+                clearTimeout(hideTimer);
+            };
+        }
+    }, [flash]);
 
     const { data, setData, post, errors, processing, recentlySuccessful } = useForm<ProfileForm>({
         name: auth.user.name,
-        email: auth.user.email,
+        email: auth.user.email || '',
         phone: auth.user.phone || '',
         location: auth.user.location || '',
         avatar: auth.user.avatar || null,
-        status_type: auth.user.status_type || 'online',
+        status_type: (auth.user.status_type as StatusType) || 'online',
         status_message: auth.user.status_message || '',
     });
 
@@ -82,6 +129,38 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
 
             <SettingsLayout>
                 <div className="space-y-6">
+                    {showFlashAlert && (
+                        <>
+                            {(() => {
+                                const params = new URLSearchParams(window.location.search);
+                                const oauthError = params.get('oauth_error');
+                                const oauthSuccess = params.get('oauth_success');
+                                const errorMsg = oauthError || flash?.error;
+                                const successMsg = oauthSuccess || flash?.success;
+                                
+                                if (errorMsg) {
+                                    return (
+                                        <Alert variant="destructive" className="mb-4">
+                                            <XCircle className="h-4 w-4" />
+                                            <AlertDescription>{errorMsg}</AlertDescription>
+                                        </Alert>
+                                    );
+                                }
+                                
+                                if (successMsg) {
+                                    return (
+                                        <Alert className="mb-4 border-green-500 bg-green-50 text-green-900">
+                                            <CheckCircle className="h-4 w-4 text-green-600" />
+                                            <AlertDescription>{successMsg}</AlertDescription>
+                                        </Alert>
+                                    );
+                                }
+                                
+                                return null;
+                            })()}
+                        </>
+                    )}
+                    
                     <HeadingSmall title="Profile information" description="Update your account information" />
 
                     <form onSubmit={submit} className="space-y-6">
@@ -276,6 +355,8 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                         </div>
                     </form>
                 </div>
+
+                <OAuthProviders user={auth.user} />
 
                 <DeleteUser />
             </SettingsLayout>

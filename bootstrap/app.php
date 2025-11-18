@@ -45,6 +45,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'verify.stripe' => \App\Http\Middleware\VerifyStripeSignature::class,
             'verify.paystack' => \App\Http\Middleware\VerifyPaystackSignature::class,
             'verify.paypal' => \App\Http\Middleware\VerifyPayPalSignature::class,
+            'throttle.oauth' => \App\Http\Middleware\ThrottleOAuthRequests::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

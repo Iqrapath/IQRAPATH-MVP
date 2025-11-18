@@ -50,18 +50,22 @@ Route::middleware('guest')->group(function () {
 
     Route::post('reset-password', [NewPasswordController::class, 'store'])
         ->name('password.store');
+});
 
-    // OAuth routes
-    Route::get('auth/google', [OAuthController::class, 'redirectToGoogle'])
-        ->name('auth.google');
+// OAuth routes (outside guest middleware to allow account linking)
+Route::get('auth/google', [OAuthController::class, 'redirectToGoogle'])
+    ->name('auth.google');
+
+Route::get('auth/facebook', [OAuthController::class, 'redirectToFacebook'])
+    ->name('auth.facebook');
+
+// OAuth callback routes with rate limiting
+Route::middleware(['throttle.oauth:10,1'])->group(function () {
     Route::get('auth/google/callback', [OAuthController::class, 'handleGoogleCallback'])
         ->name('auth.google.callback');
     
-    Route::get('auth/facebook', [OAuthController::class, 'redirectToFacebook'])
-        ->name('auth.facebook');
     Route::get('auth/facebook/callback', [OAuthController::class, 'handleFacebookCallback'])
         ->name('auth.facebook.callback');
-    
 });
 
 Route::middleware('auth')->group(function () {

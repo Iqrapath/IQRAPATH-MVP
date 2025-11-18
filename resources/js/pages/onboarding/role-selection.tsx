@@ -1,5 +1,5 @@
 import { Head, useForm } from '@inertiajs/react';
-import { BookOpen, Users } from 'lucide-react';
+import { BookOpen, Users, GraduationCap } from 'lucide-react';
 import { FormEventHandler } from 'react';
 import { type User } from '@/types';
 
@@ -9,13 +9,14 @@ import AppLayout from '@/layouts/app-layout';
 
 interface RoleSelectionProps {
     user: User;
+    showTeacherOption?: boolean;
 }
 
 type RoleForm = {
-    role: 'student' | 'guardian' | '';
+    role: 'student' | 'guardian' | 'teacher' | '';
 };
 
-export default function RoleSelection({ user }: RoleSelectionProps) {
+export default function RoleSelection({ user, showTeacherOption = false }: RoleSelectionProps) {
     const { data, setData, post, processing, errors } = useForm<RoleForm>({
         role: '',
     });
@@ -27,7 +28,7 @@ export default function RoleSelection({ user }: RoleSelectionProps) {
         }
     };
 
-    const selectRole = (role: 'student' | 'guardian') => {
+    const selectRole = (role: 'student' | 'guardian' | 'teacher') => {
         setData('role', role);
     };
 
@@ -42,11 +43,42 @@ export default function RoleSelection({ user }: RoleSelectionProps) {
                             How do you want to use this platform?
                         </h1>
                         <p className="text-gray-600 text-sm">
-                            Kindly select how you like to use IqraQuest for learning
+                            Select your role to get started with IqraQuest
                         </p>
                     </div>
 
                     <form onSubmit={submit} className="space-y-4">
+                        {/* Teacher Option - Only show for OAuth users from login page */}
+                        {showTeacherOption && (
+                            <div 
+                                className={`relative cursor-pointer rounded-lg border-2 p-6 transition-all hover:border-teal-300 ${
+                                    data.role === 'teacher' ? 'border-teal-500 bg-teal-50' : 'border-gray-200 bg-white'
+                                }`}
+                                onClick={() => selectRole('teacher')}
+                            >
+                                <div className="flex items-center space-x-4">
+                                    <div className="flex-shrink-0">
+                                        <div className="w-12 h-12 bg-teal-100 rounded-full flex items-center justify-center">
+                                            <GraduationCap className="w-6 h-6 text-teal-600" />
+                                        </div>
+                                    </div>
+                                    <div className="flex-grow">
+                                        <h3 className="text-lg font-medium text-gray-900">
+                                            I'm a Teacher (I want to teach)
+                                        </h3>
+                                    </div>
+                                    <div className="flex-shrink-0">
+                                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                                            data.role === 'teacher' ? 'border-teal-500 bg-teal-500' : 'border-gray-300'
+                                        }`}>
+                                            {data.role === 'teacher' && (
+                                                <div className="w-2 h-2 bg-white rounded-full"></div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                         {/* Student Option */}
                         <div 
                             className={`relative cursor-pointer rounded-lg border-2 p-6 transition-all hover:border-teal-300 ${

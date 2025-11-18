@@ -29,6 +29,11 @@ export interface SharedData {
     auth: Auth;
     ziggy: Config & { location: string };
     sidebarOpen: boolean;
+    flash?: {
+        success?: string;
+        error?: string;
+        message?: string;
+    };
     [key: string]: unknown;
 }
 
@@ -59,6 +64,8 @@ export interface User {
     status_message?: string | null;
     last_active_at?: string | null;
     email_verified_at?: string | null;
+    provider?: 'google' | 'facebook' | null;
+    provider_id?: string | null;
     teacherProfile?: TeacherProfile;
     wallet_balance?: number | null;
     wallet?: Wallet;

@@ -30,6 +30,7 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $fillable = [
         'name',
         'email',
+        'email_verified_at',
         'phone',
         'avatar',
         'location',
@@ -919,5 +920,99 @@ class User extends Authenticatable implements MustVerifyEmail
                 'status' => 'read',
                 'read_at' => now(),
             ]);
+    }
+
+    /**
+     * Get the OAuth audit logs for this user.
+     */
+    public function oauthAuditLogs(): HasMany
+    {
+        return $this->hasMany(\App\Models\OAuthAuditLog::class);
+    }
+
+    /**
+     * Check if user has OAuth provider linked
+     */
+    public function hasOAuthProvider(?string $provider = null): bool
+    {
+        if ($provider === null) {
+            return !empty($this->provider);
+        }
+
+        return $this->provider === $provider;
+    }
+
+    /**
+     * Get the linked OAuth provider
+     */
+    public function getLinkedProvider(): ?string
+    {
+        return $this->provider;
+    }
+
+    /**
+     * Check if user can link an OAuth provider
+     */
+    public function canLinkProvider(string $provider): bool
+    {
+        // Can link if no provider is currently linked
+        if (!$this->provider) {
+            return true;
+        }
+
+        // Can't link if different provider already linked
+        if ($this->provider !== $provider) {
+            return false;
+        }
+
+        // Already linked to this provider
+        return false;
+    }
+
+    /**
+     * Check if user has password authentication
+     */
+    public function hasPasswordAuth(): bool
+    {
+        // Check if password is set and not a random OAuth password
+        // OAuth users get a random 32-character password
+        return !empty($this->password);
+    }
+
+    /**
+     * Check if user is OAuth-only (no password)
+     */
+    public function isOAuthOnly(): bool
+    {
+        return !empty($this->provider) && !empty($this->provider_id);
+    }
+
+    /**
+     * Get OAuth provider display name
+     */
+    public function getOAuthProviderDisplayName(): ?string
+    {
+        if (!$this->provider) {
+            return null;
+        }
+
+        return match ($this->provider) {
+            'google' => 'Google',
+            'facebook' => 'Facebook',
+            default => ucfirst($this->provider),
+        };
+    }
+
+    /**
+     * Check if user's avatar is from OAuth
+     */
+    public function hasOAuthAvatar(): bool
+    {
+        if (!$this->avatar) {
+            return false;
+        }
+
+        // Check if avatar is from OAuth storage
+        return str_starts_with($this->avatar, 'oauth/');
     }
 }

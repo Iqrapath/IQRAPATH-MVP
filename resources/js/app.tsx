@@ -26,7 +26,16 @@ createInertiaApp({
             <CurrencyProvider>
                 <LoadingProvider>
                     <App {...props} />
-                    <Toaster position="top-right" richColors />
+                    <Toaster 
+                        position="top-right" 
+                        richColors 
+                        expand={true}
+                        toastOptions={{
+                            style: {
+                                zIndex: 9999,
+                            },
+                        }}
+                    />
                 </LoadingProvider>
             </CurrencyProvider>
         );

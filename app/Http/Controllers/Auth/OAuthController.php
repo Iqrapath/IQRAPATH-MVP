@@ -5,25 +5,23 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Events\UserRegistered;
+use App\Exceptions\OAuthException;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\OnboardingController;
 use App\Models\User;
-use App\Services\FinancialService;
-use App\Services\NotificationService;
+use App\Services\OAuthService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
-use Inertia\Inertia;
-use Inertia\Response;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Laravel\Socialite\Facades\Socialite;
+use Laravel\Socialite\Two\InvalidStateException;
+use GuzzleHttp\Exception\ClientException;
 
 class OAuthController extends Controller
 {
     public function __construct(
-        private FinancialService $financialService,
-        private NotificationService $notificationService
+        private OAuthService $oauthService
     ) {}
 
     /**
@@ -31,10 +29,37 @@ class OAuthController extends Controller
      */
     public function redirectToGoogle(Request $request): RedirectResponse
     {
-        $intendedRole = $request->query('role', 'student-guardian');
+        // Use 'any' as default to indicate user can choose any role
+        // 'teacher' = teacher registration
+        // 'student-guardian' = student-guardian registration
+        // 'any' = login page (can choose any role)
+        $intendedRole = $request->query('role', 'any');
+        
+        // Store return URL if provided (for account linking from settings)
+        if ($request->query('return_url')) {
+            $returnUrl = $request->query('return_url');
+            $isLinking = Auth::check(); // User is already logged in = account linking
+            
+            session([
+                'oauth_return_url' => $returnUrl,
+                'oauth_is_linking' => $isLinking,
+                'oauth_linking_user_id' => $isLinking ? Auth::id() : null
+            ]);
+            session()->save(); // Force save session
+            
+            Log::info('OAuth return URL stored', [
+                'return_url' => $returnUrl,
+                'is_linking' => $isLinking,
+                'user_id' => Auth::id(),
+                'session_id' => session()->getId()
+            ]);
+        }
+        
+        // Generate and store secure state token
+        $state = $this->generateSecureState($intendedRole);
         
         return Socialite::driver('google')
-            ->with(['state' => $intendedRole])
+            ->with(['state' => $state])
             ->redirect();
     }
 
@@ -43,10 +68,34 @@ class OAuthController extends Controller
      */
     public function redirectToFacebook(Request $request): RedirectResponse
     {
-        $intendedRole = $request->query('role', 'student-guardian');
+        // Use 'any' as default to indicate user can choose any role
+        $intendedRole = $request->query('role', 'any');
+        
+        // Store return URL if provided (for account linking from settings)
+        if ($request->query('return_url')) {
+            $returnUrl = $request->query('return_url');
+            $isLinking = Auth::check(); // User is already logged in = account linking
+            
+            session([
+                'oauth_return_url' => $returnUrl,
+                'oauth_is_linking' => $isLinking,
+                'oauth_linking_user_id' => $isLinking ? Auth::id() : null
+            ]);
+            session()->save(); // Force save session
+            
+            Log::info('OAuth return URL stored', [
+                'return_url' => $returnUrl,
+                'is_linking' => $isLinking,
+                'user_id' => Auth::id(),
+                'session_id' => session()->getId()
+            ]);
+        }
+        
+        // Generate and store secure state token
+        $state = $this->generateSecureState($intendedRole);
         
         return Socialite::driver('facebook')
-            ->with(['state' => $intendedRole])
+            ->with(['state' => $state])
             ->redirect();
     }
 
@@ -56,13 +105,35 @@ class OAuthController extends Controller
     public function handleGoogleCallback(Request $request): RedirectResponse
     {
         try {
-            $socialUser = Socialite::driver('google')->user();
-            $intendedRole = $request->query('state', 'student-guardian');
+            // Validate and decode state parameter
+            $state = $request->query('state');
+            $intendedRole = $this->validateAndDecodeState($state, 'google');
+            
+            $socialUser = Socialite::driver('google')->stateless()->user();
             
             return $this->handleOAuthCallback($socialUser, 'google', $intendedRole);
+        } catch (InvalidStateException $e) {
+            Log::warning('OAuth state mismatch', [
+                'provider' => 'google',
+                'error' => $e->getMessage(),
+            ]);
+            return $this->handleOAuthError('Authentication session expired. Please try again.');
+        } catch (ClientException $e) {
+            Log::error('Google OAuth provider error', [
+                'error' => $e->getMessage(),
+                'code' => $e->getCode(),
+            ]);
+            return $this->handleOAuthError('Google authentication is temporarily unavailable. Please try again later or use email/password login.');
+        } catch (OAuthException $e) {
+            return $this->handleOAuthError($e->getMessage());
+        } catch (ValidationException $e) {
+            return $this->handleOAuthError($e->getMessage());
         } catch (\Exception $e) {
-            return redirect()->route('login')
-                ->withErrors(['oauth' => 'Google authentication failed. Please try again.']);
+            Log::error('Unexpected Google OAuth error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return $this->handleOAuthError('Google authentication failed. Please try again.');
         }
     }
 
@@ -72,13 +143,35 @@ class OAuthController extends Controller
     public function handleFacebookCallback(Request $request): RedirectResponse
     {
         try {
-            $socialUser = Socialite::driver('facebook')->user();
-            $intendedRole = $request->query('state', 'student-guardian');
+            // Validate and decode state parameter
+            $state = $request->query('state');
+            $intendedRole = $this->validateAndDecodeState($state, 'facebook');
+            
+            $socialUser = Socialite::driver('facebook')->stateless()->user();
             
             return $this->handleOAuthCallback($socialUser, 'facebook', $intendedRole);
+        } catch (InvalidStateException $e) {
+            Log::warning('OAuth state mismatch', [
+                'provider' => 'facebook',
+                'error' => $e->getMessage(),
+            ]);
+            return $this->handleOAuthError('Authentication session expired. Please try again.');
+        } catch (ClientException $e) {
+            Log::error('Facebook OAuth provider error', [
+                'error' => $e->getMessage(),
+                'code' => $e->getCode(),
+            ]);
+            return $this->handleOAuthError('Facebook authentication is temporarily unavailable. Please try again later or use email/password login.');
+        } catch (OAuthException $e) {
+            return $this->handleOAuthError($e->getMessage());
+        } catch (ValidationException $e) {
+            return $this->handleOAuthError($e->getMessage());
         } catch (\Exception $e) {
-            return redirect()->route('login')
-                ->withErrors(['oauth' => 'Facebook authentication failed. Please try again.']);
+            Log::error('Unexpected Facebook OAuth error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return $this->handleOAuthError('Facebook authentication failed. Please try again.');
         }
     }
 
@@ -87,77 +180,83 @@ class OAuthController extends Controller
      */
     private function handleOAuthCallback($socialUser, string $provider, string $intendedRole): RedirectResponse
     {
-        return DB::transaction(function () use ($socialUser, $provider, $intendedRole) {
-            // Check if user already exists
-            $existingUser = User::where('email', $socialUser->getEmail())->first();
-
-            if ($existingUser) {
-                // User exists, log them in
-                Auth::login($existingUser);
-                
-                return $this->redirectBasedOnRole($existingUser);
-            }
-
-            // Create new user
-            $user = $this->createUserFromSocial($socialUser, $provider, $intendedRole);
-            
-            // Log the user in
-            Auth::login($user);
-
-            // Dispatch user registered event
-            event(new UserRegistered($user));
-
-            // Redirect based on intended role
-            return $this->redirectBasedOnIntendedRole($user, $intendedRole);
-        });
-    }
-
-    /**
-     * Create user from social provider data
-     */
-    private function createUserFromSocial($socialUser, string $provider, string $intendedRole): User
-    {
-        $user = User::create([
-            'name' => $socialUser->getName(),
-            'email' => $socialUser->getEmail(),
-            'email_verified_at' => now(),
-            'password' => bcrypt(Str::random(32)), // Random password for OAuth users
-            'role' => $this->determineUserRole($intendedRole),
-            'status' => 'active',
-            'provider' => $provider,
-            'provider_id' => $socialUser->getId(),
-            'avatar' => $socialUser->getAvatar(),
+        // Get linking context from session BEFORE processing
+        $returnUrl = session('oauth_return_url');
+        $isLinking = session('oauth_is_linking', false);
+        $linkingUserId = session('oauth_linking_user_id');
+        
+        Log::info('OAuth callback started', [
+            'return_url' => $returnUrl,
+            'is_linking' => $isLinking,
+            'linking_user_id' => $linkingUserId,
+            'current_user_id' => Auth::id(),
+            'session_id' => session()->getId()
         ]);
+        
+        // Process authentication through OAuthService
+        $user = $this->oauthService->processAuthentication($socialUser, $provider, $intendedRole);
 
-        // Create appropriate profile and wallet
-        $this->createUserProfileAndWallet($user);
-
-        return $user;
-    }
-
-    /**
-     * Determine user role based on intended role
-     */
-    private function determineUserRole(string $intendedRole): string
-    {
-        return match ($intendedRole) {
-            'teacher' => 'teacher',
-            'student-guardian' => 'unassigned', // Will be assigned in role selection
-            default => 'unassigned',
-        };
-    }
-
-    /**
-     * Create user profile and wallet based on role
-     */
-    private function createUserProfileAndWallet(User $user): void
-    {
-        if ($user->role === 'teacher') {
-            // Use OnboardingController's method for consistency
-            $onboardingController = new OnboardingController($this->financialService);
-            $onboardingController->createUserProfileAndWallet($user, 'teacher');
+        // Only log in if this is NOT an account linking operation
+        if (!$isLinking) {
+            Auth::login($user);
+            
+            // Dispatch user registered event if new user
+            if ($user->wasRecentlyCreated) {
+                event(new UserRegistered($user));
+                
+                // Store intended role in session for role selection page
+                session(['oauth_intended_role' => $intendedRole]);
+            }
+        } else {
+            // Verify the linking user matches the authenticated user
+            if ($linkingUserId !== $user->id) {
+                Log::warning('OAuth linking user mismatch', [
+                    'expected_user_id' => $linkingUserId,
+                    'actual_user_id' => $user->id,
+                    'provider' => $provider
+                ]);
+                
+                $errorMessage = 'Account linking failed. The OAuth account belongs to a different user.';
+                
+                Log::info('Redirecting with error', [
+                    'error' => $errorMessage,
+                    'return_url' => $returnUrl
+                ]);
+                
+                // Clear OAuth session data
+                session()->forget(['oauth_return_url', 'oauth_is_linking', 'oauth_linking_user_id']);
+                
+                // Use query parameter as fallback since session might not persist
+                return redirect($returnUrl . '?oauth_error=' . urlencode($errorMessage));
+            }
         }
-        // For unassigned users, profile and wallet will be created after role selection
+        
+        Log::info('OAuth callback redirect check', [
+            'return_url' => $returnUrl,
+            'session_id' => session()->getId(),
+            'user_id' => $user->id,
+            'was_recently_created' => $user->wasRecentlyCreated,
+            'is_linking' => $isLinking
+        ]);
+        
+        // If there's a return URL (account linking from settings)
+        if ($returnUrl && $isLinking) {
+            $successMessage = ucfirst($provider) . ' account linked successfully!';
+            
+            // Clear OAuth session data
+            session()->forget(['oauth_return_url', 'oauth_is_linking', 'oauth_linking_user_id']);
+            
+            // Use query parameter as fallback since session might not persist
+            return redirect($returnUrl . '?oauth_success=' . urlencode($successMessage));
+        }
+
+        // Clear any leftover session data
+        session()->forget(['oauth_return_url', 'oauth_is_linking', 'oauth_linking_user_id']);
+
+        // Determine redirect route using centralized logic
+        $route = $this->oauthService->determineRedirectRoute($user, $intendedRole);
+
+        return redirect()->route($route);
     }
 
     /**
@@ -186,6 +285,103 @@ class OAuthController extends Controller
             'student-guardian' => redirect()->route('onboarding.role-selection'),
             default => redirect()->route('onboarding.role-selection'),
         };
+    }
+
+    /**
+     * Handle OAuth error and redirect appropriately
+     */
+    private function handleOAuthError(string $message): RedirectResponse
+    {
+        // Check if this was an account linking attempt
+        $returnUrl = session('oauth_return_url');
+        
+        // Clear OAuth session data
+        session()->forget(['oauth_return_url', 'oauth_is_linking', 'oauth_linking_user_id']);
+        
+        if ($returnUrl) {
+            // Return to settings with flash error
+            return redirect($returnUrl)->with('error', $message);
+        }
+        
+        // Regular login attempt - return to login page with form error
+        return redirect()->route('login')->withErrors(['oauth' => $message]);
+    }
+
+    /**
+     * Generate secure state token
+     */
+    private function generateSecureState(string $intendedRole): string
+    {
+        // Create cryptographically secure state token
+        $token = bin2hex(random_bytes(16));
+        
+        // Store state in session with expiration (5 minutes)
+        session()->put("oauth_state_{$token}", [
+            'intended_role' => $intendedRole,
+            'expires_at' => now()->addMinutes(5)->timestamp,
+        ]);
+        
+        return $token;
+    }
+
+    /**
+     * Validate and decode state parameter
+     */
+    private function validateAndDecodeState(?string $state, string $provider): string
+    {
+        if (!$state) {
+            Log::warning('OAuth state parameter missing', [
+                'provider' => $provider,
+                'ip' => request()->ip(),
+            ]);
+            
+            throw new OAuthException('Invalid authentication request. Please try again.');
+        }
+
+        // Retrieve state from session
+        $stateData = session()->get("oauth_state_{$state}");
+        
+        if (!$stateData) {
+            Log::warning('OAuth state not found in session', [
+                'provider' => $provider,
+                'state' => $state,
+                'ip' => request()->ip(),
+            ]);
+            
+            throw new OAuthException('Authentication session expired. Please try again.');
+        }
+
+        // Check if state has expired
+        if ($stateData['expires_at'] < now()->timestamp) {
+            session()->forget("oauth_state_{$state}");
+            
+            Log::warning('OAuth state expired', [
+                'provider' => $provider,
+                'state' => $state,
+                'ip' => request()->ip(),
+            ]);
+            
+            throw new OAuthException('Authentication session expired. Please try again.');
+        }
+
+        // Validate intended role
+        $intendedRole = $stateData['intended_role'] ?? 'any';
+        $validRoles = ['teacher', 'student-guardian', 'any'];
+        
+        if (!in_array($intendedRole, $validRoles)) {
+            Log::warning('Invalid intended role in OAuth state', [
+                'provider' => $provider,
+                'intended_role' => $intendedRole,
+                'ip' => request()->ip(),
+            ]);
+            
+            $intendedRole = 'any'; // Default to safe value (can choose any role)
+        }
+
+        // Remove state from session (one-time use)
+        session()->forget("oauth_state_{$state}");
+
+        return $intendedRole;
     }
 
 }

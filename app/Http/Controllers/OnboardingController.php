@@ -42,8 +42,19 @@ class OnboardingController extends Controller
             return $this->redirectToDashboard($user->role);
         }
 
+        // Determine available roles based on intended role from OAuth
+        // 'any' = from login page, show all 3 options (teacher, student, guardian)
+        // 'student-guardian' = from register page, show only 2 options (student, guardian)
+        // 'teacher' = from teacher register page, shouldn't reach here
+        $intendedRole = session('oauth_intended_role');
+        $showTeacherOption = $intendedRole === 'any';
+        
+        // Clear the session after using it
+        session()->forget('oauth_intended_role');
+        
         return Inertia::render('onboarding/role-selection', [
             'user' => $user,
+            'showTeacherOption' => $showTeacherOption,
         ]);
     }
 
@@ -93,19 +104,35 @@ class OnboardingController extends Controller
     }
 
     /**
-     * Handle role selection for student/guardian users.
+     * Handle role selection for student/guardian/teacher users.
      */
     public function store(Request $request): RedirectResponse
     {
+        $user = $request->user();
+        
+        // Determine allowed roles based on intended role from OAuth
+        // 'any' = from login page, allow all 3 roles
+        // 'student-guardian' = from register page, allow only student and guardian
+        $intendedRole = session('oauth_intended_role');
+        $allowedRoles = $intendedRole === 'any'
+            ? ['student', 'guardian', 'teacher']
+            : ['student', 'guardian'];
+        
         $request->validate([
-            'role' => 'required|in:student,guardian',
+            'role' => 'required|in:' . implode(',', $allowedRoles),
         ]);
 
-        $user = $request->user();
+        // Clear the session after validation
+        session()->forget('oauth_intended_role');
+
         $user->update(['role' => $request->role]);
 
-        // Redirect to dashboard with onboarding modal flag
+        // Create appropriate profile and wallet for the selected role
+        $this->createUserProfileAndWallet($user, $request->role);
+
+        // Redirect based on selected role
         return match ($request->role) {
+            'teacher' => redirect()->route('onboarding.teacher'),
             'student' => redirect()->route('student.dashboard')->with('showOnboarding', true),
             'guardian' => redirect()->route('guardian.dashboard')->with('showOnboarding', true),
             default => redirect()->route('dashboard'),
@@ -1147,7 +1174,7 @@ class OnboardingController extends Controller
         ]);
 
         // Create student wallet
-        $this->walletService->createStudentWallet($user);
+        $this->walletService->getStudentWallet($user);
     }
 
     /**
@@ -1168,7 +1195,7 @@ class OnboardingController extends Controller
         ]);
 
         // Create guardian wallet
-        $this->walletService->createGuardianWallet($user);
+        $this->walletService->getGuardianWallet($user);
     }
 
     /**
@@ -1198,7 +1225,16 @@ class OnboardingController extends Controller
             'payment_methods' => [],
         ]);
 
-        // Create teacher wallet
-        $this->walletService->createTeacherWallet($user);
+        // Create teacher wallet and earnings
+        $this->walletService->getTeacherWallet($user);
+        
+        // Create teacher earnings record
+        \App\Models\TeacherEarning::create([
+            'teacher_id' => $user->id,
+            'available_balance' => 0,
+            'pending_balance' => 0,
+            'total_earned' => 0,
+            'total_withdrawn' => 0,
+        ]);
     }
 }
