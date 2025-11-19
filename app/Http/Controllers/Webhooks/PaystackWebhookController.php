@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 
-class PayStackWebhookController extends Controller
+class PaystackWebhookController extends Controller
 {
     public function __construct(
         private PayStackTransferService $payStackService,

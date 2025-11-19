@@ -1,116 +1,146 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\StoreMessageRequest;
-use App\Http\Resources\MessageResource;
-use App\Models\Message;
-use App\Models\User;
 use App\Services\MessageService;
-use Illuminate\Http\JsonResponse;
+use App\Models\Conversation;
+use App\Models\Message;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\JsonResponse;
 
 class MessageController extends Controller
 {
-    protected MessageService $messageService;
+    public function __construct(
+        private MessageService $messageService
+    ) {}
 
     /**
-     * Create a new controller instance.
+     * Send a message in a conversation.
      *
-     * @param MessageService $messageService
+     * @param  Request  $request
+     * @return JsonResponse
      */
-    public function __construct(MessageService $messageService)
+    public function store(Request $request): JsonResponse
     {
-        $this->messageService = $messageService;
-    }
+        $request->validate([
+            'conversation_id' => 'required|exists:conversations,id',
+            'content' => 'required|string|max:10000',
+            'type' => 'sometimes|in:text,image,file,system',
+            'attachments' => 'sometimes|array',
+            'attachments.*' => 'file|max:10240', // 10MB max per file
+        ]);
 
-    /**
-     * Display a listing of the resource.
-     */
-    public function index(Request $request): AnonymousResourceCollection
-    {
-        $perPage = $request->input('per_page', 15);
-        $messages = $this->messageService->getUserMessages($request->user(), $perPage);
-        
-        return MessageResource::collection($messages);
-    }
+        $conversation = Conversation::findOrFail($request->conversation_id);
+        $this->authorize('sendMessage', $conversation);
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(StoreMessageRequest $request): MessageResource
-    {
-        $sender = $request->user();
-        $recipient = User::findOrFail($request->input('recipient_id'));
-        $content = $request->input('content');
-        $type = $request->input('type', 'text');
-        $metadata = $request->input('metadata');
-        
-        $message = $this->messageService->sendMessage($sender, $recipient, $content, $type, $metadata);
-        
-        return new MessageResource($message);
-    }
+        try {
+            $message = $this->messageService->sendMessage(
+                $request->user(),
+                $request->conversation_id,
+                $request->content,
+                $request->input('type', 'text'),
+                $request->file('attachments', [])
+            );
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Message $message): MessageResource
-    {
-        return new MessageResource($message);
-    }
-
-    /**
-     * Get messages between the authenticated user and another user.
-     */
-    public function withUser(Request $request, User $user): AnonymousResourceCollection
-    {
-        $perPage = $request->input('per_page', 15);
-        $messages = $this->messageService->getMessagesBetweenUsers($request->user(), $user, $perPage);
-        
-        return MessageResource::collection($messages);
-    }
-
-    /**
-     * Mark the specified message as read.
-     */
-    public function markAsRead(Message $message): JsonResponse
-    {
-        // Check if the user is the recipient of the message
-        if ($message->recipient_id !== request()->user()->id) {
-            return response()->json(['error' => 'Unauthorized'], 403);
+            return response()->json([
+                'success' => true,
+                'data' => $message->load(['sender', 'attachments']),
+                'message' => 'Message sent successfully',
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 400);
         }
-        
-        $this->messageService->markAsRead($message);
-        
+    }
+
+    /**
+     * Update a message.
+     *
+     * @param  Request  $request
+     * @param  int  $messageId
+     * @return JsonResponse
+     */
+    public function update(Request $request, int $messageId): JsonResponse
+    {
+        $request->validate([
+            'content' => 'required|string|max:10000',
+        ]);
+
+        $message = Message::findOrFail($messageId);
+        $this->authorize('update', $message);
+
+        $message->update([
+            'content' => $request->content,
+        ]);
+
         return response()->json([
-            'message' => 'Message marked as read',
-            'data' => new MessageResource($message)
+            'success' => true,
+            'data' => $message->load(['sender', 'attachments']),
+            'message' => 'Message updated successfully',
         ]);
     }
 
     /**
-     * Mark all messages as read for the authenticated user.
+     * Delete a message.
+     *
+     * @param  Request  $request
+     * @param  int  $messageId
+     * @return JsonResponse
+     */
+    public function destroy(Request $request, int $messageId): JsonResponse
+    {
+        $message = Message::findOrFail($messageId);
+        $this->authorize('delete', $message);
+
+        $message->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Message deleted successfully',
+        ]);
+    }
+
+    /**
+     * Mark a specific message as read.
+     *
+     * @param  Request  $request
+     * @param  int  $messageId
+     * @return JsonResponse
+     */
+    public function markAsRead(Request $request, int $messageId): JsonResponse
+    {
+        $message = Message::findOrFail($messageId);
+        
+        // Verify user is a participant in the conversation
+        $conversation = $message->conversation;
+        $this->authorize('view', $conversation);
+
+        $this->messageService->markMessageAsRead($request->user(), $messageId);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Message marked as read',
+        ]);
+    }
+
+    /**
+     * Mark all messages as read for the user.
+     *
+     * @param  Request  $request
+     * @return JsonResponse
      */
     public function markAllAsRead(Request $request): JsonResponse
     {
         $this->messageService->markAllAsRead($request->user());
-        
-        return response()->json([
-            'message' => 'All messages marked as read'
-        ]);
-    }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Message $message): JsonResponse
-    {
-        $this->messageService->deleteMessage($message);
-        
         return response()->json([
-            'message' => 'Message deleted successfully'
+            'success' => true,
+            'message' => 'All messages marked as read',
         ]);
     }
 }

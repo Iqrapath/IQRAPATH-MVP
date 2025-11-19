@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\API\NotificationController;
 use App\Http\Controllers\API\UserNotificationController;
-use App\Http\Controllers\API\MessageController;
+
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
@@ -64,9 +64,5 @@ Route::prefix('api')->middleware('auth')->group(function () {
     Route::get('/user/notifications/unread', [UserNotificationController::class, 'unread']);
     Route::get('/user/notifications/count', [UserNotificationController::class, 'count']);
     
-    // Message endpoints
-    Route::apiResource('messages', MessageController::class);
-    Route::get('/messages/user/{user}', [MessageController::class, 'withUser']);
-    Route::post('/messages/{message}/read', [MessageController::class, 'markAsRead']);
-    Route::post('/messages/read-all', [MessageController::class, 'markAllAsRead']);
+
 }); 

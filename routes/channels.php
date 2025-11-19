@@ -47,3 +47,13 @@ Broadcast::channel('student.notifications', function ($user) {
 Broadcast::channel('guardian.notifications', function ($user) {
     return $user->hasRole('guardian');
 });
+
+// Conversation channels - user must be a participant
+Broadcast::channel('conversation.{conversationId}', function ($user, $conversationId) {
+    // Check if user is a participant in this conversation
+    return \App\Models\Conversation::where('id', $conversationId)
+        ->whereHas('participants', function ($query) use ($user) {
+            $query->where('user_id', $user->id);
+        })
+        ->exists();
+});

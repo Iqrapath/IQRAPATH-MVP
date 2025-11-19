@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Webhooks\PayStackWebhookController;
+use App\Http\Controllers\Webhooks\PaystackWebhookController;
 use App\Http\Controllers\Webhooks\StripeWebhookController;
 use App\Http\Controllers\Webhooks\PayPalWebhookController;
 
@@ -16,7 +16,7 @@ use App\Http\Controllers\Webhooks\PayPalWebhookController;
 */
 
 // PayStack Webhooks
-Route::post('/webhooks/paystack/transfer', [PayStackWebhookController::class, 'handleTransferWebhook'])
+Route::post('/webhooks/paystack/transfer', [PaystackWebhookController::class, 'handleTransferWebhook'])
     ->name('webhooks.paystack.transfer');
 
 // Stripe Webhooks
@@ -28,5 +28,5 @@ Route::post('/webhooks/paypal/payout', [PayPalWebhookController::class, 'handleP
     ->name('webhooks.paypal.payout');
 
 // Paystack Virtual Account Webhook
-Route::post('/webhooks/paystack/virtual-account', [PayStackWebhookController::class, 'handleVirtualAccountWebhook'])
+Route::post('/webhooks/paystack/virtual-account', [PaystackWebhookController::class, 'handleVirtualAccountWebhook'])
     ->name('webhooks.paystack.virtual-account');

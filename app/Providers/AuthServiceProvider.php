@@ -14,7 +14,10 @@ use App\Models\TeachingSession;
 use App\Models\TicketResponse;
 use App\Models\VerificationRequest;
 use App\Models\TeacherReview;
+use App\Models\Conversation;
+use App\Models\Message;
 use App\Policies\BookingPolicy;
+use App\Policies\MessagePolicy;
 use App\Policies\DisputePolicy;
 use App\Policies\DocumentPolicy;
 use App\Policies\EvidenceAttachmentPolicy;
@@ -49,6 +52,8 @@ class AuthServiceProvider extends ServiceProvider
         EvidenceAttachment::class => EvidenceAttachmentPolicy::class,
         VerificationRequest::class => VerificationRequestPolicy::class,
         TeacherReview::class => TeacherReviewPolicy::class,
+        Conversation::class => MessagePolicy::class,
+        Message::class => MessagePolicy::class,
         'App\Models\TeacherAvailability' => 'App\Policies\TeacherAvailabilityPolicy',
     ];
 

@@ -1,131 +1,502 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
-use App\Models\User;
+use App\Models\Conversation;
 use App\Models\Message;
+use App\Models\MessageAttachment;
+use App\Models\User;
+use App\Models\Booking;
+use App\Events\MessageSent;
+use App\Events\MessageRead;
+use App\Events\TypingIndicator;
+use App\Events\MessageDeleted;
+use App\Events\ConversationArchived;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Collection;
+use Carbon\Carbon;
 
 class MessageService
 {
+    public function __construct(
+        private NotificationService $notificationService
+    ) {}
+
     /**
-     * Send a message from one user to another
+     * Get or create a conversation between users.
      *
-     * @param User $sender
-     * @param User $recipient
-     * @param string $content
-     * @param string $type
-     * @param array|null $metadata
-     * @return Message
+     * @param  array  $participantIds
+     * @param  string  $type
+     * @param  string|null  $contextType
+     * @param  int|null  $contextId
+     * @return Conversation
      */
-    public function sendMessage(User $sender, User $recipient, string $content, string $type = 'text', ?array $metadata = null): Message
+    public function getOrCreateConversation(
+        array $participantIds,
+        string $type = 'direct',
+        ?string $contextType = null,
+        ?int $contextId = null
+    ): Conversation {
+        // For direct conversations, check if one already exists
+        if ($type === 'direct' && count($participantIds) === 2) {
+            $existing = Conversation::where('type', 'direct')
+                ->whereHas('participants', function($q) use ($participantIds) {
+                    $q->whereIn('user_id', $participantIds);
+                }, '=', 2)
+                ->whereDoesntHave('participants', function($q) use ($participantIds) {
+                    $q->whereNotIn('user_id', $participantIds);
+                })
+                ->first();
+
+            if ($existing) {
+                return $existing;
+            }
+        }
+
+        return DB::transaction(function () use ($participantIds, $type, $contextType, $contextId) {
+            $conversation = Conversation::create([
+                'type' => $type,
+                'context_type' => $contextType,
+                'context_id' => $contextId,
+            ]);
+
+            $conversation->participants()->attach($participantIds);
+
+            return $conversation;
+        });
+    }
+
+    /**
+     * Get user's conversations with pagination.
+     *
+     * @param  User  $user
+     * @param  int  $perPage
+     * @return LengthAwarePaginator
+     */
+    public function getUserConversations(User $user, int $perPage = 20): LengthAwarePaginator
     {
-        return Message::create([
-            'sender_id' => $sender->id,
-            'recipient_id' => $recipient->id,
-            'content' => $content,
-            'type' => $type,
-            'metadata' => $metadata,
+        return Conversation::forUser($user->id)
+            ->notArchived($user->id)
+            ->with([
+                'latestMessage.sender',
+                'participants' => fn($q) => $q->where('user_id', '!=', $user->id),
+            ])
+            ->orderByDesc(function($query) {
+                $query->select('created_at')
+                    ->from('messages')
+                    ->whereColumn('messages.conversation_id', 'conversations.id')
+                    ->latest()
+                    ->limit(1);
+            })
+            ->paginate($perPage);
+    }
+
+    /**
+     * Get messages in a conversation with pagination.
+     *
+     * @param  int  $conversationId
+     * @param  int  $perPage
+     * @return LengthAwarePaginator
+     */
+    public function getConversationMessages(int $conversationId, int $perPage = 50): LengthAwarePaginator
+    {
+        return Message::inConversation($conversationId)
+            ->with(['sender', 'attachments', 'statuses'])
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage);
+    }
+
+    /**
+     * Archive a conversation for a user.
+     *
+     * @param  User  $user
+     * @param  int  $conversationId
+     * @return void
+     */
+    public function archiveConversation(User $user, int $conversationId): void
+    {
+        $conversation = Conversation::findOrFail($conversationId);
+        $conversation->participants()
+            ->updateExistingPivot($user->id, ['is_archived' => true]);
+        
+        // Broadcast archive event to user's private channel
+        broadcast(new ConversationArchived($conversation, $user, true));
+    }
+
+    /**
+     * Unarchive a conversation for a user.
+     *
+     * @param  User  $user
+     * @param  int  $conversationId
+     * @return void
+     */
+    public function unarchiveConversation(User $user, int $conversationId): void
+    {
+        $conversation = Conversation::findOrFail($conversationId);
+        $conversation->participants()
+            ->updateExistingPivot($user->id, ['is_archived' => false]);
+        
+        // Broadcast unarchive event to user's private channel
+        broadcast(new ConversationArchived($conversation, $user, false));
+    }
+
+    /**
+     * Mute a conversation for a user.
+     *
+     * @param  User  $user
+     * @param  int  $conversationId
+     * @return void
+     */
+    public function muteConversation(User $user, int $conversationId): void
+    {
+        $conversation = Conversation::findOrFail($conversationId);
+        $conversation->participants()
+            ->updateExistingPivot($user->id, ['is_muted' => true]);
+    }
+
+    /**
+     * Unmute a conversation for a user.
+     *
+     * @param  User  $user
+     * @param  int  $conversationId
+     * @return void
+     */
+    public function unmuteConversation(User $user, int $conversationId): void
+    {
+        $conversation = Conversation::findOrFail($conversationId);
+        $conversation->participants()
+            ->updateExistingPivot($user->id, ['is_muted' => false]);
+    }
+
+    /**
+     * Send a message in a conversation.
+     *
+     * @param  User  $sender
+     * @param  int  $conversationId
+     * @param  string  $content
+     * @param  string  $type
+     * @param  array  $attachments
+     * @return Message
+     * @throws \Exception
+     */
+    public function sendMessage(
+        User $sender,
+        int $conversationId,
+        string $content,
+        string $type = 'text',
+        array $attachments = []
+    ): Message {
+        return DB::transaction(function () use ($sender, $conversationId, $content, $type, $attachments) {
+            $conversation = Conversation::findOrFail($conversationId);
+
+            // Verify sender is a participant
+            if (!$conversation->participants()->where('user_id', $sender->id)->exists()) {
+                throw new \Exception('User is not a participant in this conversation');
+            }
+
+            // Create message
+            $message = Message::create([
+                'conversation_id' => $conversationId,
+                'sender_id' => $sender->id,
+                'content' => $content,
+                'type' => $type,
+            ]);
+
+            // Handle attachments
+            foreach ($attachments as $file) {
+                if ($file instanceof UploadedFile) {
+                    $this->attachFile($message, $file);
+                }
+            }
+
+            // Create status records for all participants except sender
+            $recipients = $conversation->participants()
+                ->where('user_id', '!=', $sender->id)
+                ->get();
+
+            foreach ($recipients as $recipient) {
+                $message->statuses()->create([
+                    'user_id' => $recipient->id,
+                    'status' => 'sent',
+                    'status_at' => now(),
+                ]);
+
+                // Check if conversation is muted for this recipient
+                $isMuted = $conversation->participants()
+                    ->where('user_id', $recipient->id)
+                    ->first()
+                    ?->pivot
+                    ?->is_muted ?? false;
+
+                // Send notification if not muted
+                if (!$isMuted) {
+                    $this->notificationService->createNotification(
+                        $recipient,
+                        'message',
+                        [
+                            'title' => "New message from {$sender->name}",
+                            'body' => substr($content, 0, 100),
+                            'sender_id' => $sender->id,
+                            'sender_name' => $sender->name,
+                            'conversation_id' => $conversationId,
+                            'message_id' => $message->id,
+                        ],
+                        'info'
+                    );
+                }
+            }
+
+            // Broadcast message to conversation channel
+            broadcast(new MessageSent($message))->toOthers();
+
+            return $message;
+        });
+    }
+
+    /**
+     * Attach a file to a message.
+     *
+     * @param  Message  $message
+     * @param  UploadedFile  $file
+     * @return MessageAttachment
+     */
+    private function attachFile(Message $message, UploadedFile $file): MessageAttachment
+    {
+        $filename = uniqid() . '_' . $file->getClientOriginalName();
+        $path = $file->storeAs('message-attachments', $filename, 'private');
+
+        return $message->attachments()->create([
+            'filename' => $filename,
+            'original_filename' => $file->getClientOriginalName(),
+            'file_path' => $path,
+            'file_size' => $file->getSize(),
+            'mime_type' => $file->getMimeType(),
         ]);
     }
 
     /**
-     * Get messages between two users
+     * Mark messages as read in a conversation.
      *
-     * @param User $user1
-     * @param User $user2
-     * @param int $perPage
-     * @return LengthAwarePaginator
+     * @param  User  $user
+     * @param  int  $conversationId
+     * @return void
      */
-    public function getMessagesBetweenUsers(User $user1, User $user2, int $perPage = 15): LengthAwarePaginator
+    public function markAsRead(User $user, int $conversationId): void
     {
-        return Message::where(function ($query) use ($user1, $user2) {
-                $query->where('sender_id', $user1->id)
-                    ->where('recipient_id', $user2->id);
-            })
-            ->orWhere(function ($query) use ($user1, $user2) {
-                $query->where('sender_id', $user2->id)
-                    ->where('recipient_id', $user1->id);
-            })
-            ->orderBy('created_at', 'desc')
-            ->paginate($perPage);
-    }
+        $conversation = Conversation::findOrFail($conversationId);
 
-    /**
-     * Get all messages for a user
-     *
-     * @param User $user
-     * @param int $perPage
-     * @return LengthAwarePaginator
-     */
-    public function getUserMessages(User $user, int $perPage = 15): LengthAwarePaginator
-    {
-        return Message::where('sender_id', $user->id)
-            ->orWhere('recipient_id', $user->id)
-            ->orderBy('created_at', 'desc')
-            ->paginate($perPage);
-    }
+        // Update participant's last_read_at
+        $conversation->participants()
+            ->updateExistingPivot($user->id, [
+                'last_read_at' => now(),
+            ]);
 
-    /**
-     * Get unread messages for a user
-     *
-     * @param User $user
-     * @return Collection
-     */
-    public function getUnreadMessages(User $user): Collection
-    {
-        return Message::where('recipient_id', $user->id)
-            ->whereNull('read_at')
-            ->orderBy('created_at', 'desc')
+        // Update message statuses
+        $unreadMessages = Message::inConversation($conversationId)
+            ->where('sender_id', '!=', $user->id)
+            ->whereDoesntHave('statuses', function($q) use ($user) {
+                $q->where('user_id', $user->id)->where('status', 'read');
+            })
             ->get();
+
+        foreach ($unreadMessages as $message) {
+            $message->statuses()->updateOrCreate(
+                ['user_id' => $user->id, 'message_id' => $message->id],
+                ['status' => 'read', 'status_at' => now()]
+            );
+            
+            // Broadcast read receipt
+            broadcast(new MessageRead($message, $user))->toOthers();
+        }
     }
 
     /**
-     * Get unread message count for a user
+     * Mark a specific message as read.
      *
-     * @param User $user
-     * @return int
+     * @param  User  $user
+     * @param  int  $messageId
+     * @return void
      */
-    public function getUnreadMessageCount(User $user): int
+    public function markMessageAsRead(User $user, int $messageId): void
     {
-        return Message::where('recipient_id', $user->id)
-            ->whereNull('read_at')
-            ->count();
+        $message = Message::findOrFail($messageId);
+
+        $message->statuses()->updateOrCreate(
+            ['user_id' => $user->id, 'message_id' => $message->id],
+            ['status' => 'read', 'status_at' => now()]
+        );
+        
+        // Broadcast read receipt
+        broadcast(new MessageRead($message, $user))->toOthers();
     }
 
     /**
-     * Mark a message as read
+     * Mark all messages as read for a user.
      *
-     * @param Message $message
+     * @param  User  $user
+     * @return void
+     */
+    public function markAllAsRead(User $user): void
+    {
+        $conversations = Conversation::forUser($user->id)->get();
+
+        foreach ($conversations as $conversation) {
+            $this->markAsRead($user, $conversation->id);
+        }
+    }
+
+    /**
+     * Search messages for a user.
+     *
+     * @param  User  $user
+     * @param  string  $query
+     * @param  int  $perPage
+     * @return LengthAwarePaginator
+     */
+    public function searchMessages(User $user, string $query, int $perPage = 20): LengthAwarePaginator
+    {
+        return Message::whereHas('conversation.participants', fn($q) => $q->where('user_id', $user->id))
+            ->where('content', 'like', "%{$query}%")
+            ->with(['conversation', 'sender'])
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage);
+    }
+
+    /**
+     * Search conversations by participant name.
+     *
+     * @param  User  $user
+     * @param  string  $participantName
+     * @param  int  $perPage
+     * @return LengthAwarePaginator
+     */
+    public function searchByParticipant(User $user, string $participantName, int $perPage = 20): LengthAwarePaginator
+    {
+        return Conversation::forUser($user->id)
+            ->whereHas('participants', function($q) use ($participantName, $user) {
+                $q->where('user_id', '!=', $user->id)
+                    ->where('name', 'like', "%{$participantName}%");
+            })
+            ->with(['latestMessage.sender', 'participants'])
+            ->orderByDesc(function($query) {
+                $query->select('created_at')
+                    ->from('messages')
+                    ->whereColumn('messages.conversation_id', 'conversations.id')
+                    ->latest()
+                    ->limit(1);
+            })
+            ->paginate($perPage);
+    }
+
+    /**
+     * Search messages by date range.
+     *
+     * @param  User  $user
+     * @param  Carbon  $startDate
+     * @param  Carbon  $endDate
+     * @param  int  $perPage
+     * @return LengthAwarePaginator
+     */
+    public function searchByDateRange(User $user, Carbon $startDate, Carbon $endDate, int $perPage = 20): LengthAwarePaginator
+    {
+        return Message::whereHas('conversation.participants', fn($q) => $q->where('user_id', $user->id))
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->with(['conversation', 'sender'])
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage);
+    }
+
+    /**
+     * Validate if a user can message another user based on role rules.
+     *
+     * @param  User  $sender
+     * @param  User  $recipient
      * @return bool
      */
-    public function markAsRead(Message $message): bool
+    public function canUserMessage(User $sender, User $recipient): bool
     {
-        return $message->markAsRead()->save();
+        // Students can message their teachers
+        if ($sender->role === 'student' && $recipient->role === 'teacher') {
+            return $this->hasActiveSession($sender, $recipient);
+        }
+
+        // Teachers can message their students
+        if ($sender->role === 'teacher' && $recipient->role === 'student') {
+            return $this->hasActiveSession($recipient, $sender);
+        }
+
+        // Guardians can message their children's teachers
+        if ($sender->role === 'guardian' && $recipient->role === 'teacher') {
+            return $this->isTeacherOfGuardiansChild($sender, $recipient);
+        }
+
+        // Teachers can message guardians of their students
+        if ($sender->role === 'teacher' && $recipient->role === 'guardian') {
+            return $this->isTeacherOfGuardiansChild($recipient, $sender);
+        }
+
+        // Admins can message anyone
+        if (in_array($sender->role, ['admin', 'super-admin'])) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
-     * Mark all messages as read for a user
+     * Check if student and teacher have an active session.
      *
-     * @param User $user
+     * @param  User  $student
+     * @param  User  $teacher
      * @return bool
      */
-    public function markAllAsRead(User $user): bool
+    private function hasActiveSession(User $student, User $teacher): bool
     {
-        return Message::where('recipient_id', $user->id)
-            ->whereNull('read_at')
-            ->update(['read_at' => now()]);
+        return Booking::where('student_id', $student->id)
+            ->where('teacher_id', $teacher->id)
+            ->whereIn('status', ['approved', 'completed'])
+            ->exists();
     }
 
     /**
-     * Delete a message
+     * Check if teacher teaches any of guardian's children.
      *
-     * @param Message $message
+     * @param  User  $guardian
+     * @param  User  $teacher
      * @return bool
      */
-    public function deleteMessage(Message $message): bool
+    private function isTeacherOfGuardiansChild(User $guardian, User $teacher): bool
     {
-        return $message->delete();
+        $childIds = $guardian->children()->pluck('id');
+        
+        return Booking::whereIn('student_id', $childIds)
+            ->where('teacher_id', $teacher->id)
+            ->whereIn('status', ['approved', 'completed'])
+            ->exists();
     }
-} 
+
+    /**
+     * Broadcast typing indicator.
+     *
+     * @param  User  $user
+     * @param  int  $conversationId
+     * @param  bool  $isTyping
+     * @return void
+     */
+    public function broadcastTypingIndicator(User $user, int $conversationId, bool $isTyping): void
+    {
+        $conversation = Conversation::findOrFail($conversationId);
+        
+        // Verify user is a participant
+        if (!$conversation->participants()->where('user_id', $user->id)->exists()) {
+            throw new \Exception('User is not a participant in this conversation');
+        }
+        
+        // Broadcast typing indicator to others in the conversation
+        broadcast(new TypingIndicator($conversationId, $user, $isTyping))->toOthers();
+    }
+}

@@ -21,7 +21,7 @@ class NotificationServiceProvider extends ServiceProvider
         
         // Register the message service
         $this->app->singleton(MessageService::class, function ($app) {
-            return new MessageService();
+            return new MessageService($app->make(NotificationService::class));
         });
     }
 

@@ -1,14 +1,18 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Message extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -16,10 +20,9 @@ class Message extends Model
      * @var array<int, string>
      */
     protected $fillable = [
+        'conversation_id',
         'sender_id',
-        'recipient_id',
         'content',
-        'read_at',
         'type',
         'metadata',
     ];
@@ -30,12 +33,19 @@ class Message extends Model
      * @var array<string, string>
      */
     protected $casts = [
-        'read_at' => 'datetime',
         'metadata' => 'array',
     ];
 
     /**
-     * Get the sender of the message.
+     * Get the conversation this message belongs to.
+     */
+    public function conversation(): BelongsTo
+    {
+        return $this->belongsTo(Conversation::class);
+    }
+
+    /**
+     * Get the user who sent this message.
      */
     public function sender(): BelongsTo
     {
@@ -43,39 +53,44 @@ class Message extends Model
     }
 
     /**
-     * Get the recipient of the message.
+     * Get all attachments for this message.
      */
-    public function recipient(): BelongsTo
+    public function attachments(): HasMany
     {
-        return $this->belongsTo(User::class, 'recipient_id');
+        return $this->hasMany(MessageAttachment::class);
     }
 
     /**
-     * Mark the message as read.
+     * Get all status records for this message.
      */
-    public function markAsRead()
+    public function statuses(): HasMany
     {
-        if (!$this->read_at) {
-            $this->read_at = now();
-            $this->save();
-        }
-        
-        return $this;
+        return $this->hasMany(MessageStatus::class);
     }
 
     /**
-     * Scope a query to only include unread messages.
+     * Scope a query to only include messages in a specific conversation.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @param  int  $conversationId
+     * @return \Illuminate\Database\Eloquent\Builder
      */
-    public function scopeUnread($query)
+    public function scopeInConversation($query, int $conversationId)
     {
-        return $query->whereNull('read_at');
+        return $query->where('conversation_id', $conversationId);
     }
 
     /**
-     * Scope a query to only include messages for a specific user.
+     * Check if this message has been read by a specific user.
+     *
+     * @param  int  $userId
+     * @return bool
      */
-    public function scopeForUser($query, $userId)
+    public function isReadBy(int $userId): bool
     {
-        return $query->where('recipient_id', $userId);
+        return $this->statuses()
+            ->where('user_id', $userId)
+            ->where('status', 'read')
+            ->exists();
     }
-} 
+}

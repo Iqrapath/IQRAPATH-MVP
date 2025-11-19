@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\API\Admin\UrgentActionsController;
 use App\Http\Controllers\API\NotificationController;
 use App\Http\Controllers\API\UserNotificationController;
-use App\Http\Controllers\API\MessageController;
+
 use App\Http\Controllers\API\Admin\UserController as AdminUserController;
 use App\Http\Controllers\API\UserController;
 use App\Models\User;
@@ -73,14 +73,34 @@ Route::middleware('auth')->group(function () {
     Route::get('/user/notifications/unread', [UserNotificationController::class, 'unread']);
     Route::get('/user/notifications/count', [UserNotificationController::class, 'count']);
     
-    // Message endpoints
-    Route::apiResource('messages', MessageController::class);
-    Route::get('/messages/user/{user}', [MessageController::class, 'withUser']);
-    Route::post('/messages/{message}/read', [MessageController::class, 'markAsRead']);
-    Route::post('/messages/read-all', [MessageController::class, 'markAllAsRead']);
-    
+
     // User list for notifications
     Route::get('/users/list', [UserListController::class, 'index']);
+    
+    // Messaging API routes
+    Route::prefix('conversations')->group(function () {
+        Route::get('/', [App\Http\Controllers\API\ConversationController::class, 'index']);
+        Route::post('/', [App\Http\Controllers\API\ConversationController::class, 'store']);
+        Route::get('/{conversationId}', [App\Http\Controllers\API\ConversationController::class, 'show']);
+        Route::post('/{conversationId}/archive', [App\Http\Controllers\API\ConversationController::class, 'archive']);
+        Route::post('/{conversationId}/unarchive', [App\Http\Controllers\API\ConversationController::class, 'unarchive']);
+        Route::post('/{conversationId}/mute', [App\Http\Controllers\API\ConversationController::class, 'mute']);
+        Route::post('/{conversationId}/unmute', [App\Http\Controllers\API\ConversationController::class, 'unmute']);
+    });
+    
+    Route::prefix('messages')->group(function () {
+        Route::post('/', [App\Http\Controllers\API\MessageController::class, 'store']);
+        Route::put('/{messageId}', [App\Http\Controllers\API\MessageController::class, 'update']);
+        Route::delete('/{messageId}', [App\Http\Controllers\API\MessageController::class, 'destroy']);
+        Route::post('/{messageId}/read', [App\Http\Controllers\API\MessageController::class, 'markAsRead']);
+        Route::post('/read-all', [App\Http\Controllers\API\MessageController::class, 'markAllAsRead']);
+    });
+    
+    Route::prefix('search')->group(function () {
+        Route::get('/messages', [App\Http\Controllers\API\SearchController::class, 'search']);
+        Route::get('/participants', [App\Http\Controllers\API\SearchController::class, 'searchByParticipant']);
+        Route::get('/date-range', [App\Http\Controllers\API\SearchController::class, 'searchByDateRange']);
+    });
 });
 
 // Admin API routes
