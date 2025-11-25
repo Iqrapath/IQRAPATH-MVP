@@ -252,6 +252,7 @@ class StudentSessionService
             'session_uuid' => $booking->booking_uuid,
             'title' => $subjectName,
             'teacher' => $booking->teacher?->name ?? 'Teacher Not Found',
+            'teacher_id' => $booking->teacher_id,
             'teacher_avatar' => $booking->teacher?->avatar ?? '/assets/images/default-avatar.jpg',
             'subject' => $subjectName,
             'date' => $booking->booking_date->format('M j, Y'),

@@ -463,6 +463,18 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Get the children (students) associated with a guardian.
+     * This uses hasManyThrough via the student_profiles table.
+     */
+    public function children()
+    {
+        return User::where('role', 'student')
+            ->whereHas('studentProfile', function ($query) {
+                $query->where('guardian_id', $this->id);
+            });
+    }
+
+    /**
      * Get the student learning schedules associated with the user.
      */
     public function studentLearningSchedules(): HasMany

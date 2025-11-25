@@ -334,7 +334,7 @@ export function SessionDetailsModal({
                                 getMeetingUrl() ? 'Join Session Now' : 'Meeting Link Not Available'
                             )}
                         </Button>
-                        <div className="border-b-2 border-[#338078] rounded-full text-[#338078] hover:text-[#338078]">
+                        {/* <div className="border-b-2 border-[#338078] rounded-full text-[#338078] hover:text-[#338078]">
                             <Button
                                 variant="ghost"
                                 size="icon"
@@ -351,7 +351,7 @@ export function SessionDetailsModal({
                             >
                                 <Video className="w-5 h-5" />
                             </Button>
-                        </div>
+                        </div> */}
                     </div>
                 </div>
             </DialogContent>

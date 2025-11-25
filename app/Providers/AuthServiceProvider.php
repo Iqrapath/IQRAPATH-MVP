@@ -16,8 +16,10 @@ use App\Models\VerificationRequest;
 use App\Models\TeacherReview;
 use App\Models\Conversation;
 use App\Models\Message;
+use App\Models\MessageAttachment;
 use App\Policies\BookingPolicy;
 use App\Policies\MessagePolicy;
+use App\Policies\MessageAttachmentPolicy;
 use App\Policies\DisputePolicy;
 use App\Policies\DocumentPolicy;
 use App\Policies\EvidenceAttachmentPolicy;
@@ -54,6 +56,7 @@ class AuthServiceProvider extends ServiceProvider
         TeacherReview::class => TeacherReviewPolicy::class,
         Conversation::class => MessagePolicy::class,
         Message::class => MessagePolicy::class,
+        MessageAttachment::class => MessageAttachmentPolicy::class,
         'App\Models\TeacherAvailability' => 'App\Policies\TeacherAvailabilityPolicy',
     ];
 

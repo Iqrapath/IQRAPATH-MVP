@@ -21,8 +21,23 @@ return new class extends Migration
             
             // Constraints and indexes
             $table->unique(['message_id', 'user_id'], 'unique_user_message_status');
-            $table->index(['user_id', 'status'], 'idx_user_status');
+            
+            // Only add index if not SQLite (to avoid duplicate index issues in tests)
+            if (Schema::getConnection()->getDriverName() !== 'sqlite') {
+                $table->index(['user_id', 'status'], 'idx_user_status');
+            }
         });
+        
+        // For SQLite, add index separately
+        if (Schema::getConnection()->getDriverName() === 'sqlite') {
+            try {
+                Schema::table('message_statuses', function (Blueprint $table) {
+                    $table->index(['user_id', 'status'], 'idx_user_status');
+                });
+            } catch (\Exception $e) {
+                // Index might already exist, ignore
+            }
+        }
     }
 
     /**

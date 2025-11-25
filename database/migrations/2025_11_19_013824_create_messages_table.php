@@ -24,10 +24,14 @@ return new class extends Migration
             // Indexes for performance
             $table->index(['conversation_id', 'created_at'], 'idx_conversation_messages');
             $table->index('sender_id', 'idx_sender');
-            
-            // Fulltext index for search
-            $table->fullText('content', 'idx_content_search');
         });
+        
+        // Fulltext index for search (MySQL only)
+        if (Schema::getConnection()->getDriverName() === 'mysql') {
+            Schema::table('messages', function (Blueprint $table) {
+                $table->fullText('content', 'idx_content_search');
+            });
+        }
     }
 
     /**

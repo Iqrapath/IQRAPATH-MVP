@@ -100,13 +100,13 @@ export default function StudentLeftSidebar({ className, isMobile = false, onClos
         },
         {
             title: 'Messages',
-            href: '#',
+            href: '/student/messages',
             icon: MessageUserIcon,
-            isComingSoon: true,
-            onClick: (e) => {
-                e.preventDefault();
-                handleMissingPage('Messages');
-            },
+            // isComingSoon: true,
+            // onClick: (e) => {
+            //     e.preventDefault();
+            //     handleMissingPage('Messages');
+            // },
         },
         {
             title: 'Profile',

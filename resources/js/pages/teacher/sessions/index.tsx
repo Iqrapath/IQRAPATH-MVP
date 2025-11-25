@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
 import TeacherLayout from '@/layouts/teacher/teacher-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,6 +21,8 @@ import {
     Plus
 } from 'lucide-react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
+import axios from 'axios';
+import { toast } from 'sonner';
 
 const breadcrumbs = [
     { title: 'Dashboard', href: '/teacher/dashboard' },
@@ -53,7 +55,7 @@ interface Student {
     sessionsCompleted: number;
     progress: number;
     rating: number;
-    lastActive: string;
+    lastActive?: string;
 }
 
 interface UpcomingSession {
@@ -120,6 +122,42 @@ export default function TeacherSessions({ user, teacherProfile, activeStudents, 
         return type === 'online' ? Video : Users;
     };
 
+    const handleChatWithStudent = async (student: Student) => {
+        try {
+            // Create or get existing conversation with this student
+            const response = await axios.post('/api/conversations', {
+                recipient_id: student.id
+            });
+
+            if (response.data.success && response.data.data) {
+                // Navigate to the conversation
+                router.visit(route('teacher.messages.show', response.data.data.id));
+            }
+        } catch (error) {
+            console.error('Failed to start conversation:', error);
+            if (axios.isAxiosError(error) && error.response) {
+                const errorData = error.response.data;
+                
+                // Check if it's a role restriction
+                if (errorData.code === 'ROLE_RESTRICTION') {
+                    toast.error('Unable to message student', {
+                        description: errorData.message || 'You need an active session to message this student.'
+                    });
+                    return;
+                }
+                
+                // Other errors
+                toast.error('Failed to start conversation', {
+                    description: errorData.message || 'Please try again later.'
+                });
+            } else {
+                toast.error('Failed to start conversation', {
+                    description: 'Please check your internet connection and try again.'
+                });
+            }
+        }
+    };
+
     const tabs = [
         { id: 'upcoming', label: 'Active Student', count: activeStudents.length },
         { id: 'ongoing', label: 'Upcoming Session', count: upcomingSessions.length },
@@ -148,7 +186,7 @@ export default function TeacherSessions({ user, teacherProfile, activeStudents, 
                     <ActiveStudentTab
                         students={activeStudents}
                         onViewProfile={(student) => console.log('View profile:', student)}
-                        onChat={(student) => console.log('Chat with:', student)}
+                        onChat={handleChatWithStudent}
                         onVideoCall={(student) => console.log('Video call with:', student)}
                     />
                 )}

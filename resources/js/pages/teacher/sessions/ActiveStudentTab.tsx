@@ -14,6 +14,7 @@ interface Student {
     progress: number;
     rating: number;
     isOnline?: boolean;
+    lastActive?: string;
     // Additional fields for StudentProfileModal
     age?: number;
     gender?: string;
@@ -34,9 +35,9 @@ interface Student {
 
 interface ActiveStudentTabProps {
     students: Student[];
-    onViewProfile: (student: Student) => void;
-    onChat: (student: Student) => void;
-    onVideoCall: (student: Student) => void;
+    onViewProfile: (student: Student) => void | Promise<void>;
+    onChat: (student: Student) => void | Promise<void>;
+    onVideoCall: (student: Student) => void | Promise<void>;
 }
 
 export function ActiveStudentTab({ students, onViewProfile, onChat, onVideoCall }: ActiveStudentTabProps) {
@@ -136,7 +137,7 @@ export function ActiveStudentTab({ students, onViewProfile, onChat, onVideoCall 
             )}
 
             {/* Student Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
                 {filteredStudents.map((student) => (
                     <StudentCard
                         key={student.id}

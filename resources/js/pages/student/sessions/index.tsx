@@ -31,6 +31,7 @@ interface SessionListItem {
     session_uuid: string;
     title: string;
     teacher: string;
+    teacher_id: number;
     teacher_avatar: string;
     subject: string;
     date: string;
@@ -222,15 +223,15 @@ export default function SessionsIndex({ sessions, filter, stats }: SessionsIndex
                             }
                             
                             // Default fallback - render as upcoming
-                            return (
-                                <UpcomingClassCard
-                                    key={session.id}
-                                    session={session}
-                                    getSubjectIcon={getSubjectIcon}
-                                    getProgressColor={getProgressColor}
-                                    renderStars={renderStars}
-                                />
-                            );
+                            // return (
+                            //     <UpcomingClassCard
+                            //         key={session.id}
+                            //         session={session}
+                            //         getSubjectIcon={getSubjectIcon}
+                            //         getProgressColor={getProgressColor}
+                            //         renderStars={renderStars}
+                            //     />
+                            // );
                         })
                     ) : (
                         <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-gray-100">

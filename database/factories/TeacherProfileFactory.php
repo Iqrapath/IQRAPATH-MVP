@@ -63,6 +63,7 @@ class TeacherProfileFactory extends Factory
         $baseRateNGN = $baseRateUSD * 1200; // Approximate conversion
 
         return [
+            'user_id' => User::factory(), // Will be overridden when passed explicitly
             'bio' => fake()->paragraphs(2, true),
             'experience_years' => (string)$experienceYears,
             'verified' => $isVerified,

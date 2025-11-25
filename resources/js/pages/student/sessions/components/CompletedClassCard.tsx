@@ -9,17 +9,17 @@
  * - Has chat button
  * - 100% progress with green bar and "completed" badge
  */
-import React from 'react';
-import { MessageCircle, Video } from 'lucide-react';
-import SessionCard from './SessionCard';
-import MessageUserIcon from '@/components/icons/message-user-icon';
 import { MessageCircleStudentIcon } from '@/components/icons/message-circle-student-icon';
+import { router } from '@inertiajs/react';
+import axios from 'axios';
+import { toast } from 'sonner';
 
 interface SessionListItem {
     id: number;
     session_uuid: string;
     title: string;
     teacher: string;
+    teacher_id: number;
     teacher_avatar: string;
     subject: string;
     date: string;
@@ -46,6 +46,42 @@ export default function CompletedClassCard({
     getProgressColor, 
     renderStars 
 }: CompletedClassCardProps) {
+    const handleMessageTeacher = async () => {
+        try {
+            // Create or get existing conversation with this teacher
+            const response = await axios.post('/api/conversations', {
+                recipient_id: session.teacher_id
+            });
+
+            if (response.data.success && response.data.data) {
+                // Navigate to the conversation
+                router.visit(route('student.messages.show', response.data.data.id));
+            }
+        } catch (error) {
+            console.error('Failed to start conversation:', error);
+            if (axios.isAxiosError(error) && error.response) {
+                const errorData = error.response.data;
+                
+                // Check if it's a role restriction (no active booking)
+                if (errorData.code === 'ROLE_RESTRICTION') {
+                    toast.error('Unable to message teacher', {
+                        description: errorData.message || 'You need an active booking to message this teacher.'
+                    });
+                    return;
+                }
+                
+                // Other errors
+                toast.error('Failed to start conversation', {
+                    description: errorData.message || 'Please try again later.'
+                });
+            } else {
+                toast.error('Failed to start conversation', {
+                    description: 'Please check your internet connection and try again.'
+                });
+            }
+        }
+    };
+
     return (
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             <div className="flex items-center justify-between">
@@ -136,9 +172,12 @@ export default function CompletedClassCard({
                     </span>
                     
                     {/* Chat button */}
-                    <button className="flex items-center space-x-2 px-4 py-2 text-[#2C7870] rounded-full border-b-2 border-[#2C7870]">
+                    <button 
+                        onClick={handleMessageTeacher}
+                        className="flex items-center space-x-2 px-4 py-2 text-[#2C7870] rounded-full border-b-2 border-[#2C7870] hover:bg-teal-50 transition-colors"
+                        title="Message teacher"
+                    >
                         <MessageCircleStudentIcon className="w-6 h-6" />
-                        <Video className="w-6 h-6" />
                     </button>
                 </div>
             </div>

@@ -56,6 +56,10 @@ Route::middleware(['auth', 'verified', 'role:student'])->prefix('student')->name
     // Session routes
     Route::get('/sessions', [App\Http\Controllers\Student\SessionController::class, 'index'])->name('sessions.index');
     
+    // Message routes
+    Route::get('/messages', [App\Http\Controllers\Student\MessageController::class, 'index'])->name('messages');
+    Route::get('/messages/{conversation}', [App\Http\Controllers\Student\MessageController::class, 'show'])->name('messages.show');
+    
     // Teacher browsing routes
     Route::get('/browse-teachers', [App\Http\Controllers\Student\TeacherController::class, 'index'])->name('browse-teachers');
     Route::get('/teachers/{teacher}', [App\Http\Controllers\Student\TeacherController::class, 'show'])->name('teachers.show');
@@ -157,6 +161,10 @@ Route::middleware(['auth', 'verified', 'role:teacher'])->prefix('teacher')->name
     Route::get('/notifications', function () {
         return Inertia::render('teacher/notifications/notifications');
     })->name('notifications');
+    
+    // Message routes
+    Route::get('/messages', [App\Http\Controllers\Teacher\MessageController::class, 'index'])->name('messages');
+    Route::get('/messages/{conversation}', [App\Http\Controllers\Teacher\MessageController::class, 'show'])->name('messages.show');
     
     // Booking Modification routes for teachers
     Route::get('/modifications', [App\Http\Controllers\Teacher\BookingModificationController::class, 'index'])->name('modifications.index');

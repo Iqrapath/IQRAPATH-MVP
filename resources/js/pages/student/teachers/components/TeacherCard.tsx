@@ -15,7 +15,6 @@
  * - Pricing: #2C7870 background, white text, rounded pill
  * - Actions: "View Profile" link + circular chat button
  */
-import React from 'react';
 import { MapPin, Star } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -23,6 +22,8 @@ import { router } from '@inertiajs/react';
 import { Card, CardContent } from '@/components/ui/card';
 import { MessageCircleStudentIcon } from '@/components/icons/message-circle-student-icon';
 import TeacherProfileModal from '../../../../components/common/TeacherProfileModal';
+import axios from 'axios';
+import { toast } from 'sonner';
 
 interface TeacherCardProps {
     teacher: {
@@ -60,7 +61,7 @@ export default function TeacherCard({ teacher }: TeacherCardProps) {
         const fullStars = Math.floor(safeRating);
         const partialStar = safeRating % 1;
         const emptyStars = 5 - Math.ceil(safeRating);
-        
+
         return (
             <div className="flex items-center gap-1">
                 {/* Full stars */}
@@ -71,7 +72,7 @@ export default function TeacherCard({ teacher }: TeacherCardProps) {
                 {partialStar > 0 && (
                     <div className="relative">
                         <Star className="w-4 h-4 text-gray-300" />
-                        <div 
+                        <div
                             className="absolute top-0 left-0 overflow-hidden"
                             style={{ width: `${partialStar * 100}%` }}
                         >
@@ -97,8 +98,48 @@ export default function TeacherCard({ teacher }: TeacherCardProps) {
         return availability;
     };
 
+    const handleMessageTeacher = async () => {
+        try {
+            // Create or get existing conversation with this teacher
+            const response = await axios.post('/api/conversations', {
+                recipient_id: teacher.id
+            });
+
+            if (response.data.success && response.data.data) {
+                // Navigate to the conversation
+                router.visit(route('student.messages.show', response.data.data.id));
+            }
+        } catch (error) {
+            console.error('Failed to start conversation:', error);
+            if (axios.isAxiosError(error) && error.response) {
+                const errorData = error.response.data;
+                
+                // Check if it's a role restriction (no active booking)
+                if (errorData.code === 'ROLE_RESTRICTION' && errorData.details?.reason === 'no_active_booking') {
+                    toast.error('Book a session first', {
+                        description: 'You need to book a session with this teacher before you can message them.',
+                        action: {
+                            label: 'View Profile',
+                            onClick: () => router.visit(route('student.teachers.show', teacher.id))
+                        }
+                    });
+                    return;
+                }
+                
+                // Other errors
+                toast.error('Failed to start conversation', {
+                    description: errorData.message || 'Please try again later.'
+                });
+            } else {
+                toast.error('Failed to start conversation', {
+                    description: 'Please check your internet connection and try again.'
+                });
+            }
+        }
+    };
+
     return (
-            <Card className="w-full border border-gray-300 shadow shadow-teal-50 rounded-2xl">
+        <Card className="w-full border border-gray-300 shadow shadow-teal-50 rounded-2xl">
             <CardContent className="p-4 md:p-2">
                 <div className="flex flex-col md:flex-row items-start md:items-start gap-4 md:gap-4 ">
                     {/* Profile Picture */}
@@ -124,13 +165,13 @@ export default function TeacherCard({ teacher }: TeacherCardProps) {
                                 <span className="text-gray-500">Subject: </span>
                                 <span className="text-gray-700 font-medium break-words">{formatSubjects(teacher.subjects || [])}</span>
                             </div>
-                            
+
                             {/* Location */}
                             <div className="flex items-center gap-2">
                                 <MapPin className="w-4 h-4 text-gray-500 flex-shrink-0" />
                                 <span className="text-sm text-gray-600 break-words">{teacher.location}</span>
                             </div>
-                            
+
                             {/* Rating */}
                             <div className="flex items-center gap-3">
                                 {renderStars(teacher.rating || 0)}
@@ -138,13 +179,13 @@ export default function TeacherCard({ teacher }: TeacherCardProps) {
                                     {teacher.rating || 0}/5
                                 </span>
                             </div>
-                            
+
                             {/* Availability */}
                             <div className="text-sm">
                                 <span className="text-gray-500">Availability: </span>
                                 <span className="text-gray-700 font-medium break-words">{formatAvailability(teacher.availability || '')}</span>
                             </div>
-                            
+
                             {/* Holiday Status */}
                             {teacher.is_on_holiday && (
                                 <div className="text-sm">
@@ -156,7 +197,7 @@ export default function TeacherCard({ teacher }: TeacherCardProps) {
                         </div>
 
                         {/* Bottom row: Price pill and actions */}
-                        <div className="mt-4 pr-4 flex flex-col sm:flex-row flex-wrap sm:flex-nowrap items-start sm:items-center justify-between gap-4 w-full">
+                        <div className="mt-4 pr-4 flex flex-col sm:flex-row flex-wrap sm:flex-nowrap items-start sm:items-center gap-4 w-full">
                             {/* Pricing */}
                             <div className="inline-flex flex-col bg-teal-50 rounded-full px-4 py-3 text-left">
                                 <div className="text-sm font-bold text-[#3B3B3B]">
@@ -166,25 +207,29 @@ export default function TeacherCard({ teacher }: TeacherCardProps) {
                             </div>
 
                             {/* Actions */}
-                            <div className="flex items-center gap-4 sm:gap-6 flex-wrap">
+                            <div
+                                className="flex items-center gap-4 sm:gap-6 flex-wrap"
+                            >
                                 <TeacherProfileModal
                                     teacher={modalTeacher}
                                     trigger={
-                                        <Button 
-                                            variant="link" 
+                                        <Button
+                                            variant="link"
                                             className="text-teal-600 hover:text-teal-700 p-0 h-auto"
                                         >
                                             View Profile
                                         </Button>
                                     }
                                 />
-                                <Button 
+                                {/* <Button 
                                     variant="ghost" 
                                     size="sm"
+                                    onClick={handleMessageTeacher}
                                     className="w-10 h-10 md:w-12 md:h-12 p-0  border-b-3 border-teal-600 text-teal-600 hover:bg-transparent hover:text-teal-600 flex-shrink-0 rounded-lg"
+                                    title="Message teacher"
                                 >
                                     <MessageCircleStudentIcon className="w-8 h-8 md:w-10 md:h-10" />
-                                </Button>
+                                </Button> */}
                             </div>
                         </div>
                     </div>

@@ -1,5 +1,4 @@
-import React from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
 import AdminLayout from '@/layouts/admin/admin-layout';
 import { Button } from '@/components/ui/button';
@@ -17,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
+import SendMessageModal from '@/components/admin/SendMessageModal';
 import {
   TeacherProfileHeader,
   TeacherContactDetails,
@@ -83,6 +83,14 @@ interface TeachingSession {
 }
 
 interface Props {
+  auth: {
+    user: {
+      id: number;
+      name: string;
+      email: string;
+      role: string;
+    };
+  };
   teacher: Teacher;
   profile: TeacherProfile | null;
   earnings: TeacherEarnings | null;
@@ -102,6 +110,7 @@ interface Props {
 }
 
 export default function TeacherShow({ 
+  auth,
   teacher, 
   profile, 
   earnings, 
@@ -118,6 +127,9 @@ export default function TeacherShow({
   const [accountAction, setAccountAction] = useState<'suspend' | 'unsuspend' | 'delete' | 'restore' | 'force-delete'>('suspend');
   const [accountReason, setAccountReason] = useState("");
   const [isProcessingAccount, setIsProcessingAccount] = useState(false);
+
+  // Send message modal state
+  const [sendMessageModalOpen, setSendMessageModalOpen] = useState(false);
 
   // Account management functions
   const openAccountModal = (action: 'suspend' | 'unsuspend' | 'delete' | 'restore' | 'force-delete') => {
@@ -321,8 +333,7 @@ export default function TeacherShow({
             teacherId={teacher.id}
             verificationStatus={verification_status}
             onSendMessage={() => {
-              // Handle send message action
-              console.log('Send message to teacher:', teacher.id);
+              setSendMessageModalOpen(true);
             }}
             onRefresh={() => {
               // Refresh the page to get updated verification status
@@ -402,6 +413,19 @@ export default function TeacherShow({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Send Message Modal */}
+      <SendMessageModal
+        isOpen={sendMessageModalOpen}
+        onClose={() => setSendMessageModalOpen(false)}
+        onSuccess={() => {
+          toast.success('Message sent successfully to ' + teacher.name);
+        }}
+        recipientId={teacher.id}
+        recipientName={teacher.name}
+        currentUserId={auth.user.id}
+        currentUserRole={auth.user.role || 'admin'}
+      />
     </AdminLayout>
   );
 }

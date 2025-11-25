@@ -24,7 +24,7 @@ use App\Http\Controllers\Teacher\AvailabilityController;
 */
 
 // Admin users endpoint for notifications
-Route::middleware('auth')->get('/admin/users', function (Request $request) {
+Route::middleware('auth:sanctum')->get('/admin/users', function (Request $request) {
     // Check if user is admin or super-admin
     if (!in_array($request->user()->role, ['admin', 'super-admin'])) {
         return response()->json(['error' => 'Unauthorized'], 403);
@@ -45,14 +45,14 @@ Route::get('/test-notification', function () {
 });
 
 // User list endpoint for notifications
-Route::middleware('auth')->get('/users/list', [UserListController::class, 'index']);
+Route::middleware('auth:sanctum')->get('/users/list', [UserListController::class, 'index']);
 
-Route::middleware('auth')->get('/user', function (Request $request) {
+Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
 
 // Simple endpoint to get the current user's ID for WebSocket connections
-Route::middleware('auth')->get('/user-id', function (Request $request) {
+Route::middleware('auth:sanctum')->get('/user-id', function (Request $request) {
     return response()->json([
         'id' => $request->user()->id,
         'success' => true
@@ -60,7 +60,7 @@ Route::middleware('auth')->get('/user-id', function (Request $request) {
 });
 
 // Notification routes
-Route::middleware('auth')->group(function () {
+Route::middleware('auth:sanctum')->group(function () {
     // User notifications
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::get('/notifications/{notification}', [NotificationController::class, 'show']);
@@ -86,6 +86,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/{conversationId}/unarchive', [App\Http\Controllers\API\ConversationController::class, 'unarchive']);
         Route::post('/{conversationId}/mute', [App\Http\Controllers\API\ConversationController::class, 'mute']);
         Route::post('/{conversationId}/unmute', [App\Http\Controllers\API\ConversationController::class, 'unmute']);
+        Route::post('/{conversationId}/typing', [App\Http\Controllers\API\ConversationController::class, 'typing']);
+        Route::post('/{conversationId}/mark-read', [App\Http\Controllers\API\ConversationController::class, 'markAsRead']);
     });
     
     Route::prefix('messages')->group(function () {
@@ -94,6 +96,18 @@ Route::middleware('auth')->group(function () {
         Route::delete('/{messageId}', [App\Http\Controllers\API\MessageController::class, 'destroy']);
         Route::post('/{messageId}/read', [App\Http\Controllers\API\MessageController::class, 'markAsRead']);
         Route::post('/read-all', [App\Http\Controllers\API\MessageController::class, 'markAllAsRead']);
+        
+        // Attachment routes with rate limiting and quota check
+        // Limit: 20 uploads per minute per user
+        Route::post('/{messageId}/attachments', [App\Http\Controllers\API\MessageAttachmentController::class, 'upload'])
+            ->middleware(['throttle:20,1', 'attachment.quota']);
+    });
+    
+    // Attachment routes
+    Route::prefix('attachments')->group(function () {
+        Route::get('/{attachmentId}/download', [App\Http\Controllers\API\MessageAttachmentController::class, 'download']);
+        Route::get('/{attachmentId}/url', [App\Http\Controllers\API\MessageAttachmentController::class, 'getSignedUrl']);
+        Route::delete('/{attachmentId}', [App\Http\Controllers\API\MessageAttachmentController::class, 'destroy']);
     });
     
     Route::prefix('search')->group(function () {
@@ -104,7 +118,7 @@ Route::middleware('auth')->group(function () {
 });
 
 // Admin API routes
-Route::middleware(['auth'])
+Route::middleware('auth:sanctum')
     ->prefix('admin')
     ->group(function () {
         // Urgent Actions endpoints
@@ -160,7 +174,7 @@ Route::middleware(['auth'])
     });
 
     // Teacher availability routes
-    Route::middleware(['web', 'auth', 'role:teacher'])->group(function () {
+    Route::middleware(['auth:sanctum', 'role:teacher'])->group(function () {
         Route::get('/teacher/availability/{teacherId}', [AvailabilityController::class, 'getAvailability']);
         Route::post('/teacher/availability/{teacherId}', [AvailabilityController::class, 'updateAvailability']);
     });

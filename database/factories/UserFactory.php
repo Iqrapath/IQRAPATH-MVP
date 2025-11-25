@@ -17,6 +17,25 @@ class UserFactory extends Factory
     protected static ?string $password;
 
     /**
+     * Configure the model factory.
+     */
+    public function configure(): static
+    {
+        return $this->afterCreating(function (\App\Models\User $user) {
+            // Create appropriate profile based on role
+            if ($user->role === 'teacher' && !$user->teacherProfile) {
+                \App\Models\TeacherProfile::factory()->create(['user_id' => $user->id]);
+            } elseif ($user->role === 'student' && !$user->studentProfile) {
+                \App\Models\StudentProfile::factory()->create(['user_id' => $user->id]);
+            } elseif ($user->role === 'guardian' && !$user->guardianProfile) {
+                \App\Models\GuardianProfile::factory()->create(['user_id' => $user->id]);
+            } elseif (in_array($user->role, ['admin', 'super-admin']) && !$user->adminProfile) {
+                \App\Models\AdminProfile::factory()->create(['user_id' => $user->id]);
+            }
+        });
+    }
+
+    /**
      * Define the model's default state.
      *
      * @return array<string, mixed>

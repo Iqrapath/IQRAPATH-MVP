@@ -98,7 +98,7 @@ export default function TeacherLeftSidebar({ className, isMobile = false, onClos
             title: 'Messages',
             href: '/teacher/messages',
             icon: MessageSquare,
-            comingSoon: true,
+            // comingSoon: true,
         },
         {
             title: 'Profile',

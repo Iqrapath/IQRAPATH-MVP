@@ -16,8 +16,20 @@ class SubjectTemplatesFactory extends Factory
      */
     public function definition(): array
     {
+        $subjects = [
+            'Quran Recitation (Hifz)',
+            'Tajweed',
+            'Arabic Language',
+            'Islamic Studies',
+            'Quran Tafsir',
+            'Hadith Studies',
+            'Fiqh (Islamic Jurisprudence)',
+            'Aqeedah (Islamic Creed)',
+        ];
+
         return [
-            //
+            'name' => fake()->unique()->randomElement($subjects),
+            'is_active' => true,
         ];
     }
 }

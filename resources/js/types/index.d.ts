@@ -115,6 +115,19 @@ export interface Message {
     sender?: User;
     recipient?: User;
     attachments?: any[];
+    conversation_id?: number;
+}
+
+export interface Conversation {
+    id: number;
+    type: 'direct' | 'group';
+    context_type?: string | null;
+    context_id?: number | null;
+    created_at: string;
+    updated_at: string;
+    participants?: User[];
+    latest_message?: Message;
+    messages?: Message[];
 }
 
 export interface AdminProfile {

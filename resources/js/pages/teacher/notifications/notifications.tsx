@@ -6,6 +6,7 @@ import { NotificationDetail } from '@/components/notification/notification-detai
 import { Notification } from '@/types';
 import { useNotifications } from '@/hooks/use-notifications';
 import { ArrowLeft } from 'lucide-react';
+import { Head } from '@inertiajs/react';
 
 export default function TeacherNotificationsPage() {
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
@@ -32,6 +33,7 @@ export default function TeacherNotificationsPage() {
 
   return (
     <TeacherLayout pageTitle="Notifications">
+      <Head title="Notifications" />
       <div className="container py-6">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold">Notifications</h1>

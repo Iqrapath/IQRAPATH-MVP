@@ -38,6 +38,9 @@ return Application::configure(basePath: dirname(__DIR__))
             TrackUserActivity::class,
             RedirectBasedOnRole::class,
         ]);
+        
+        // Add Sanctum stateful API middleware
+        $middleware->statefulApi();
 
         $middleware->alias([
             'role' => CheckRole::class,
@@ -46,6 +49,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'verify.paystack' => \App\Http\Middleware\VerifyPaystackSignature::class,
             'verify.paypal' => \App\Http\Middleware\VerifyPayPalSignature::class,
             'throttle.oauth' => \App\Http\Middleware\ThrottleOAuthRequests::class,
+            'attachment.quota' => \App\Http\Middleware\CheckAttachmentQuota::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

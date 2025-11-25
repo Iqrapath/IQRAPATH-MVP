@@ -1,9 +1,12 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MessageCircle, Video, User } from 'lucide-react';
+import { MessageCircle, Video } from 'lucide-react';
 import { StudentProfileModal } from './StudentProfileModal';
 import { useState } from 'react';
+import { router } from '@inertiajs/react';
+import axios from 'axios';
+import { toast } from 'sonner';
 
 interface StudentSessionRequestCardProps {
     student: {
@@ -66,7 +69,41 @@ export function StudentSessionRequestCard({
         onViewProfile?.();
     };
 
-    const handleChat = () => {
+    const handleChat = async () => {
+        try {
+            // Create or get existing conversation with this student
+            const response = await axios.post('/api/conversations', {
+                recipient_id: student.id
+            });
+
+            if (response.data.success && response.data.data) {
+                // Navigate to the conversation
+                router.visit(route('teacher.messages.show', response.data.data.id));
+            }
+        } catch (error) {
+            console.error('Failed to start conversation:', error);
+            if (axios.isAxiosError(error) && error.response) {
+                const errorData = error.response.data;
+                
+                // Check if it's a role restriction
+                if (errorData.code === 'ROLE_RESTRICTION') {
+                    toast.error('Unable to message student', {
+                        description: errorData.message || 'You need an active session to message this student.'
+                    });
+                    return;
+                }
+                
+                // Other errors
+                toast.error('Failed to start conversation', {
+                    description: errorData.message || 'Please try again later.'
+                });
+            } else {
+                toast.error('Failed to start conversation', {
+                    description: 'Please check your internet connection and try again.'
+                });
+            }
+        }
+        
         onChat?.();
     };
 
@@ -134,15 +171,13 @@ export function StudentSessionRequestCard({
             {/* Bottom Section */}
             <div className="flex items-center justify-between">
                 {/* Pricing */}
-                <div className="flex flex-col">
-                    <div className="bg-teal-100 text-teal-800 px-3 py-1 rounded-full text-sm font-bold">
+                <div className="flex flex-col bg-teal-100 text-teal-800 px-3 py-1 rounded-full text-sm font-bold">
+                    <div className="">
                         {request.price} / {request.priceNaira}
                     </div>
                     <span className="text-xs text-gray-500 mt-1">Per session</span>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex items-center space-x-3">
                     <Button
                         variant="link"
                         className="text-teal-600 hover:text-teal-700 p-0 text-sm font-medium"
@@ -150,22 +185,24 @@ export function StudentSessionRequestCard({
                     >
                         View Profile
                     </Button>
+                {/* Action Buttons */}
+                <div className="flex items-center justify-between border-b-3 border-teal-700 rounded-lg">
                     <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-8 h-8 p-0 border-teal-200 text-teal-600 hover:bg-teal-50"
+                        variant="ghost"
+                        size="icon"
+                        className="bg-transparent hover:bg-trasparentw-8 h-8 border-teal-200 text-teal-600 cursor-pointer"
                         onClick={handleChat}
                     >
-                        <MessageCircle className="h-4 w-4" />
+                        <MessageCircle className="h-8 w-8" />
                     </Button>
-                    <Button
+                    {/* <Button
                         variant="outline"
                         size="sm"
                         className="w-8 h-8 p-0 border-teal-200 text-teal-600 hover:bg-teal-50"
                         onClick={handleVideoCall}
                     >
                         <Video className="h-4 w-4" />
-                    </Button>
+                    </Button> */}
                 </div>
             </div>
 

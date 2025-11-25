@@ -110,15 +110,16 @@ export function StudentCard({ student, onViewProfile, onChat, onVideoCall }: Stu
                     <div className="flex items-center space-x-1 border-b-2 border-[#2C7870] rounded-full relative">
                         <Button 
                             variant="ghost" 
-                            size="sm" 
+                            size="icon" 
                             className="p-2 text-[#2C7870] hover:text-[#2C7870] hover:bg-transparent cursor-pointer"
                             onClick={() => onChat(student)}
                         >
                             <MessageCircle className="w-5 h-5" />
                         </Button>
+                        |
                         <Button 
                             variant="ghost" 
-                            size="sm" 
+                            size="icon" 
                             className="p-2 text-[#2C7870] hover:text-[#2C7870] hover:bg-transparent cursor-pointer"
                             onClick={() => onVideoCall(student)}
                         >

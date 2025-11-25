@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { StudentSessionRequestCard } from '@/components/student-cards';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Users } from 'lucide-react';
+import { router } from '@inertiajs/react';
+import axios from 'axios';
+import { toast } from 'sonner';
 
 interface RecommendedStudent {
     id: number;
@@ -91,6 +94,43 @@ export function RecommendedStudents({
         setScrollPosition(e.currentTarget.scrollLeft);
     };
 
+    // Handle messaging a student
+    const handleMessageStudent = async (studentId: number) => {
+        try {
+            // Create or get existing conversation with this student
+            const response = await axios.post('/api/conversations', {
+                recipient_id: studentId
+            });
+
+            if (response.data.success && response.data.data) {
+                // Navigate to the conversation
+                router.visit(route('teacher.messages.show', response.data.data.id));
+            }
+        } catch (error) {
+            console.error('Failed to start conversation:', error);
+            if (axios.isAxiosError(error) && error.response) {
+                const errorData = error.response.data;
+                
+                // Check if it's a role restriction
+                if (errorData.code === 'ROLE_RESTRICTION') {
+                    toast.error('Unable to message student', {
+                        description: errorData.message || 'You need an active session to message this student.'
+                    });
+                    return;
+                }
+                
+                // Other errors
+                toast.error('Failed to start conversation', {
+                    description: errorData.message || 'Please try again later.'
+                });
+            } else {
+                toast.error('Failed to start conversation', {
+                    description: 'Please check your internet connection and try again.'
+                });
+            }
+        }
+    };
+
     if (loading) {
         return (
             <div className="space-y-4">
@@ -156,10 +196,7 @@ export function RecommendedStudents({
                                 <StudentSessionRequestCard
                                     student={recommendation.student}
                                     request={recommendation.request}
-                                    onChat={() => {
-                                        console.log('Chat with:', recommendation.student.id);
-                                        // Open chat with student
-                                    }}
+                                    onChat={() => handleMessageStudent(recommendation.student.id)}
                                     onVideoCall={() => {
                                         console.log('Video call with:', recommendation.student.id);
                                         // Initiate video call

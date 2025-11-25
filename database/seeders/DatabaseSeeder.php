@@ -38,6 +38,7 @@ class DatabaseSeeder extends Seeder
             ScheduledNotificationSeeder::class,
             PayoutRequestSeeder::class, // Create test payout requests
             FinancialSettingsSeeder::class, //Create finacial settings
+            MessageSeeder::class, // Create test conversations and messages
         ]);
     }
 }

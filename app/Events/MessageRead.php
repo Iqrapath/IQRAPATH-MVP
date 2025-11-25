@@ -9,11 +9,11 @@ use App\Models\User;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class MessageRead implements ShouldBroadcast
+class MessageRead implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
@@ -32,9 +32,16 @@ class MessageRead implements ShouldBroadcast
      */
     public function broadcastOn(): array
     {
-        return [
+        $channels = [
             new PrivateChannel('conversation.' . $this->message->conversation_id),
         ];
+
+        // Also broadcast to the message sender's user channel
+        if ($this->message->sender_id) {
+            $channels[] = new PrivateChannel('user.' . $this->message->sender_id);
+        }
+
+        return $channels;
     }
 
     /**
@@ -52,12 +59,28 @@ class MessageRead implements ShouldBroadcast
      */
     public function broadcastWith(): array
     {
+        // Reload message to get updated statuses
+        $this->message->refresh();
+        $this->message->load(['sender', 'statuses']);
+
+        // Get the read status for this user
+        $readStatus = $this->message->statuses()
+            ->where('user_id', $this->user->id)
+            ->where('status', 'read')
+            ->first();
+
         return [
-            'message_id' => $this->message->id,
-            'conversation_id' => $this->message->conversation_id,
+            'message' => [
+                'id' => $this->message->id,
+                'conversation_id' => $this->message->conversation_id,
+                'sender_id' => $this->message->sender_id,
+                'content' => $this->message->content,
+                'read_at' => $readStatus?->status_at?->toISOString(),
+                'created_at' => $this->message->created_at->toISOString(),
+            ],
             'user_id' => $this->user->id,
             'user_name' => $this->user->name,
-            'read_at' => now()->toISOString(),
+            'read_at' => $readStatus?->status_at?->toISOString(),
         ];
     }
 }

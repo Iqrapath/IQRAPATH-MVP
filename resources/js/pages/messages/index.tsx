@@ -24,6 +24,7 @@ export default function MessagesPage() {
   
   // Group messages by user (conversation)
   const conversationsByUser: Record<number, {
+    id: number;
     user: User | undefined;
     lastMessage: string;
     unreadCount: number;
@@ -31,11 +32,14 @@ export default function MessagesPage() {
   }> = {};
   
   messages.forEach(message => {
+    if (!message.conversation_id) return; // Skip messages without conversation ID
+    
     const otherUserId = message.sender_id === auth.user.id ? message.recipient_id : message.sender_id;
     const otherUser = message.sender_id === auth.user.id ? message.recipient : message.sender;
     
     if (!conversationsByUser[otherUserId]) {
       conversationsByUser[otherUserId] = {
+        id: message.conversation_id,
         user: otherUser,
         lastMessage: message.content,
         unreadCount: message.read_at ? 0 : (message.recipient_id === auth.user.id ? 1 : 0),
@@ -71,12 +75,13 @@ export default function MessagesPage() {
       <div className="container py-6">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold">Messages</h1>
-          <Link href="/messages/new">
+          {/* TODO: Implement new message functionality */}
+          {/* <Link href="/messages/new">
             <Button>
               <MessageSquare className="mr-2 h-4 w-4" />
               New Message
             </Button>
-          </Link>
+          </Link> */}
         </div>
 
         <div className="relative mb-4">
@@ -113,7 +118,7 @@ export default function MessagesPage() {
             {conversations.map((conversation, index) => {
               const hasUnread = conversation.unreadCount > 0;
               return (
-                <Link href={`/messages/user/${conversation.user?.id}`} key={index}>
+                <Link href={route(auth.user.role === 'teacher' ? 'teacher.messages.show' : 'student.messages.show', conversation.id)} key={index}>
                   <Card className={cn(
                     "transition-colors hover:bg-muted/50",
                     hasUnread && "bg-muted/30"

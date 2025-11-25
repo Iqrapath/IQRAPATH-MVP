@@ -25,6 +25,8 @@ class MessageAttachment extends Model
         'file_path',
         'file_size',
         'mime_type',
+        'attachment_type',
+        'duration',
         'metadata',
     ];
 
@@ -36,6 +38,7 @@ class MessageAttachment extends Model
     protected $casts = [
         'metadata' => 'array',
         'file_size' => 'integer',
+        'duration' => 'integer',
     ];
 
     /**

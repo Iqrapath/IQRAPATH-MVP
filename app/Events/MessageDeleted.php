@@ -7,11 +7,11 @@ namespace App\Events;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class MessageDeleted implements ShouldBroadcast
+class MessageDeleted implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
@@ -31,6 +31,9 @@ class MessageDeleted implements ShouldBroadcast
      */
     public function broadcastOn(): array
     {
+        // Broadcast to conversation channel and all participants' user channels
+        // Note: We can't load participants here since message is already deleted
+        // So we only broadcast to conversation channel
         return [
             new PrivateChannel('conversation.' . $this->conversationId),
         ];

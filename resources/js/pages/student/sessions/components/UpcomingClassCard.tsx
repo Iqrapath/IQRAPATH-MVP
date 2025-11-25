@@ -10,14 +10,18 @@
  * - Shows "Confirmed" or "Pending" status badges
  * - No progress bar (class hasn't started yet)
  */
-import React from 'react';
-import { MessageCircle, Video } from 'lucide-react';
+import { Video, MessageCircle } from 'lucide-react';
+import { router } from '@inertiajs/react';
+import axios from 'axios';
+import { toast } from 'sonner';
+import { parseISO, differenceInMinutes, format as formatDate } from 'date-fns';
 
 interface SessionListItem {
     id: number;
     session_uuid: string;
     title: string;
     teacher: string;
+    teacher_id: number;
     teacher_avatar: string;
     subject: string;
     date: string;
@@ -29,6 +33,8 @@ interface SessionListItem {
     progress?: number;
     rating?: number;
     imageUrl?: string;
+    booking_date?: string;
+    start_time?: string;
 }
 
 interface UpcomingClassCardProps {
@@ -46,6 +52,7 @@ export default function UpcomingClassCard({
 }: UpcomingClassCardProps) {
     const getStatusBadgeColor = (status: string) => {
         switch (status?.toLowerCase()) {
+            case 'approved':
             case 'confirmed':
                 return 'bg-teal-200 text-white';
             case 'pending':
@@ -54,6 +61,100 @@ export default function UpcomingClassCard({
                 return 'bg-blue-200 text-white';
             default:
                 return 'bg-gray-200 text-white';
+        }
+    };
+
+    const handleMessageTeacher = async () => {
+        try {
+            const response = await axios.post('/api/conversations', {
+                recipient_id: session.teacher_id
+            });
+
+            if (response.data.success && response.data.data) {
+                router.visit(route('student.messages.show', response.data.data.id));
+            }
+        } catch (error) {
+            console.error('Failed to start conversation:', error);
+            if (axios.isAxiosError(error) && error.response) {
+                const errorData = error.response.data;
+                
+                // Check if it's a role restriction (no active booking)
+                if (errorData.code === 'ROLE_RESTRICTION') {
+                    if (session.status?.toLowerCase() === 'pending') {
+                        toast.info('Booking pending approval', {
+                            description: 'You can message the teacher once they approve your booking request.'
+                        });
+                    } else {
+                        toast.error('Unable to message teacher', {
+                            description: errorData.message || 'You need an active booking to message this teacher.'
+                        });
+                    }
+                    return;
+                }
+                
+                // Other errors
+                toast.error('Failed to start conversation', {
+                    description: errorData.message || 'Please try again later.'
+                });
+            } else {
+                toast.error('Failed to start conversation', {
+                    description: 'Please check your internet connection and try again.'
+                });
+            }
+        }
+    };
+
+    const handleStartClass = () => {
+        // Only allow approved sessions to join
+        if (session.status?.toLowerCase() !== 'approved') {
+            toast.error('Class not yet approved', {
+                description: 'Please wait for the teacher to approve your booking.'
+            });
+            return;
+        }
+
+        // Check if meeting link exists
+        if (!session.meeting_link) {
+            toast.error('Meeting link not available', {
+                description: 'The meeting link will be available closer to the session time.'
+            });
+            return;
+        }
+
+        // Parse session date and time
+        try {
+            // Combine date and time to create a full datetime
+            const sessionDateTime = new Date(`${session.booking_date || session.date} ${session.start_time || session.time.split(' - ')[0]}`);
+            const now = new Date();
+            const minutesUntilStart = differenceInMinutes(sessionDateTime, now);
+
+            // Allow joining 15 minutes before the session starts
+            if (minutesUntilStart > 15) {
+                const sessionTime = formatDate(sessionDateTime, 'h:mm a');
+                const sessionDate = formatDate(sessionDateTime, 'MMM d, yyyy');
+                const hours = Math.floor(minutesUntilStart / 60);
+                const minutes = minutesUntilStart % 60;
+                
+                let timeRemaining = '';
+                if (hours > 0) {
+                    timeRemaining = `${hours} hour${hours > 1 ? 's' : ''} and ${minutes} minute${minutes !== 1 ? 's' : ''}`;
+                } else {
+                    timeRemaining = `${minutes} minute${minutes !== 1 ? 's' : ''}`;
+                }
+
+                toast.info('Class not yet started', {
+                    description: `Your class is scheduled for ${sessionTime} on ${sessionDate}. You can join ${timeRemaining} before the start time (15 minutes early).`,
+                    duration: 6000
+                });
+                return;
+            }
+
+            // Allow joining - open meeting link
+            window.open(session.meeting_link, '_blank');
+        } catch (error) {
+            console.error('Error parsing session time:', error);
+            // Fallback: just open the link
+            window.open(session.meeting_link, '_blank');
         }
     };
 
@@ -103,13 +204,30 @@ export default function UpcomingClassCard({
                 </div>
             </div>
 
-            {/* Right Section - Status Badge and Action Button */}
-            <div className="flex flex-col items-end space-y-2">
-                {/* Status Badge */}
+            {/* Right Section - Action Buttons */}
+            <div className="flex items-center space-x-3">
+                {/* Start Class Button - Only for approved sessions */}
+                <button 
+                    onClick={handleStartClass}
+                    disabled={session.status?.toLowerCase() !== 'approved'}
+                    className={`px-4 py-2 rounded-full transition-colors text-sm font-medium flex items-center space-x-2 ${
+                        session.status?.toLowerCase() === 'approved'
+                            ? 'bg-[#2C7870] text-white hover:bg-[#236158]'
+                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                    title={session.status?.toLowerCase() === 'approved' ? 'Join class' : 'Waiting for approval'}
+                >
+                    <Video className="w-4 h-4" />
+                    <span>Start Class</span>
+                </button>
 
-                {/* Start Class Button */}
-                <button className="px-4 py-2 bg-[#2C7870] text-white rounded-full hover:bg-[#236158] transition-colors text-sm font-medium">
-                    Start Class
+                {/* Message Button */}
+                <button 
+                    onClick={handleMessageTeacher}
+                    className="p-2 text-[#2C7870] hover:bg-teal-50 rounded-full transition-colors"
+                    title="Message teacher"
+                >
+                    <MessageCircle className="w-5 h-5" />
                 </button>
             </div>
         </div>

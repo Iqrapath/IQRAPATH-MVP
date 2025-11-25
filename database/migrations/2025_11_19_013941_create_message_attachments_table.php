@@ -19,11 +19,13 @@ return new class extends Migration
             $table->string('file_path', 500)->comment('Storage path');
             $table->unsignedBigInteger('file_size')->comment('File size in bytes');
             $table->string('mime_type', 100)->comment('File MIME type');
+            $table->enum('attachment_type', ['voice', 'image', 'file'])->comment('Type of attachment');
+            $table->integer('duration')->nullable()->comment('Duration in seconds for audio files');
             $table->json('metadata')->nullable()->comment('Additional file metadata');
             $table->timestamps();
             
-            // Index for performance
-            $table->index('message_id', 'idx_message');
+            // Indexes for performance
+            $table->index(['message_id', 'attachment_type'], 'idx_message_type');
         });
     }
 

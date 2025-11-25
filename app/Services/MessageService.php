@@ -23,7 +23,8 @@ use Carbon\Carbon;
 class MessageService
 {
     public function __construct(
-        private NotificationService $notificationService
+        private NotificationService $notificationService,
+        private AttachmentService $attachmentService
     ) {}
 
     /**
@@ -179,7 +180,7 @@ class MessageService
      * @param  int  $conversationId
      * @param  string  $content
      * @param  string  $type
-     * @param  array  $attachments
+     * @param  array  $files Array of UploadedFile instances with attachment metadata
      * @return Message
      * @throws \Exception
      */
@@ -188,10 +189,10 @@ class MessageService
         int $conversationId,
         string $content,
         string $type = 'text',
-        array $attachments = []
+        array $files = []
     ): Message {
-        return DB::transaction(function () use ($sender, $conversationId, $content, $type, $attachments) {
-            $conversation = Conversation::findOrFail($conversationId);
+        return DB::transaction(function () use ($sender, $conversationId, $content, $type, $files) {
+            $conversation = Conversation::with('participants')->findOrFail($conversationId);
 
             // Verify sender is a participant
             if (!$conversation->participants()->where('user_id', $sender->id)->exists()) {
@@ -206,12 +207,23 @@ class MessageService
                 'type' => $type,
             ]);
 
-            // Handle attachments
-            foreach ($attachments as $file) {
-                if ($file instanceof UploadedFile) {
-                    $this->attachFile($message, $file);
+            // Handle file attachments using AttachmentService
+            foreach ($files as $fileData) {
+                if (isset($fileData['file']) && $fileData['file'] instanceof UploadedFile) {
+                    $attachmentType = $fileData['type'] ?? 'file';
+                    $metadata = $fileData['metadata'] ?? [];
+                    
+                    $this->attachmentService->storeAttachment(
+                        $fileData['file'],
+                        $message->id,
+                        $attachmentType,
+                        $metadata
+                    );
                 }
             }
+
+            // Reload message with attachments
+            $message->load('attachments');
 
             // Create status records for all participants except sender
             $recipients = $conversation->participants()
@@ -234,12 +246,25 @@ class MessageService
 
                 // Send notification if not muted
                 if (!$isMuted) {
+                    $notificationBody = $content;
+                    
+                    // Customize notification based on attachment type
+                    if ($message->attachments->isNotEmpty()) {
+                        $firstAttachment = $message->attachments->first();
+                        $notificationBody = match($firstAttachment->attachment_type) {
+                            'voice' => '🎤 Voice message',
+                            'image' => '📷 Image',
+                            'file' => '📎 File attachment',
+                            default => $content
+                        };
+                    }
+                    
                     $this->notificationService->createNotification(
                         $recipient,
                         'message',
                         [
                             'title' => "New message from {$sender->name}",
-                            'body' => substr($content, 0, 100),
+                            'body' => substr($notificationBody, 0, 100),
                             'sender_id' => $sender->id,
                             'sender_name' => $sender->name,
                             'conversation_id' => $conversationId,
@@ -255,27 +280,6 @@ class MessageService
 
             return $message;
         });
-    }
-
-    /**
-     * Attach a file to a message.
-     *
-     * @param  Message  $message
-     * @param  UploadedFile  $file
-     * @return MessageAttachment
-     */
-    private function attachFile(Message $message, UploadedFile $file): MessageAttachment
-    {
-        $filename = uniqid() . '_' . $file->getClientOriginalName();
-        $path = $file->storeAs('message-attachments', $filename, 'private');
-
-        return $message->attachments()->create([
-            'filename' => $filename,
-            'original_filename' => $file->getClientOriginalName(),
-            'file_path' => $path,
-            'file_size' => $file->getSize(),
-            'mime_type' => $file->getMimeType(),
-        ]);
     }
 
     /**
@@ -458,7 +462,7 @@ class MessageService
     {
         return Booking::where('student_id', $student->id)
             ->where('teacher_id', $teacher->id)
-            ->whereIn('status', ['approved', 'completed'])
+            ->whereIn('status', ['pending', 'approved', 'completed', 'upcoming', 'in_progress'])
             ->exists();
     }
 

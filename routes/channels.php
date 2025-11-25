@@ -57,3 +57,15 @@ Broadcast::channel('conversation.{conversationId}', function ($user, $conversati
         })
         ->exists();
 });
+
+// Presence channel for online/offline status
+Broadcast::channel('presence-online', function ($user) {
+    if ($user) {
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'avatar' => $user->avatar,
+            'role' => $user->role,
+        ];
+    }
+});
