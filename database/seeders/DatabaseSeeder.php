@@ -17,28 +17,30 @@ class DatabaseSeeder extends Seeder
         // Call the seeders in order
         $this->call([
             SuperAdminSeeder::class,
-            AdminSeeder::class,
-            SubjectTemplatesSeeder::class, // Must run before TeacherSeeder
-            TeacherSeeder::class,
-            StudentSeeder::class, // Must run before TeacherReviewSeeder
-            OngoingBookingSeeder::class,
-            TodayOngoingSeeder::class,
-            GuardianSeeder::class,
-            TeacherAvailabilitySeeder::class,
-            TeacherWalletSeeder::class,
-            TeacherReviewSeeder::class, // Now students exist
-            UnassignedUserSeeder::class, // Create unassigned users for testing
-            UserSeeder::class, // This should run last to handle relationships
-            BookingSeeder::class, // Create bookings with sessions
-            TeachingSessionSeeder::class,
-        //    TodayOngoingSeeder::class,
             NotificationTemplateSeeder::class,
             NotificationTriggerSeeder::class,
             UrgentActionSeeder::class,
             ScheduledNotificationSeeder::class,
-            PayoutRequestSeeder::class, // Create test payout requests
             FinancialSettingsSeeder::class, //Create finacial settings
-            MessageSeeder::class, // Create test conversations and messages
+
+            // Testing seeders
+            // AdminSeeder::class,
+            // SubjectTemplatesSeeder::class, // Must run before TeacherSeeder
+            // TeacherSeeder::class,
+            // StudentSeeder::class, // Must run before TeacherReviewSeeder
+            // OngoingBookingSeeder::class,
+            // TodayOngoingSeeder::class,
+            // GuardianSeeder::class,
+            // TeacherAvailabilitySeeder::class,
+            // TeacherWalletSeeder::class,
+            // TeacherReviewSeeder::class, // Now students exist
+            // UnassignedUserSeeder::class, // Create unassigned users for testing
+            // UserSeeder::class, // This should run last to handle relationships
+            // BookingSeeder::class, // Create bookings with sessions
+            // TeachingSessionSeeder::class,
+            // TodayOngoingSeeder::class,
+            // PayoutRequestSeeder::class, // Create test payout requests
+            // MessageSeeder::class, // Create test conversations and messages
         ]);
     }
 }
